@@ -5,6 +5,7 @@ import type {
   UsageLibraryId,
   UsageWarning,
 } from "../api/types.js";
+import { analyzeFileAliases } from "./alias-resolve.js";
 import { buildFileBindings } from "./bindings.js";
 import { LIBRARY_USAGE_DETECTORS } from "./detectors/index.js";
 import { offsetUsages, resolveAbsolutePath } from "./location.js";
@@ -160,6 +161,10 @@ function analyzeScript(input: {
   });
   // Malformed files still yield a best-effort AST — never throw.
   const bindings = buildFileBindings(parsed.sourceFile);
+  const aliasAnalysis = analyzeFileAliases(
+    parsed.sourceFile,
+    input.fileName,
+  );
   const found: TranslationUsage[] = [];
   const seen = new Set<string>();
 
@@ -170,6 +175,7 @@ function analyzeScript(input: {
       sourceText: input.sourceText,
       sourceFile: parsed.sourceFile,
       bindings,
+      aliasAnalysis,
       libraryHints: input.libraryHints,
     });
     for (const usage of hits) {

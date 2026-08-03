@@ -1,11 +1,11 @@
 import { traversalApi } from "@i18n-unused/ast";
 import ts from "typescript";
 import type { LibraryUsageDetector, TranslationUsage } from "../../api/types.js";
+import { resolveCalleeForUsage } from "../alias-resolve.js";
 import { calleeIdentifier, staticStringKey } from "../ast-helpers.js";
 import {
   fileImportsLibrary,
   LINGUI_MODULES,
-  resolveTFunction,
 } from "../bindings.js";
 import { locationOf } from "../location.js";
 import { buildUsage } from "../usage-builder.js";
@@ -40,16 +40,24 @@ export const linguiUsageDetector: LibraryUsageDetector = {
         if (key === undefined || !keyNode) {
           return;
         }
-        const binding = resolveTFunction(
+        const pos = keyNode.getStart(sourceFile);
+        const alias = resolveCalleeForUsage(
           bindings,
+          input.aliasAnalysis,
           ident,
-          keyNode.getStart(sourceFile),
+          pos,
         );
+        const binding = alias.binding;
         if (binding) {
           if (binding.library !== "lingui") {
             return;
           }
-        } else if (!(hasLinguiImport && (ident === "msg" || ident === "t"))) {
+        } else if (
+          !(
+            hasLinguiImport &&
+            (alias.lookupName === "msg" || alias.lookupName === "t")
+          )
+        ) {
           return;
         }
         usages.push(
@@ -59,9 +67,14 @@ export const linguiUsageDetector: LibraryUsageDetector = {
             relativePath,
             location: locationOf(sourceFile, keyNode),
             library: "lingui",
-            confidence: binding?.confidence ?? 0.85,
+            confidence: Math.min(
+              binding?.confidence ?? 0.85,
+              alias.resolution.confidence,
+            ),
             context: "function-call",
-            evidence: `lingui-detector: ${binding?.origin ?? `${ident}(...)`}`,
+            evidence: `lingui-detector: ${binding?.origin ?? `${ident}(...)`}${
+              alias.aliasEvidence ? ` (${alias.aliasEvidence})` : ""
+            }`,
           }),
         );
       }
@@ -71,16 +84,24 @@ export const linguiUsageDetector: LibraryUsageDetector = {
         if (!tag) {
           return;
         }
-        const binding = resolveTFunction(
+        const pos = node.tag.getStart(sourceFile);
+        const alias = resolveCalleeForUsage(
           bindings,
+          input.aliasAnalysis,
           tag,
-          node.tag.getStart(sourceFile),
+          pos,
         );
+        const binding = alias.binding;
         if (binding) {
           if (binding.library !== "lingui") {
             return;
           }
-        } else if (!(hasLinguiImport && (tag === "msg" || tag === "t"))) {
+        } else if (
+          !(
+            hasLinguiImport &&
+            (alias.lookupName === "msg" || alias.lookupName === "t")
+          )
+        ) {
           return;
         }
         const tpl = node.template;
@@ -92,9 +113,11 @@ export const linguiUsageDetector: LibraryUsageDetector = {
               relativePath,
               location: locationOf(sourceFile, tpl),
               library: "lingui",
-              confidence: 0.8,
+              confidence: Math.min(0.8, alias.resolution.confidence),
               context: "tagged-template",
-              evidence: `lingui-detector: ${tag}\`...\``,
+              evidence: `lingui-detector: ${tag}\`...\`${
+                alias.aliasEvidence ? ` (${alias.aliasEvidence})` : ""
+              }`,
             }),
           );
         }

@@ -7,11 +7,11 @@ import {
   rootIdentifier,
   staticStringKey,
 } from "../ast-helpers.js";
+import { resolveCalleeForUsage } from "../alias-resolve.js";
 import {
   fileImportsLibrary,
   I18NEXT_MODULES,
   isI18nextFamily,
-  resolveTFunction,
 } from "../bindings.js";
 import { locationOf } from "../location.js";
 import { buildUsage } from "../usage-builder.js";
@@ -50,11 +50,39 @@ export const i18nextUsageDetector: LibraryUsageDetector = {
 
       const ident = calleeIdentifier(node.expression);
       if (ident) {
-        const binding = resolveTFunction(
+        const pos = keyNode.getStart(sourceFile);
+        const alias = resolveCalleeForUsage(
           bindings,
+          input.aliasAnalysis,
           ident,
-          keyNode.getStart(sourceFile),
+          pos,
         );
+
+        if (
+          alias.member &&
+          alias.member.property === "t" &&
+          bindings.i18nObjects.has(alias.member.object)
+        ) {
+          usages.push(
+            buildUsage({
+              key,
+              absolutePath,
+              relativePath,
+              location: locationOf(sourceFile, keyNode),
+              library: fileImportsLibrary(bindings, new Set(["react-i18next"]))
+                ? "react-i18next"
+                : fileImportsLibrary(bindings, new Set(["next-i18next"]))
+                  ? "next-i18next"
+                  : "i18next",
+              confidence: Math.min(0.88, alias.resolution.confidence),
+              context: "function-call",
+              evidence: `i18next-detector: ${alias.aliasEvidence ?? `${alias.member.object}.t`}`,
+            }),
+          );
+          return;
+        }
+
+        const binding = alias.binding;
         if (binding && isI18nextFamily(binding.library)) {
           usages.push(
             buildUsage({
@@ -66,9 +94,14 @@ export const i18nextUsageDetector: LibraryUsageDetector = {
               ...(binding.namespace !== undefined
                 ? { namespace: binding.namespace }
                 : {}),
-              confidence: binding.confidence,
+              confidence: Math.min(
+                binding.confidence,
+                alias.resolution.confidence,
+              ),
               context: "function-call",
-              evidence: `i18next-detector: ${binding.origin}`,
+              evidence: `i18next-detector: ${binding.origin}${
+                alias.aliasEvidence ? ` (${alias.aliasEvidence})` : ""
+              }`,
             }),
           );
           return;

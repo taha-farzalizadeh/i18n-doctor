@@ -1,11 +1,11 @@
 import { traversalApi } from "@i18n-unused/ast";
 import ts from "typescript";
 import type { LibraryUsageDetector, TranslationUsage } from "../../api/types.js";
+import { resolveCalleeForUsage } from "../alias-resolve.js";
 import { calleeIdentifier, staticStringKey } from "../ast-helpers.js";
 import {
   fileImportsLibrary,
   NEXT_INTL_MODULES,
-  resolveTFunction,
 } from "../bindings.js";
 import { locationOf } from "../location.js";
 import { buildUsage } from "../usage-builder.js";
@@ -42,11 +42,14 @@ export const nextIntlUsageDetector: LibraryUsageDetector = {
       if (key === undefined || !keyNode) {
         return;
       }
-      const binding = resolveTFunction(
+      const pos = keyNode.getStart(sourceFile);
+      const alias = resolveCalleeForUsage(
         bindings,
+        input.aliasAnalysis,
         ident,
-        keyNode.getStart(sourceFile),
+        pos,
       );
+      const binding = alias.binding;
       if (!binding || binding.library !== "next-intl") {
         return;
       }
@@ -60,9 +63,14 @@ export const nextIntlUsageDetector: LibraryUsageDetector = {
           ...(binding.namespace !== undefined
             ? { namespace: binding.namespace }
             : {}),
-          confidence: binding.confidence,
+          confidence: Math.min(
+            binding.confidence,
+            alias.resolution.confidence,
+          ),
           context: "function-call",
-          evidence: `next-intl-detector: ${binding.origin}`,
+          evidence: `next-intl-detector: ${binding.origin}${
+            alias.aliasEvidence ? ` (${alias.aliasEvidence})` : ""
+          }`,
         }),
       );
     });

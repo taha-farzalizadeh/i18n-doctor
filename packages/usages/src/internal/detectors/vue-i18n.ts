@@ -7,9 +7,9 @@ import {
   rootIdentifier,
   staticStringKey,
 } from "../ast-helpers.js";
+import { resolveCalleeForUsage } from "../alias-resolve.js";
 import {
   fileImportsLibrary,
-  resolveTFunction,
   VUE_I18N_MODULES,
 } from "../bindings.js";
 import { locationOf } from "../location.js";
@@ -43,11 +43,14 @@ export const vueI18nUsageDetector: LibraryUsageDetector = {
 
       const ident = calleeIdentifier(node.expression);
       if (ident) {
-        const binding = resolveTFunction(
+        const pos = keyNode.getStart(sourceFile);
+        const alias = resolveCalleeForUsage(
           bindings,
+          input.aliasAnalysis,
           ident,
-          keyNode.getStart(sourceFile),
+          pos,
         );
+        const binding = alias.binding;
         if (binding?.library === "vue-i18n") {
           usages.push(
             buildUsage({
@@ -56,9 +59,14 @@ export const vueI18nUsageDetector: LibraryUsageDetector = {
               relativePath,
               location: locationOf(sourceFile, keyNode),
               library: "vue-i18n",
-              confidence: binding.confidence,
+              confidence: Math.min(
+                binding.confidence,
+                alias.resolution.confidence,
+              ),
               context: "function-call",
-              evidence: `vue-i18n-detector: ${binding.origin}`,
+              evidence: `vue-i18n-detector: ${binding.origin}${
+                alias.aliasEvidence ? ` (${alias.aliasEvidence})` : ""
+              }`,
             }),
           );
           return;

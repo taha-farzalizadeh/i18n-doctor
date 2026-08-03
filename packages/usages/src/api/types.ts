@@ -115,6 +115,11 @@ export interface LibraryDetectInput {
   readonly sourceFile: import("typescript").SourceFile;
   /** File-local binding facts (no cross-file resolution). */
   readonly bindings: FileBindingTable;
+  /**
+   * File-local alias graph from @i18n-unused/resolve.
+   * Used to follow `const tx = t` / wrappers before binding lookup.
+   */
+  readonly aliasAnalysis: import("@i18n-unused/resolve").FileAliasAnalysis;
   readonly libraryHints: ReadonlySet<string>;
 }
 

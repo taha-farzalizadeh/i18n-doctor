@@ -1,7 +1,7 @@
 {
-  "name": "@i18n-unused/usages",
+  "name": "@i18n-unused/resolve",
   "version": "0.0.0",
-  "description": "Translation key usage detection with source locations",
+  "description": "File-local alias and variable resolution for translation usage detection",
   "type": "module",
   "exports": {
     ".": {
@@ -19,10 +19,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@i18n-unused/ast": "0.0.0",
-    "@i18n-unused/detect": "0.0.0",
-    "@i18n-unused/resolve": "0.0.0",
-    "@i18n-unused/scanner": "0.0.0"
+    "@i18n-unused/ast": "0.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.13.10",
