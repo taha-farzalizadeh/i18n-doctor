@@ -1,8 +1,8 @@
 import { createAstEngine, isSupportedSourceFileName } from "@i18n-unused/ast";
 import type { LiteFileEntry, ProjectSnapshotView } from "@i18n-unused/scanner";
 import type {
+  TemplateFrameworkId,
   TranslationUsage,
-  UsageLibraryId,
   UsageWarning,
 } from "../api/types.js";
 import { analyzeFileAliases } from "./alias-resolve.js";
@@ -10,10 +10,22 @@ import { buildFileBindings } from "./bindings.js";
 import { LIBRARY_USAGE_DETECTORS } from "./detectors/index.js";
 import { offsetUsages, resolveAbsolutePath } from "./location.js";
 import {
+  analyzeTemplates,
   extractVueScripts,
-  scanAngularTemplateUsages,
-  scanVueTemplateUsages,
+  templateSupportedExtension,
 } from "./template-scan.js";
+
+function vueFrameworkFromHints(
+  hints: ReadonlySet<string>,
+): TemplateFrameworkId {
+  for (const h of hints) {
+    const id = h.toLowerCase();
+    if (id === "nuxt-i18n" || id === "@nuxtjs/i18n" || (id.includes("nuxt") && id.includes("i18n"))) {
+      return "nuxt";
+    }
+  }
+  return "vue";
+}
 
 const MAX_FILE_BYTES = 1.5 * 1024 * 1024;
 const ANALYZE_CONCURRENCY = 8;
@@ -28,6 +40,8 @@ const SCRIPT_EXT = new Set([
   "mts",
   "cts",
 ]);
+
+const TEMPLATE_ONLY_EXT = new Set(["html", "htm", "svelte", "astro"]);
 
 export async function collectUsages(input: {
   root: string;
@@ -69,16 +83,19 @@ export async function collectUsages(input: {
 
       if (file.extension === "vue") {
         if (input.scanTemplates) {
-          for (const u of scanVueTemplateUsages({
+          for (const u of analyzeTemplates({
             absolutePath,
             relativePath,
             sourceText,
+            libraryHints: input.libraryHints,
+            warnings: input.warnings,
           })) {
             if (u.confidence >= input.minConfidence) {
               usages.push(u);
             }
           }
         }
+        const framework = vueFrameworkFromHints(input.libraryHints);
         for (const script of extractVueScripts(sourceText)) {
           const fileName = `${relativePath}.${script.lang}`;
           const scriptUsages = analyzeScript({
@@ -90,25 +107,29 @@ export async function collectUsages(input: {
             libraryHints: input.libraryHints,
             minConfidence: input.minConfidence,
           });
+          const shifted = offsetUsages(scriptUsages, sourceText, script.offset);
           usages.push(
-            ...offsetUsages(scriptUsages, sourceText, script.offset),
+            ...shifted.map((u) => ({
+              ...u,
+              framework: u.framework ?? framework,
+              detector: u.detector ?? "vue-i18n-detector",
+            })),
           );
         }
         return;
       }
 
       if (
-        (file.extension === "html" || file.extension === "htm") &&
-        input.scanTemplates
+        TEMPLATE_ONLY_EXT.has(file.extension) &&
+        input.scanTemplates &&
+        templateSupportedExtension(file.extension)
       ) {
-        const lib: UsageLibraryId = input.libraryHints.has("transloco")
-          ? "transloco"
-          : "ngx-translate";
-        for (const u of scanAngularTemplateUsages({
+        for (const u of analyzeTemplates({
           absolutePath,
           relativePath,
           sourceText,
-          library: lib,
+          libraryHints: input.libraryHints,
+          warnings: input.warnings,
         })) {
           if (u.confidence >= input.minConfidence) {
             usages.push(u);
@@ -213,8 +234,7 @@ function selectFiles(
     if (
       SCRIPT_EXT.has(ext) ||
       ext === "vue" ||
-      ext === "html" ||
-      ext === "htm"
+      TEMPLATE_ONLY_EXT.has(ext)
     ) {
       files.push(file);
     }

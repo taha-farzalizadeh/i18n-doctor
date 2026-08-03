@@ -95,6 +95,8 @@ t('title');
     const greeting = catalog.usages.find((u) => u.key === "greeting");
     const title = catalog.usages.find((u) => u.key === "title");
     expect(greeting?.library).toBe("vue-i18n");
+    expect(greeting?.framework).toBe("vue");
+    expect(greeting?.detector).toBe("vue-template-analyzer");
     expect(greeting?.location.line).toBe(2);
     expect(title?.library).toBe("vue-i18n");
     // script offset adjusted into full SFC coordinates
@@ -146,6 +148,75 @@ export class AppComponent {
     expect(instant?.context).toBe("method-call");
     expect(instant?.evidence).toContain("angular-detector");
     expect(pipe?.context).toBe("pipe");
+    expect(pipe?.framework).toBe("angular");
+    expect(pipe?.detector).toBe("angular-template-analyzer");
     expect(pipe?.location.line).toBe(1);
+  });
+});
+
+describe("svelte templates", () => {
+  it("detects $t in .svelte files", async () => {
+    const root = await fixture({
+      "package.json": JSON.stringify({
+        dependencies: { "svelte-i18n": "4.0.0" },
+      }),
+      "src/Widget.svelte": `<p>{$t('widget.title')}</p>
+`,
+    });
+    const catalog = await createUsageDetector().detect({
+      root,
+      useDetection: false,
+    });
+    const u = catalog.usages.find((x) => x.key === "widget.title");
+    expect(u?.framework).toBe("svelte");
+    expect(u?.detector).toBe("svelte-template-analyzer");
+  });
+});
+
+describe("astro templates", () => {
+  it("detects t() in .astro files", async () => {
+    const root = await fixture({
+      "package.json": JSON.stringify({
+        dependencies: { i18next: "23.0.0" },
+      }),
+      "src/pages/index.astro": `---
+const title = t('page.title');
+---
+<h1>{title}</h1>
+`,
+    });
+    const catalog = await createUsageDetector().detect({
+      root,
+      useDetection: false,
+      libraryHints: ["i18next"],
+    });
+    const u = catalog.usages.find((x) => x.key === "page.title");
+    expect(u?.framework).toBe("astro");
+    expect(u?.detector).toBe("astro-template-analyzer");
+  });
+});
+
+describe("vue template t()", () => {
+  it("detects bare t() in Vue template", async () => {
+    const root = await fixture({
+      "package.json": JSON.stringify({
+        dependencies: { "vue-i18n": "9.0.0" },
+      }),
+      "src/T.vue": `<template>
+  <p>{{ t('tpl.only') }}</p>
+</template>
+<script setup lang="ts">
+import { useI18n } from 'vue-i18n';
+const { t } = useI18n();
+</script>
+`,
+    });
+    const catalog = await createUsageDetector().detect({
+      root,
+      useDetection: false,
+    });
+    const tpl = catalog.usages.find((u) => u.key === "tpl.only");
+    expect(tpl?.framework).toBe("vue");
+    expect(tpl?.detector).toBe("vue-template-analyzer");
   });
 });

@@ -133,6 +133,8 @@ const USAGE_EXTENSIONS = [
   "vue",
   "html",
   "htm",
+  "svelte",
+  "astro",
 ] as const;
 
 async function scanProject(

@@ -1,7 +1,7 @@
 {
-  "name": "@i18n-unused/usages",
+  "name": "@i18n-unused/templates",
   "version": "0.0.0",
-  "description": "Translation key usage detection with source locations",
+  "description": "Framework template analyzers for translation key usages",
   "type": "module",
   "exports": {
     ".": {
@@ -17,13 +17,6 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
-  },
-  "dependencies": {
-    "@i18n-unused/ast": "0.0.0",
-    "@i18n-unused/detect": "0.0.0",
-    "@i18n-unused/resolve": "0.0.0",
-    "@i18n-unused/scanner": "0.0.0",
-    "@i18n-unused/templates": "0.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.13.10",

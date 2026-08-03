@@ -1,5 +1,6 @@
 import type {
   Confidence,
+  TemplateFrameworkId,
   TranslationUsage,
   UsageContext,
   UsageLibraryId,
@@ -16,6 +17,8 @@ export function buildUsage(input: {
   confidence: Confidence;
   context: UsageContext;
   evidence?: string;
+  framework?: TemplateFrameworkId;
+  detector?: string;
 }): TranslationUsage {
   return {
     key: input.key,
@@ -27,5 +30,7 @@ export function buildUsage(input: {
     confidence: Math.round(Math.min(1, Math.max(0, input.confidence)) * 1000) / 1000,
     context: input.context,
     ...(input.evidence !== undefined ? { evidence: input.evidence } : {}),
+    ...(input.framework !== undefined ? { framework: input.framework } : {}),
+    ...(input.detector !== undefined ? { detector: input.detector } : {}),
   };
 }

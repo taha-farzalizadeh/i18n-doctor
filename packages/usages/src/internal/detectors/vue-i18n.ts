@@ -71,6 +71,27 @@ export const vueI18nUsageDetector: LibraryUsageDetector = {
           );
           return;
         }
+        // Nuxt auto-imports `t` / `$t` without a local binding.
+        if (
+          (ident === "t" || ident === "$t") &&
+          hasNuxtI18nHint(input.libraryHints)
+        ) {
+          usages.push(
+            buildUsage({
+              key,
+              absolutePath,
+              relativePath,
+              location: locationOf(sourceFile, keyNode),
+              library: "vue-i18n",
+              confidence: 0.72,
+              context: "function-call",
+              evidence: `vue-i18n-detector: nuxt auto-import ${ident}(...)`,
+              framework: "nuxt",
+              detector: "vue-i18n-detector",
+            }),
+          );
+          return;
+        }
       }
 
       if (endsWithProperty(node.expression, "$t")) {
@@ -117,3 +138,17 @@ export const vueI18nUsageDetector: LibraryUsageDetector = {
     return usages;
   },
 };
+
+function hasNuxtI18nHint(hints: ReadonlySet<string>): boolean {
+  for (const h of hints) {
+    const id = h.toLowerCase();
+    if (
+      id === "nuxt-i18n" ||
+      id === "@nuxtjs/i18n" ||
+      (id.includes("nuxt") && id.includes("i18n"))
+    ) {
+      return true;
+    }
+  }
+  return false;
+}

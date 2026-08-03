@@ -48,7 +48,19 @@ export interface TranslationUsage {
   readonly context: UsageContext;
   /** Short explanation of why this was treated as a usage. */
   readonly evidence?: string;
+  /** Framework surface that produced this usage (template analyzers). */
+  readonly framework?: TemplateFrameworkId;
+  /** Analyzer / detector id (e.g. `vue-template-analyzer`). */
+  readonly detector?: string;
 }
+
+/** Framework template surfaces supported by @i18n-unused/templates. */
+export type TemplateFrameworkId =
+  | "vue"
+  | "nuxt"
+  | "angular"
+  | "svelte"
+  | "astro";
 
 export interface UsageWarning {
   readonly code: string;

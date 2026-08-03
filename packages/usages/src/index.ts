@@ -12,6 +12,7 @@ export type {
   LibraryDetectInput,
   LibraryUsageDetector,
   TFunctionBinding,
+  TemplateFrameworkId,
   TranslationUsage,
   UsageCatalog,
   UsageContext,
