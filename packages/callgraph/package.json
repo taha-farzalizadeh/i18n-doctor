@@ -1,0 +1,37 @@
+{
+  "name": "@i18n-unused/callgraph",
+  "version": "0.0.0",
+  "description": "Call graph construction and translation wrapper detection",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@i18n-unused/ast": "0.0.0",
+    "@i18n-unused/constants": "0.0.0",
+    "@i18n-unused/imports": "0.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "typescript": "^5.8.2",
+    "vitest": "^4.1.10"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
