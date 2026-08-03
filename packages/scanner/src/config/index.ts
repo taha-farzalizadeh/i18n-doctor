@@ -1,0 +1,22 @@
+export {
+  DEFAULT_BUILTIN_EXCLUDE_PATTERNS,
+  DEFAULT_CASE_POLICY,
+  DEFAULT_COMPLETENESS_MODE,
+  DEFAULT_DOTFILE_ALLOWLIST,
+  DEFAULT_DOT_FILES_POLICY,
+  DEFAULT_EXTENSIONS,
+  DEFAULT_FS_CONCURRENCY,
+  DEFAULT_HASH_POLICY,
+  DEFAULT_IGNORE_DIRECTORIES,
+  DEFAULT_MAX_FILE_BYTES,
+  DEFAULT_SYMLINK_POLICY,
+  PROJECT_MODEL_VERSION,
+  SCANNER_VERSION,
+} from "./defaults.js";
+export {
+  DEFAULT_SCANNER_CONFIG,
+  resolveScannerConfig,
+  type ResolvedScannerConfig,
+  type ScannerConfig,
+} from "./scanner-config.js";
+export type { CreateScannerOptions } from "./scanner-options.js";
