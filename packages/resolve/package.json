@@ -31,5 +31,15 @@
   },
   "publishConfig": {
     "access": "public"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/taha-farzalizadeh/i18n-doctor.git",
+    "directory": "packages/resolve"
+  },
+  "homepage": "https://github.com/taha-farzalizadeh/i18n-doctor#readme",
+  "bugs": {
+    "url": "https://github.com/taha-farzalizadeh/i18n-doctor/issues"
+  },
+  "license": "MIT"
 }
