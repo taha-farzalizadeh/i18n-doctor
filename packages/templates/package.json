@@ -1,6 +1,6 @@
 {
   "name": "@i18n-doctor/templates",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "description": "Framework template analyzers for translation key usages",
   "type": "module",
   "exports": {
@@ -10,7 +10,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -38,5 +39,18 @@
   "bugs": {
     "url": "https://github.com/taha-farzalizadeh/i18n-doctor/issues"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "keywords": [
+    "i18n",
+    "i18n-doctor",
+    "localization",
+    "translation",
+    "static-analysis",
+    "unused-keys",
+    "missing-keys",
+    "templates",
+    "jsx",
+    "vue",
+    "template-literal"
+  ]
 }

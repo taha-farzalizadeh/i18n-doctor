@@ -1,6 +1,6 @@
 {
   "name": "@i18n-doctor/cli",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "description": "Production CLI for i18n-doctor static localization analysis",
   "type": "module",
   "bin": {
@@ -13,7 +13,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -22,13 +23,13 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@i18n-doctor/config": "0.9.0",
-    "@i18n-doctor/context": "0.9.0",
-    "@i18n-doctor/coverage": "0.9.0",
-    "@i18n-doctor/detect": "0.9.0",
-    "@i18n-doctor/issues": "0.9.0",
-    "@i18n-doctor/sources": "0.9.0",
-    "@i18n-doctor/usages": "0.9.0",
+    "@i18n-doctor/config": "0.9.1",
+    "@i18n-doctor/context": "0.9.1",
+    "@i18n-doctor/coverage": "0.9.1",
+    "@i18n-doctor/detect": "0.9.1",
+    "@i18n-doctor/issues": "0.9.1",
+    "@i18n-doctor/sources": "0.9.1",
+    "@i18n-doctor/usages": "0.9.1",
     "commander": "^14.0.0"
   },
   "devDependencies": {
@@ -51,5 +52,19 @@
   "bugs": {
     "url": "https://github.com/taha-farzalizadeh/i18n-doctor/issues"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "keywords": [
+    "i18n",
+    "i18n-doctor",
+    "localization",
+    "translation",
+    "static-analysis",
+    "unused-keys",
+    "missing-keys",
+    "cli",
+    "command-line",
+    "npx",
+    "check",
+    "lint"
+  ]
 }

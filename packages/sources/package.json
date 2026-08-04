@@ -1,6 +1,6 @@
 {
   "name": "@i18n-doctor/sources",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "description": "Translation source detection and key catalog extraction",
   "type": "module",
   "exports": {
@@ -10,7 +10,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -19,10 +20,10 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@i18n-doctor/ast": "0.9.0",
-    "@i18n-doctor/detect": "0.9.0",
-    "@i18n-doctor/imports": "0.9.0",
-    "@i18n-doctor/scanner": "0.9.0",
+    "@i18n-doctor/ast": "0.9.1",
+    "@i18n-doctor/detect": "0.9.1",
+    "@i18n-doctor/imports": "0.9.1",
+    "@i18n-doctor/scanner": "0.9.1",
     "jsonc-parser": "^3.3.1",
     "yaml": "^2.7.0"
   },
@@ -46,5 +47,19 @@
   "bugs": {
     "url": "https://github.com/taha-farzalizadeh/i18n-doctor/issues"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "keywords": [
+    "i18n",
+    "i18n-doctor",
+    "localization",
+    "translation",
+    "static-analysis",
+    "unused-keys",
+    "missing-keys",
+    "sources",
+    "catalog",
+    "json",
+    "yaml",
+    "locale-files"
+  ]
 }
