@@ -1,0 +1,266 @@
+# i18n-unused
+
+> **Beta — v0.9.0**
+> This is an early release. APIs may change, edge cases exist, and your feedback matters. See [Contributing](#contributing) to help shape the project.
+
+Static localization analysis for JavaScript and TypeScript projects. Finds unused, missing, and duplicate translation keys — without executing your code.
+
+---
+
+## What it does
+
+- **Unused keys** — translation keys defined in your locale files but never referenced in source code
+- **Missing keys** — keys used in code that have no matching translation
+- **Duplicate keys** — keys defined more than once in the same namespace
+- **Cross-locale coverage** — keys present in one locale but absent in others
+
+Analysis is purely static. No runtime, no bundler, no side effects.
+
+---
+
+## Requirements
+
+- Node.js ≥ 18
+
+---
+
+## Installation
+
+```bash
+# npm
+npm install -D @i18n-unused/cli
+
+# yarn
+yarn add -D @i18n-unused/cli
+
+# pnpm
+pnpm add -D @i18n-unused/cli
+```
+
+---
+
+## Quick start
+
+Run from the root of your project:
+
+```bash
+npx i18n-unused check
+```
+
+Or point it at a specific path:
+
+```bash
+npx i18n-unused check ./apps/web
+```
+
+---
+
+## CLI reference
+
+```
+Usage: i18n-unused [options] [command]
+
+Commands:
+  check [options] [path]   Analyze a project for unused, missing, and duplicate keys
+
+Options:
+  -V, --version            Print CLI version
+  -h, --help               Display help
+```
+
+### `check` options
+
+| Flag | Description |
+|---|---|
+| `[path]` | Project root to analyze (default: current directory) |
+| `-c, --config <path>` | Path to config file |
+| `--json` | Output JSON report |
+| `--sarif` | Output SARIF 2.1.0 report |
+| `--markdown` | Output Markdown report |
+| `--html` | Output HTML report |
+| `--silent` | Suppress output (exit code only) |
+| `--verbose` | Show timings and extra diagnostics |
+| `--cwd <path>` | Working directory for path resolution |
+| `--no-color` | Disable ANSI colors and hyperlinks |
+| `--framework <id>` | Override framework/library detection |
+| `--locale <locale>` | Restrict analysis to a single locale |
+| `--namespace <ns>` | Restrict analysis to a single namespace |
+| `--base-locale <locale>` | Base locale for cross-locale coverage |
+| `--ignore-duplicates` | Skip duplicate key checks |
+| `--no-coverage` | Skip locale consistency analysis |
+
+### Exit codes
+
+| Code | Meaning |
+|---:|---|
+| `0` | No failing issues |
+| `1` | Issues found that fail the configured exit policy |
+| `2` | Config, I/O, or permission error |
+
+---
+
+## Output formats
+
+**Terminal (default)**
+
+```
+· Discovering project…
+· Loading configuration…
+· Detecting framework…
+· Collecting translation sources…
+· Detecting translation usages…
+· Analyzing issues…
+✓ Done (412ms)
+
+i18n-unused issues
+Root: /Users/you/app
+
+Summary
+  Unused:    2
+  Missing:   1
+  Duplicate: 0
+  Total:     3
+
+! UNUSED KEY  auth.legacy.banner
+  Defined  locales/en/auth.json:12:3
+
+x MISSING KEY  home.cta
+  Used  src/pages/Home.tsx:44:18
+```
+
+Paths are clickable OSC-8 hyperlinks in supported terminals.
+
+**JSON** (`--json`)
+
+```json
+{
+  "root": "/Users/you/app",
+  "stats": { "total": 3, "unusedKey": 2, "missingKey": 1, "duplicateKey": 0 },
+  "issues": [
+    {
+      "type": "missing-key",
+      "severity": "error",
+      "key": "home.cta",
+      "file": "src/pages/Home.tsx",
+      "line": 44,
+      "column": 18
+    }
+  ]
+}
+```
+
+Also available: `--sarif` (SARIF 2.1.0), `--markdown`, `--html`.
+
+---
+
+## Configuration
+
+Place an `i18n-unused.config.json` (or `.js` / `.ts`) at your project root. The CLI will pick it up automatically, or you can point to it with `--config`.
+
+```json
+{
+  "localesDir": "public/locales",
+  "baseLocale": "en",
+  "rules": {
+    "unused-key": "error",
+    "missing-key": "error",
+    "duplicate-key": "warning"
+  },
+  "ignore": [
+    "legacy.*",
+    "vendor.*"
+  ]
+}
+```
+
+You can also suppress individual issues inline in source code using comments — see the config package docs for suppression syntax.
+
+---
+
+## Monorepo support
+
+Pass the path to any workspace package, or run from the monorepo root and let the CLI discover packages automatically:
+
+```bash
+npx i18n-unused check ./packages/web
+```
+
+---
+
+## Packages
+
+This repo is a monorepo. Each package is independently publishable.
+
+| Package | Description |
+|---|---|
+| `@i18n-unused/cli` | CLI entry point and orchestration |
+| `@i18n-unused/ast` | TypeScript Compiler API — parse JS/JSX/TS/TSX, traversal and query helpers |
+| `@i18n-unused/callgraph` | Call graph construction and translation wrapper detection |
+| `@i18n-unused/config` | Config loading, ignore rules, inline suppression |
+| `@i18n-unused/detect` | Framework, package manager, language, and i18n library detection |
+| `@i18n-unused/sources` | Translation source discovery and key catalog extraction |
+| `@i18n-unused/usages` | Translation key usage detection with source locations |
+| `@i18n-unused/issues` | Issue engine and reporters |
+| `@i18n-unused/coverage` | Cross-locale coverage analysis |
+| `@i18n-unused/scanner` | File system scanning utilities |
+| `@i18n-unused/imports` | Import resolution helpers |
+| `@i18n-unused/resolve` | Key and path resolution |
+| `@i18n-unused/templates` | Template literal and dynamic key analysis |
+| `@i18n-unused/context` | Shared execution context |
+| `@i18n-unused/constants` | Shared constants |
+| `@i18n-unused/dataflow` | Dataflow analysis utilities |
+
+---
+
+## Contributing
+
+**i18n-unused is in beta and actively needs help.** Here's how you can contribute:
+
+- **Find bugs** — run it on your project and open an issue with repro steps
+- **Add features** — pick up an open issue or propose something new
+- **Improve docs** — if something is unclear, a PR fixing it is very welcome
+- **Test edge cases** — unusual i18n setups, nested namespaces, dynamic keys, custom wrappers
+
+### Workflow
+
+1. Fork the repo and create a branch
+2. Make your changes (all packages are in `packages/`)
+3. Build and test:
+   ```bash
+   npm run build
+   npm run test
+   ```
+4. Open a merge request — describe what you changed and why
+5. A maintainer will review and merge
+
+There's no bureaucracy here. If it improves the project, it'll land.
+
+### Development setup
+
+```bash
+git clone https://github.com/your-org/i18n-unused
+cd i18n-unused
+npm install
+npm run build
+```
+
+Requires Node.js ≥ 18.
+
+---
+
+## Beta status
+
+v0.9.0 is a beta release. That means:
+
+- Core analysis works and is usable on real projects
+- Some edge cases aren't handled yet (dynamic keys, complex wrapper chains, custom i18n libraries)
+- The config schema may have breaking changes before v1.0
+- `--fix` is reserved but not yet implemented
+
+If something doesn't work on your project, please open an issue. That's exactly the kind of feedback that moves this to stable.
+
+---
+
+## License
+
+MIT
