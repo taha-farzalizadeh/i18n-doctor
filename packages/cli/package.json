@@ -1,6 +1,6 @@
 {
   "name": "@i18n-doctor/cli",
-  "version": "0.0.0",
+  "version": "0.9.0",
   "description": "Production CLI for i18n-doctor static localization analysis",
   "type": "module",
   "bin": {
@@ -22,13 +22,13 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@i18n-doctor/config": "0.0.0",
-    "@i18n-doctor/context": "0.0.0",
-    "@i18n-doctor/coverage": "0.0.0",
-    "@i18n-doctor/detect": "0.0.0",
-    "@i18n-doctor/issues": "0.0.0",
-    "@i18n-doctor/sources": "0.0.0",
-    "@i18n-doctor/usages": "0.0.0",
+    "@i18n-doctor/config": "0.9.0",
+    "@i18n-doctor/context": "0.9.0",
+    "@i18n-doctor/coverage": "0.9.0",
+    "@i18n-doctor/detect": "0.9.0",
+    "@i18n-doctor/issues": "0.9.0",
+    "@i18n-doctor/sources": "0.9.0",
+    "@i18n-doctor/usages": "0.9.0",
     "commander": "^14.0.0"
   },
   "devDependencies": {

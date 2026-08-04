@@ -6,7 +6,8 @@ const require = createRequire(import.meta.url);
 
 export function getPackageVersion(): string {
   try {
-    const pkg = require("../package.json") as { version?: string };
+    // dist/internal/version.js → up two levels → package root
+    const pkg = require("../../package.json") as { version?: string };
     return pkg.version ?? "0.0.0";
   } catch {
     return "0.0.0";

@@ -1,6 +1,6 @@
 {
   "name": "@i18n-doctor/constants",
-  "version": "0.0.0",
+  "version": "0.9.0",
   "description": "Static constant evaluation for translation key resolution",
   "type": "module",
   "exports": {
@@ -19,8 +19,8 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@i18n-doctor/ast": "0.0.0",
-    "@i18n-doctor/imports": "0.0.0"
+    "@i18n-doctor/ast": "0.9.0",
+    "@i18n-doctor/imports": "0.9.0"
   },
   "devDependencies": {
     "@types/node": "^22.13.10",
