@@ -1,7 +1,26 @@
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
+import { onTestFinished } from "vitest";
 import type { DefinitionFact, UsageFact } from "../src/index.js";
 
 export const ROOT = "/tmp/demo-project";
+
+/** Temporary project fixture cleaned up after the current test. */
+export async function fixture(
+  files: Record<string, string>,
+): Promise<string> {
+  const root = await mkdtemp(path.join(tmpdir(), "i18n-issues-"));
+  onTestFinished(async () => {
+    await rm(root, { recursive: true, force: true }).catch(() => undefined);
+  });
+  for (const [relative, content] of Object.entries(files)) {
+    const abs = path.join(root, relative);
+    await mkdir(path.dirname(abs), { recursive: true });
+    await writeFile(abs, content);
+  }
+  return root;
+}
 
 export function def(
   key: string,

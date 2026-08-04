@@ -53,9 +53,12 @@ export const nextIntlUsageDetector: LibraryUsageDetector = {
       if (!binding || binding.library !== "next-intl") {
         return;
       }
+      const resolvedKey = binding.keyPrefix
+        ? `${binding.keyPrefix}.${key}`
+        : key;
       usages.push(
         buildUsage({
-          key,
+          key: resolvedKey,
           absolutePath,
           relativePath,
           location: locationOf(sourceFile, keyNode),
@@ -63,6 +66,7 @@ export const nextIntlUsageDetector: LibraryUsageDetector = {
           ...(binding.namespace !== undefined
             ? { namespace: binding.namespace }
             : {}),
+          namespaceResolved: binding.namespace !== undefined,
           confidence: Math.min(
             binding.confidence,
             alias.resolution.confidence,
@@ -70,7 +74,7 @@ export const nextIntlUsageDetector: LibraryUsageDetector = {
           context: "function-call",
           evidence: `next-intl-detector: ${binding.origin}${
             alias.aliasEvidence ? ` (${alias.aliasEvidence})` : ""
-          }`,
+          }${binding.keyPrefix ? ` keyPrefix=${binding.keyPrefix}` : ""}`,
         }),
       );
     });

@@ -43,7 +43,18 @@ export interface TranslationUsage {
   readonly relativePath: string;
   readonly location: UsageLocation;
   readonly library: UsageLibraryId;
+  /** Primary resolved namespace (useTranslation / options.ns / defaultNS). */
   readonly namespace?: string;
+  /**
+   * Candidate namespaces when useTranslation([...]) or options.ns is an array.
+   * Matching treats a hit against any candidate as used.
+   */
+  readonly namespaces?: readonly string[];
+  /**
+   * False when the analyzer could not resolve a namespace for an i18next-family call.
+   * Downstream may surface low-confidence diagnostics.
+   */
+  readonly namespaceResolved?: boolean;
   readonly confidence: Confidence;
   readonly context: UsageContext;
   /** Short explanation of why this was treated as a usage. */
@@ -146,6 +157,10 @@ export interface FileBindingTable {
   readonly formatMessageNames: ReadonlySet<string>;
   /** Local object names that expose `.t` (i18n, i18next). */
   readonly i18nObjects: ReadonlySet<string>;
+  /**
+   * Objects from `const api = useTranslation("ns")` — `api.t(...)` carries namespace.
+   */
+  readonly translationObjects: ReadonlyMap<string, TFunctionBinding>;
   /** Local TranslateService-like names. */
   readonly translateServices: ReadonlySet<string>;
   /** Whether useTranslation / useTranslations / useIntl appeared. */
@@ -160,7 +175,11 @@ export interface FileBindingTable {
 
 export interface TFunctionBinding {
   readonly library: UsageLibraryId;
+  /** Primary namespace from useTranslation("home") / first of an array. */
   readonly namespace?: string;
+  /** All namespaces from useTranslation(["home","settings"]). */
+  readonly namespaces?: readonly string[];
+  readonly keyPrefix?: string;
   readonly confidence: Confidence;
   readonly origin: string;
 }

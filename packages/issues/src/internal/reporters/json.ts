@@ -56,6 +56,15 @@ function toCompactIssue(issue: Issue): Record<string, unknown> {
     type: issue.type,
     severity: issue.severity,
     key: issue.key,
+    ...(issue.source.namespace !== undefined
+      ? { namespace: issue.source.namespace }
+      : {}),
+    ...(issue.source.locale !== undefined
+      ? { locale: issue.source.locale }
+      : {}),
+    ...(issue.source.namespace !== undefined
+      ? { fullKey: `${issue.source.locale ?? "*"}::${issue.source.namespace}::${issue.key}` }
+      : {}),
     file: toPosixPath(issue.location.relativePath),
     line: issue.location.line,
     column: issue.location.column,

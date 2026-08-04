@@ -10,6 +10,7 @@ import type { FlatEntry } from "./flatten.js";
 import { scoreStringLeafRatio } from "./flatten.js";
 import { inferLocaleFromPath } from "./locale.js";
 import { inferNamespaceFromPath } from "./namespace.js";
+import { buildFullKey } from "./translation-entry.js";
 
 let sourceSeq = 0;
 
@@ -83,6 +84,7 @@ export function buildSourceFromEntries(input: {
     location: entry.location,
     ...(locale ? { locale } : {}),
     ...(namespace ? { namespace } : {}),
+    fullKey: buildFullKey(locale, namespace, entry.key),
     confidence,
     sourceId,
   }));

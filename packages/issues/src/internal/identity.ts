@@ -1,13 +1,41 @@
-import type { DefinitionFact, UsageFact } from "../api/types.js";
+import type {
+  DefinitionFact,
+  IssueEngineOptions,
+  UsageFact,
+} from "../api/types.js";
 
 /**
  * Matching rules when matchNamespace is enabled:
- * - If BOTH definition and usage declare a namespace, namespaces must be equal.
- * - Otherwise match on key alone.
+ * - Namespaced definition matches only if the usage resolves to that namespace
+ *   (call-site / options.ns / defaultNS / fallbackNS).
+ * - Unnamespaced definition matches by key alone (legacy catalogs).
+ * - Unnamespaced usage does NOT soft-match all namespaced definitions
+ *   (that caused false "used" / undercounted unused).
  *
- * This prevents `HomePage:title` from matching `Auth:title` while still
- * allowing unnamespaced usages to resolve against namespaced definitions.
+ * Duplicate identity is always locale + namespace + key, so
+ * home:SAVE / settings:SAVE / common:SAVE are never duplicates.
  */
+
+export interface MatchContext {
+  readonly matchNamespace: boolean;
+  readonly defaultNS?: string;
+  readonly fallbackNS?: readonly string[];
+}
+
+export function matchContextFromOptions(
+  options: Pick<
+    IssueEngineOptions,
+    "matchNamespace" | "defaultNS" | "fallbackNS"
+  > = {},
+): MatchContext {
+  return {
+    matchNamespace: options.matchNamespace ?? true,
+    ...(options.defaultNS !== undefined ? { defaultNS: options.defaultNS } : {}),
+    ...(options.fallbackNS !== undefined
+      ? { fallbackNS: options.fallbackNS }
+      : {}),
+  };
+}
 
 /** Locale-independent logical key for grouping definitions / usages. */
 export function logicalKey(
@@ -30,27 +58,75 @@ export function logicalDefinitionKey(
 
 export function logicalUsageKey(
   fact: UsageFact,
-  matchNamespace: boolean,
+  ctx: MatchContext,
 ): string {
-  return logicalKey(fact.key, fact.namespace, matchNamespace);
+  const namespaces = resolveUsageNamespaces(fact, ctx);
+  return logicalKey(fact.key, namespaces[0], ctx.matchNamespace);
 }
 
 /** Whether a definition satisfies a usage under the configured rules. */
 export function definitionMatchesUsage(
   definition: DefinitionFact,
   usage: UsageFact,
-  matchNamespace: boolean,
+  ctx: MatchContext | boolean,
 ): boolean {
   if (definition.key !== usage.key) {
     return false;
   }
-  if (!matchNamespace) {
+
+  const match = typeof ctx === "boolean"
+    ? { matchNamespace: ctx }
+    : ctx;
+
+  if (!match.matchNamespace) {
     return true;
   }
-  if (definition.namespace && usage.namespace) {
-    return definition.namespace === usage.namespace;
+
+  // Legacy / path-only catalogs without namespace stay key-only.
+  if (!definition.namespace) {
+    return true;
   }
-  return true;
+
+  const usageNamespaces = resolveUsageNamespaces(usage, match);
+  if (usageNamespaces.length === 0) {
+    return false;
+  }
+  return usageNamespaces.includes(definition.namespace);
+}
+
+/**
+ * Resolve effective namespace candidates for a usage:
+ * options/call-site namespaces → defaultNS → (+ fallbackNS).
+ */
+export function resolveUsageNamespaces(
+  usage: UsageFact,
+  ctx: MatchContext,
+): string[] {
+  const out: string[] = [];
+  const push = (ns: string | undefined) => {
+    if (ns && !out.includes(ns)) {
+      out.push(ns);
+    }
+  };
+
+  push(usage.namespace);
+  if (usage.namespaces) {
+    for (const ns of usage.namespaces) {
+      push(ns);
+    }
+  }
+
+  if (out.length === 0 && ctx.defaultNS) {
+    push(ctx.defaultNS);
+  }
+
+  if (out.length > 0 && ctx.fallbackNS) {
+    for (const ns of ctx.fallbackNS) {
+      push(ns);
+    }
+  }
+
+  return out;
 }
 
 /** Identity for duplicate detection within a locale/namespace. */

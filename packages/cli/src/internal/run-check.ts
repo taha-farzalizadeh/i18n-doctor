@@ -12,6 +12,7 @@ import {
   type EffectiveConfig,
   type UserConfig,
 } from "@i18n-unused/config";
+import { createContextAnalyzer } from "@i18n-unused/context";
 import {
   createCoverageAnalyzer,
   type CoverageResult,
@@ -374,6 +375,12 @@ async function analyzeScope(input: {
   );
 
   const severities = toEngineSeverities(input.scope);
+  const i18nContext = createContextAnalyzer({ root }).analyze({
+    packageRoot: root,
+  });
+  const defaultNS = i18nContext.effective.defaultNS;
+  const fallbackNS = i18nContext.effective.fallbackNS;
+
   let t0 = now();
   const raw = createIssueEngine().analyze({
     root,
@@ -383,6 +390,12 @@ async function analyzeScope(input: {
       minConfidence: input.scope.minConfidence,
       ...(input.options.locale !== undefined
         ? { defaultLocale: input.options.locale }
+        : i18nContext.effective.defaultLocale !== undefined
+          ? { defaultLocale: i18nContext.effective.defaultLocale }
+          : {}),
+      ...(defaultNS !== undefined ? { defaultNS } : {}),
+      ...(fallbackNS !== undefined && fallbackNS.length > 0
+        ? { fallbackNS }
         : {}),
       ...(severities ? { severities } : {}),
     },

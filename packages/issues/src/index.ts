@@ -38,6 +38,15 @@ export {
 } from "./internal/adapters.js";
 
 export {
+  definitionMatchesUsage,
+  duplicateIdentity,
+  logicalDefinitionKey,
+  logicalUsageKey,
+  matchContextFromOptions,
+  resolveUsageNamespaces,
+} from "./internal/identity.js";
+
+export {
   createTerminalReporter,
   formatTerminalReport,
 } from "./internal/reporters/terminal.js";

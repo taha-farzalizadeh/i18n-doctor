@@ -102,7 +102,10 @@ function formatIssueBlock(
         : "*";
   lines.push(`${icon} ${paint(BOLD, issueTitle(issue.type))}`);
   lines.push("");
-  lines.push(`  ${paint(BOLD, issue.key)}`);
+  const displayKey = issue.source.namespace
+    ? `${issue.source.namespace}:${issue.key}`
+    : issue.key;
+  lines.push(`  ${paint(BOLD, displayKey)}`);
   lines.push("");
 
   if (issue.type === "unused-key") {

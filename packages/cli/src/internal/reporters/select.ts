@@ -100,6 +100,10 @@ export function sortIssues(issues: readonly Issue[]): Issue[] {
     if (byType !== 0) return byType;
     const byKey = a.key.localeCompare(b.key);
     if (byKey !== 0) return byKey;
+    const byNs = (a.source.namespace ?? "").localeCompare(
+      b.source.namespace ?? "",
+    );
+    if (byNs !== 0) return byNs;
     const byFile = toPosixPath(a.location.relativePath).localeCompare(
       toPosixPath(b.location.relativePath),
     );

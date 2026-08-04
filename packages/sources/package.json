@@ -21,6 +21,7 @@
   "dependencies": {
     "@i18n-unused/ast": "0.0.0",
     "@i18n-unused/detect": "0.0.0",
+    "@i18n-unused/imports": "0.0.0",
     "@i18n-unused/scanner": "0.0.0",
     "jsonc-parser": "^3.3.1",
     "yaml": "^2.7.0"

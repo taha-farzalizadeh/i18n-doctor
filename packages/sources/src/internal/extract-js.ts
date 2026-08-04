@@ -286,12 +286,32 @@ function collectTargets(sourceFile: ts.SourceFile): TargetHit[] {
     }
 
     // defineMessages({ ... })
+    // i18n.init({ resources }) / createInstance({ resources })
     if (ts.isCallExpression(node)) {
       const callee = getCalleeName(node.expression);
       if (callee === "defineMessages" || callee === "defineMessage") {
         const arg = node.arguments[0];
         if (arg && ts.isObjectLiteralExpression(arg)) {
           add(arg, "defineMessages", `${callee}(...) call`);
+        }
+      }
+      if (
+        (callee === "init" || callee === "createInstance") &&
+        node.arguments[0] &&
+        ts.isObjectLiteralExpression(node.arguments[0])
+      ) {
+        for (const prop of node.arguments[0].properties) {
+          if (!ts.isPropertyAssignment(prop)) {
+            continue;
+          }
+          const key = propertyNameText(prop.name);
+          if (key === "resources") {
+            add(
+              unwrapObjectLiteral(prop.initializer),
+              "resources",
+              `${callee}({ resources })`,
+            );
+          }
         }
       }
     }

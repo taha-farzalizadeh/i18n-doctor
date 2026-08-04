@@ -24,6 +24,10 @@ import {
 import { extractJsonEntries } from "./extract-json.js";
 import { extractJsRegions } from "./extract-js.js";
 import { extractYamlEntries } from "./extract-yaml.js";
+import {
+  applyResourceAttributions,
+  scanI18nextRegistrations,
+} from "./i18next-registration.js";
 
 const DEFAULTS = {
   useDetection: true,
@@ -118,6 +122,43 @@ class DefaultSourceDetector implements TranslationSourceDetector {
           sources.push(source);
         }
       });
+
+      // Phase 013.5: attribute namespaces from i18next registrations
+      // (addResourceBundle / addResource / init|createInstance resources).
+      const registration = await scanI18nextRegistrations({
+        root,
+        snapshot,
+        minConfidence,
+        ...(libraryHint ? { libraryHint } : {}),
+        astEngine,
+      });
+      warnings.push(...registration.warnings);
+
+      // Registration may point at modules that were not candidate-scored
+      // (e.g. src/profile/en.js). Extract those on demand before attribution.
+      const missingAttributed = await extractRegisteredFiles({
+        root,
+        snapshot,
+        attributions: registration.attributions,
+        existing: sources,
+        libraryHint,
+        minConfidence,
+        includeUnknownStructures,
+        astEngine,
+        warnings,
+      });
+      sources.push(...missingAttributed);
+
+      const attributed = applyResourceAttributions(
+        sources,
+        registration.attributions,
+      );
+      warnings.push(...attributed.warnings);
+      sources.length = 0;
+      sources.push(
+        ...attributed.sources,
+        ...dedupeInlineSources(registration.inlineSources),
+      );
 
       extractMs = performance.now() - extractStarted;
 
@@ -296,6 +337,101 @@ async function extractCandidate(input: {
     });
   }
   return sources;
+}
+
+/**
+ * Extract translation modules referenced by addResourceBundle that were not
+ * selected as ordinary candidates (common for co-located `en.js` modules).
+ */
+async function extractRegisteredFiles(input: {
+  root: string;
+  snapshot: ProjectSnapshotView;
+  attributions: readonly {
+    relativePath: string;
+  }[];
+  existing: readonly TranslationSource[];
+  libraryHint: string | undefined;
+  minConfidence: number;
+  includeUnknownStructures: boolean;
+  astEngine: ReturnType<typeof createAstEngine>;
+  warnings: CatalogWarning[];
+}): Promise<TranslationSource[]> {
+  const have = new Set(input.existing.map((s) => toPosixPath(s.filePath)));
+  const needed = uniqueStrings(
+    input.attributions
+      .map((a) => toPosixPath(a.relativePath))
+      .filter((p) => !have.has(p)),
+  );
+  if (needed.length === 0) {
+    return [];
+  }
+
+  const byPath = new Map(
+    [...input.snapshot.files()].map((f) => [toPosixPath(f.relativePath), f]),
+  );
+  const out: TranslationSource[] = [];
+
+  for (const relativePath of needed) {
+    const file = byPath.get(relativePath);
+    if (!file) {
+      input.warnings.push({
+        code: "registered-resource-missing",
+        message: `Registered resource file not found in project scan: ${relativePath}`,
+        path: relativePath,
+      });
+      continue;
+    }
+    const extracted = await extractCandidate({
+      candidate: {
+        file,
+        score: 55,
+        reasons: ["i18next addResourceBundle/addResource target"],
+      },
+      snapshot: input.snapshot,
+      libraryHint: input.libraryHint,
+      minConfidence: input.minConfidence,
+      includeUnknownStructures: input.includeUnknownStructures,
+      astEngine: input.astEngine,
+      warnings: input.warnings,
+    });
+    out.push(...extracted);
+  }
+  return out;
+}
+
+/** Fold identical addResource / inline registrations (same locale/ns/keys/file). */
+function dedupeInlineSources(
+  sources: readonly TranslationSource[],
+): TranslationSource[] {
+  const seen = new Set<string>();
+  const out: TranslationSource[] = [];
+  for (const source of sources) {
+    const keyFingerprint = source.keys
+      .map((k) => k.key)
+      .sort()
+      .join(",");
+    const id = [
+      toPosixPath(source.filePath),
+      source.locale ?? "*",
+      source.namespace ?? "*",
+      source.kind,
+      keyFingerprint,
+    ].join("\0");
+    if (seen.has(id)) {
+      continue;
+    }
+    seen.add(id);
+    out.push(source);
+  }
+  return out;
+}
+
+function toPosixPath(filePath: string): string {
+  return filePath.split(path.sep).join("/");
+}
+
+function uniqueStrings(values: readonly string[]): string[] {
+  return [...new Set(values)].sort();
 }
 
 async function mapPool<T>(

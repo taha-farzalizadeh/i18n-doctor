@@ -124,7 +124,7 @@ describe("issue engine — duplicate key", () => {
           namespace: "common",
         }),
       ],
-      usages: [use("nav.home", "src/App.tsx", 2)],
+      usages: [use("nav.home", "src/App.tsx", 2, { namespace: "common" })],
     });
 
     expect(result.stats.duplicateKey).toBe(1);
@@ -202,7 +202,8 @@ describe("issue engine — namespaces", () => {
     expect(result.issues).toHaveLength(0);
   });
 
-  it("allows unnamespaced usage to match a namespaced definition", () => {
+  it("does not soft-match unnamespaced usage to a namespaced definition", () => {
+    // Prevents false "used" across all namespaces when call-site ns is missing.
     const result = createIssueEngine().analyze({
       root: ROOT,
       definitions: [
@@ -212,6 +213,38 @@ describe("issue engine — namespaces", () => {
         }),
       ],
       usages: [use("title", "src/page.tsx", 4)],
+    });
+    expect(result.stats.unusedKey).toBe(1);
+    expect(result.stats.missingKey).toBe(1);
+  });
+
+  it("applies defaultNS when usage has no call-site namespace", () => {
+    const result = createIssueEngine().analyze({
+      root: ROOT,
+      definitions: [
+        def("title", "messages/en.json", 1, {
+          locale: "en",
+          namespace: "common",
+        }),
+      ],
+      usages: [use("title", "src/page.tsx", 4)],
+      options: { defaultNS: "common" },
+    });
+    expect(result.stats.unusedKey).toBe(0);
+    expect(result.stats.missingKey).toBe(0);
+  });
+
+  it("uses fallbackNS as secondary match candidates", () => {
+    const result = createIssueEngine().analyze({
+      root: ROOT,
+      definitions: [
+        def("title", "messages/en.json", 1, {
+          locale: "en",
+          namespace: "common",
+        }),
+      ],
+      usages: [use("title", "src/page.tsx", 4, { namespace: "home" })],
+      options: { fallbackNS: ["common"] },
     });
     expect(result.stats.unusedKey).toBe(0);
     expect(result.stats.missingKey).toBe(0);

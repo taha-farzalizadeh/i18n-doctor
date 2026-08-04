@@ -92,14 +92,19 @@ export interface UsageFact {
   readonly start?: number;
   readonly end?: number;
   readonly namespace?: string;
+  /** Candidate namespaces (useTranslation array / options.ns array). */
+  readonly namespaces?: readonly string[];
+  readonly namespaceResolved?: boolean;
   readonly library?: string;
   readonly confidence?: number;
 }
 
 export interface IssueEngineOptions {
   /**
-   * When true, unused/missing matching requires namespace equality
-   * when both sides declare a namespace.
+   * When true, unused/missing matching is namespace-aware.
+   * Namespaced definitions only match usages that resolve to the same
+   * namespace (or one of usage.namespaces / defaultNS / fallbackNS).
+   * Unnamespaced definitions remain backward-compatible (match by key).
    * @default true
    */
   readonly matchNamespace?: boolean;
@@ -114,6 +119,14 @@ export interface IssueEngineOptions {
    * @default false
    */
   readonly strictLocale?: boolean;
+  /**
+   * i18next defaultNS — applied when a usage has no call-site / options namespace.
+   */
+  readonly defaultNS?: string;
+  /**
+   * i18next fallbackNS — secondary namespace candidates for matching.
+   */
+  readonly fallbackNS?: readonly string[];
   /** Severity overrides. */
   readonly severities?: {
     readonly unusedKey?: IssueSeverity;

@@ -14,6 +14,8 @@ export function buildUsage(input: {
   location: UsageLocation;
   library: UsageLibraryId;
   namespace?: string;
+  namespaces?: readonly string[];
+  namespaceResolved?: boolean;
   confidence: Confidence;
   context: UsageContext;
   evidence?: string;
@@ -27,6 +29,10 @@ export function buildUsage(input: {
     location: input.location,
     library: input.library,
     ...(input.namespace !== undefined ? { namespace: input.namespace } : {}),
+    ...(input.namespaces !== undefined ? { namespaces: input.namespaces } : {}),
+    ...(input.namespaceResolved !== undefined
+      ? { namespaceResolved: input.namespaceResolved }
+      : {}),
     confidence: Math.round(Math.min(1, Math.max(0, input.confidence)) * 1000) / 1000,
     context: input.context,
     ...(input.evidence !== undefined ? { evidence: input.evidence } : {}),

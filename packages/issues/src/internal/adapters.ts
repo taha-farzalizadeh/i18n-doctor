@@ -50,6 +50,10 @@ export function usageFromTranslationUsage(usage: TranslationUsage): UsageFact {
     start: usage.location.start,
     end: usage.location.end,
     ...(usage.namespace !== undefined ? { namespace: usage.namespace } : {}),
+    ...(usage.namespaces !== undefined ? { namespaces: usage.namespaces } : {}),
+    ...(usage.namespaceResolved !== undefined
+      ? { namespaceResolved: usage.namespaceResolved }
+      : {}),
     library: usage.library,
     confidence: usage.confidence,
   };

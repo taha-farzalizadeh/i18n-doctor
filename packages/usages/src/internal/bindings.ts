@@ -79,6 +79,7 @@ export function buildFileBindings(
   const tFunctions = new Map<string, TFunctionBinding>();
   const formatMessageNames = new Set<string>();
   const i18nObjects = new Set<string>();
+  const translationObjects = new Map<string, TFunctionBinding>();
   const translateServices = new Set<string>();
   const importSpecifiers = new Set<string>();
   const intlObjectNames = new Set<string>(["intl"]);
@@ -156,26 +157,41 @@ export function buildFileBindings(
         const callee = calleeName(init.expression);
         if (callee === "useTranslation") {
           hooks.useTranslation = true;
-          const ns = staticStringArg(init.arguments[0]);
+          const nsList = staticNamespaceArg(init.arguments[0]);
+          const opts = staticOptionsBag(init.arguments[1]);
           const binding: TFunctionBinding = {
             library: pickI18nextLibrary(importSpecifiers),
-            ...(ns !== undefined ? { namespace: ns } : {}),
-            confidence: 0.9,
-            origin: "useTranslation()",
+            ...(nsList?.[0] !== undefined ? { namespace: nsList[0] } : {}),
+            ...(nsList && nsList.length > 1 ? { namespaces: nsList } : {}),
+            ...(opts.keyPrefix !== undefined
+              ? { keyPrefix: opts.keyPrefix }
+              : {}),
+            confidence: nsList ? 0.9 : 0.75,
+            origin: nsList
+              ? `useTranslation(${JSON.stringify(nsList.length === 1 ? nsList[0] : nsList)})`
+              : "useTranslation()",
           };
           bindDestructuredT(node.name, binding, tFunctions, scoped);
+          if (ts.isIdentifier(node.name)) {
+            translationObjects.set(node.name.text, binding);
+          }
         }
         if (callee === "useTranslations") {
           hooks.useTranslations = true;
           const ns = staticStringArg(init.arguments[0]);
+          const opts = staticOptionsBag(init.arguments[1]);
           const binding: TFunctionBinding = {
             library: "next-intl",
             ...(ns !== undefined ? { namespace: ns } : {}),
+            ...(opts.keyPrefix !== undefined
+              ? { keyPrefix: opts.keyPrefix }
+              : {}),
             confidence: 0.92,
             origin: "useTranslations()",
           };
           if (ts.isIdentifier(node.name)) {
             registerT(node.name.text, binding, node, tFunctions, scoped);
+            translationObjects.set(node.name.text, binding);
           }
           bindDestructuredT(node.name, binding, tFunctions, scoped);
         }
@@ -261,6 +277,7 @@ export function buildFileBindings(
     tFunctions,
     formatMessageNames,
     i18nObjects,
+    translationObjects,
     translateServices,
     hooks,
     importSpecifiers,
@@ -305,12 +322,12 @@ function bindDestructuredT(
         ? element.name.text
         : undefined;
     const local = ts.isIdentifier(element.name) ? element.name.text : undefined;
-    if (prop === "t" && local) {
+    if ((prop === "t" || prop === "tx") && local) {
       registerT(
         local,
         {
           ...binding,
-          origin: `${binding.origin} → { t: ${local} }`,
+          origin: `${binding.origin} → { ${prop}: ${local} }`,
         },
         element,
         tFunctions,
@@ -379,6 +396,79 @@ function staticStringArg(arg: ts.Expression | undefined): string | undefined {
     return arg.text;
   }
   return undefined;
+}
+
+/** useTranslation("home") | useTranslation(["home","settings"]) */
+function staticNamespaceArg(
+  arg: ts.Expression | undefined,
+): string[] | undefined {
+  const single = staticStringArg(arg);
+  if (single !== undefined) {
+    return [single];
+  }
+  if (!arg || !ts.isArrayLiteralExpression(arg)) {
+    return undefined;
+  }
+  const values: string[] = [];
+  for (const el of arg.elements) {
+    const text = staticStringArg(el);
+    if (text === undefined) {
+      return undefined;
+    }
+    values.push(text);
+  }
+  return values.length > 0 ? values : undefined;
+}
+
+function staticOptionsBag(arg: ts.Expression | undefined): {
+  ns?: string | readonly string[];
+  keyPrefix?: string;
+} {
+  if (!arg || !ts.isObjectLiteralExpression(arg)) {
+    return {};
+  }
+  let ns: string | readonly string[] | undefined;
+  let keyPrefix: string | undefined;
+  for (const prop of arg.properties) {
+    if (!ts.isPropertyAssignment(prop)) {
+      continue;
+    }
+    const name = propertyNameText(prop.name);
+    if (name === "ns") {
+      const list = staticNamespaceArg(prop.initializer);
+      if (list) {
+        ns = list.length === 1 ? list[0] : list;
+      }
+    }
+    if (name === "keyPrefix") {
+      keyPrefix = staticStringArg(prop.initializer);
+    }
+  }
+  return {
+    ...(ns !== undefined ? { ns } : {}),
+    ...(keyPrefix !== undefined ? { keyPrefix } : {}),
+  };
+}
+
+/** Parse t(key, { ns }) options at a call site. */
+export function staticCallOptionsNs(
+  arg: ts.Expression | undefined,
+): { namespace?: string; namespaces?: readonly string[] } {
+  const opts = staticOptionsBag(arg);
+  if (opts.ns === undefined) {
+    return {};
+  }
+  if (typeof opts.ns === "string") {
+    return { namespace: opts.ns };
+  }
+  const primary = opts.ns[0];
+  if (primary === undefined) {
+    return {};
+  }
+  return {
+    namespace: primary,
+    ...(opts.ns.length > 1 ? { namespaces: opts.ns } : {}),
+  };
 }
 
 function libraryFromSpecifier(spec: string): UsageLibraryId {

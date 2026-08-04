@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "@i18n-unused/config": "0.0.0",
+    "@i18n-unused/context": "0.0.0",
     "@i18n-unused/coverage": "0.0.0",
     "@i18n-unused/detect": "0.0.0",
     "@i18n-unused/issues": "0.0.0",

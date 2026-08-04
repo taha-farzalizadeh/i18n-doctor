@@ -136,7 +136,7 @@ describe("large project handling", () => {
         name: "big",
         dependencies: { i18next: "23.0.0" },
       }),
-      "src/app.ts": `import i18next from 'i18next'; i18next.t('k0');`,
+      "src/app.ts": `import i18next from 'i18next'; i18next.t('k0', { ns: 'ns0' });`,
     };
     for (let i = 0; i < 40; i += 1) {
       files[`locales/en/ns${i}.json`] = JSON.stringify({

@@ -13,6 +13,8 @@ import {
   duplicateIdentity,
   logicalDefinitionKey,
   logicalUsageKey,
+  matchContextFromOptions,
+  type MatchContext,
 } from "./identity.js";
 import { definitionToLocation, usageToLocation } from "./location.js";
 
@@ -29,7 +31,10 @@ type NormalizedOptions = Required<
   >
 > & {
   defaultLocale?: string;
+  defaultNS?: string;
+  fallbackNS?: readonly string[];
   severities: typeof DEFAULT_SEVERITIES;
+  match: MatchContext;
 };
 
 export function analyzeIssues(input: AnalyzeInput): AnalysisResult {
@@ -58,13 +63,27 @@ export function analyzeIssues(input: AnalyzeInput): AnalysisResult {
 }
 
 function normalizeOptions(options: IssueEngineOptions = {}): NormalizedOptions {
+  const matchNamespace = options.matchNamespace ?? true;
   return {
-    matchNamespace: options.matchNamespace ?? true,
+    matchNamespace,
     strictLocale: options.strictLocale ?? false,
     minConfidence: options.minConfidence ?? 0,
     ...(options.defaultLocale !== undefined
       ? { defaultLocale: options.defaultLocale }
       : {}),
+    ...(options.defaultNS !== undefined ? { defaultNS: options.defaultNS } : {}),
+    ...(options.fallbackNS !== undefined
+      ? { fallbackNS: options.fallbackNS }
+      : {}),
+    match: matchContextFromOptions({
+      matchNamespace,
+      ...(options.defaultNS !== undefined
+        ? { defaultNS: options.defaultNS }
+        : {}),
+      ...(options.fallbackNS !== undefined
+        ? { fallbackNS: options.fallbackNS }
+        : {}),
+    }),
     severities: {
       unusedKey: options.severities?.unusedKey ?? DEFAULT_SEVERITIES.unusedKey,
       missingKey: options.severities?.missingKey ?? DEFAULT_SEVERITIES.missingKey,
@@ -147,9 +166,7 @@ function findUnusedKeys(
   const issues: Issue[] = [];
   for (const [, defs] of byLogical) {
     const isUsed = usages.some((usage) =>
-      defs.some((def) =>
-        definitionMatchesUsage(def, usage, options.matchNamespace),
-      ),
+      defs.some((def) => definitionMatchesUsage(def, usage, options.match)),
     );
     if (isUsed) {
       continue;
@@ -196,12 +213,12 @@ function findMissingKeys(
   const missingGroups = new Map<string, UsageFact[]>();
   for (const usage of usages) {
     const found = activeDefinitions.some((def) =>
-      definitionMatchesUsage(def, usage, options.matchNamespace),
+      definitionMatchesUsage(def, usage, options.match),
     );
     if (found) {
       continue;
     }
-    const logical = logicalUsageKey(usage, options.matchNamespace);
+    const logical = logicalUsageKey(usage, options.match);
     const list = missingGroups.get(logical) ?? [];
     list.push(usage);
     missingGroups.set(logical, list);
