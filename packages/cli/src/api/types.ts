@@ -3,6 +3,7 @@
  */
 
 import type { EffectiveConfig } from "@i18n-unused/config";
+import type { CoverageResult } from "@i18n-unused/coverage";
 import type { ProjectDetectionResult } from "@i18n-unused/detect";
 import type { AnalysisResult, IssueSeverity } from "@i18n-unused/issues";
 
@@ -39,6 +40,13 @@ export interface CheckCliOptions {
   readonly namespace?: string;
   /** Disable the duplicate-key rule. */
   readonly ignoreDuplicates?: boolean;
+  /**
+   * Base locale for cross-locale coverage (keys missing in other langs).
+   * Defaults to framework defaultLocale or "en".
+   */
+  readonly baseLocale?: string;
+  /** Skip locale consistency / coverage analysis. */
+  readonly noCoverage?: boolean;
 }
 
 export interface CliTimings {
@@ -51,6 +59,7 @@ export interface CliTimings {
   readonly analyzeMs: number;
   readonly filterMs: number;
   readonly reportMs: number;
+  readonly coverageMs?: number;
 }
 
 export interface CheckRunResult {
@@ -63,6 +72,8 @@ export interface CheckRunResult {
   readonly timings: CliTimings;
   readonly exitCode: number;
   readonly frameworkOverride?: string;
+  /** Cross-locale coverage (keys missing/extra across languages). */
+  readonly coverage?: CoverageResult;
 }
 
 export interface ProgressRenderer {
@@ -84,6 +95,7 @@ export interface CliReportContext {
   readonly verbose?: boolean;
   readonly timings?: CliTimings;
   readonly detection?: ProjectDetectionResult;
+  readonly coverage?: CoverageResult;
 }
 
 export type SeverityCounts = {

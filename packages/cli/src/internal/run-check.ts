@@ -13,6 +13,10 @@ import {
   type UserConfig,
 } from "@i18n-unused/config";
 import {
+  createCoverageAnalyzer,
+  type CoverageResult,
+} from "@i18n-unused/coverage";
+import {
   createDetector,
   type ProjectDetectionResult,
 } from "@i18n-unused/detect";
@@ -23,7 +27,10 @@ import {
   type AnalysisResult,
   type IssueSeverity,
 } from "@i18n-unused/issues";
-import { createSourceDetector } from "@i18n-unused/sources";
+import {
+  createSourceDetector,
+  type TranslationCatalog,
+} from "@i18n-unused/sources";
 import { createUsageDetector } from "@i18n-unused/usages";
 import type {
   CheckCliOptions,
@@ -31,6 +38,7 @@ import type {
   CliTimings,
 } from "../api/types.js";
 import { countBySeverity } from "../api/types.js";
+import { appendCoverageToReport } from "./append-coverage.js";
 import { assertConfigReadable, discoverProject } from "./discover.js";
 import { CliError } from "./errors.js";
 import {
@@ -159,6 +167,7 @@ export async function runCheck(
 
   // 4. Analyze each scope (single root or monorepo packages)
   const analyses: AnalysisResult[] = [];
+  const sourceCatalogs: TranslationCatalog[] = [];
   let sourcesAcc = 0;
   let usagesAcc = 0;
   let analyzeAcc = 0;
@@ -167,8 +176,8 @@ export async function runCheck(
   for (const scope of scopes) {
     const label =
       scopes.length > 1
-        ? `Analyzing ${path.relative(project.root, scope.root) || "."}…`
-        : "Collecting translation sources…";
+        ? `Analyzing ${path.relative(project.root, scope.packageRoot ?? scope.root) || "."}…`
+        : "Collecting sources & usages…";
     progress.step(label);
 
     const part = await analyzeScope({
@@ -179,6 +188,7 @@ export async function runCheck(
       useDetection: !options.framework,
     });
     analyses.push(part.analysis);
+    sourceCatalogs.push(part.sourceCatalog);
     sourcesAcc += part.sourcesMs;
     usagesAcc += part.usagesMs;
     analyzeAcc += part.analyzeMs;
@@ -192,6 +202,26 @@ export async function runCheck(
 
   const analysis = mergeAnalysisResults(project.root, analyses);
 
+  // 4b. Locale consistency (keys missing in some languages)
+  let coverage: CoverageResult | undefined;
+  let coverageMs = 0;
+  if (!options.noCoverage) {
+    progress.step("Analyzing locale coverage…");
+    t0 = now();
+    coverage = createCoverageAnalyzer().analyzeMonorepo(sourceCatalogs, {
+      ...(options.baseLocale !== undefined
+        ? { baseLocale: options.baseLocale }
+        : options.locale !== undefined
+          ? { baseLocale: options.locale }
+          : {}),
+      ...(options.namespace !== undefined
+        ? { namespaces: [options.namespace] }
+        : {}),
+      minConfidence: rootConfig.minConfidence,
+    });
+    coverageMs = now() - t0;
+  }
+
   // 5. Reporter selection + output
   t0 = now();
   const timings: CliTimings = {
@@ -204,6 +234,7 @@ export async function runCheck(
     analyzeMs,
     filterMs,
     reportMs: 0,
+    ...(coverage ? { coverageMs } : {}),
   };
 
   const reporter = selectReporter(format, {
@@ -212,8 +243,18 @@ export async function runCheck(
     verbose,
     timings,
     detection,
+    ...(coverage ? { coverage } : {}),
   });
-  const report = reporter.report(analysis);
+  const issuesReport = reporter.report(analysis);
+  const reportWithCoverage = appendCoverageToReport(
+    typeof issuesReport === "string" ? issuesReport : "",
+    coverage,
+    format,
+    {
+      color: capsWithConfig.color,
+      hyperlinks: capsWithConfig.hyperlinks,
+    },
+  );
   reportMs = now() - t0;
 
   const finalTimings: CliTimings = {
@@ -224,21 +265,32 @@ export async function runCheck(
 
   const finalReport =
     format === "terminal" && verbose
-      ? selectReporter(format, {
-          color: capsWithConfig.color,
-          hyperlinks: capsWithConfig.hyperlinks,
-          verbose,
-          timings: finalTimings,
-          detection,
-        }).report(analysis)
-      : report;
+      ? appendCoverageToReport(
+          selectReporter(format, {
+            color: capsWithConfig.color,
+            hyperlinks: capsWithConfig.hyperlinks,
+            verbose,
+            timings: finalTimings,
+            detection,
+            ...(coverage ? { coverage } : {}),
+          }).report(analysis) as string,
+          coverage,
+          format,
+          {
+            color: capsWithConfig.color,
+            hyperlinks: capsWithConfig.hyperlinks,
+          },
+        )
+      : reportWithCoverage;
 
   progress.succeed(`Done (${Math.round(finalTimings.totalMs)}ms)`);
 
   const counts = countBySeverity(analysis.issues);
+  // Locale gaps count as warnings for exit policy
+  const coverageWarnings = coverage?.stats.missingCount ?? 0;
   const exitCode = rootConfig.exit.exitCode({
     error: counts.error,
-    warning: counts.warning,
+    warning: counts.warning + coverageWarnings,
   });
 
   const result: CheckRunResult = {
@@ -250,6 +302,7 @@ export async function runCheck(
     report: finalReport,
     timings: finalTimings,
     exitCode,
+    ...(coverage ? { coverage } : {}),
   };
   if (options.framework) {
     return { ...result, frameworkOverride: options.framework };
@@ -259,6 +312,7 @@ export async function runCheck(
 
 interface ScopeAnalysis {
   readonly analysis: AnalysisResult;
+  readonly sourceCatalog: TranslationCatalog;
   readonly sourcesMs: number;
   readonly usagesMs: number;
   readonly analyzeMs: number;
@@ -343,7 +397,7 @@ async function analyzeScope(input: {
   );
   const filterMs = now() - t0;
 
-  return { analysis, sourcesMs, usagesMs, analyzeMs, filterMs };
+  return { analysis, sourceCatalog, sourcesMs, usagesMs, analyzeMs, filterMs };
 }
 
 /**

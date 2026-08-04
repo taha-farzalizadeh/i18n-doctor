@@ -29,6 +29,11 @@ export function registerCheckCommand(program: Command): void {
       "--ignore-duplicates",
       "Ignore duplicate translation keys (turns off duplicate-key)",
     )
+    .option(
+      "--base-locale <locale>",
+      "Base locale for cross-locale coverage (keys missing in other langs)",
+    )
+    .option("--no-coverage", "Skip locale consistency / coverage analysis")
     .action(async (pathArg: string | undefined, opts) => {
       if (opts.fix) {
         process.stdout.write("Not implemented yet\n");
@@ -74,5 +79,10 @@ export function toCheckOptions(
     (out as { namespace?: string }).namespace = opts["namespace"];
   if (opts["ignoreDuplicates"])
     (out as { ignoreDuplicates?: boolean }).ignoreDuplicates = true;
+  if (typeof opts["baseLocale"] === "string")
+    (out as { baseLocale?: string }).baseLocale = opts["baseLocale"];
+  // commander --no-coverage sets coverage: false
+  if (opts["coverage"] === false)
+    (out as { noCoverage?: boolean }).noCoverage = true;
   return out;
 }

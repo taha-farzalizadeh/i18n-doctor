@@ -7,11 +7,7 @@
   },
   "include": ["src/**/*.ts"],
   "references": [
-    { "path": "../config" },
-    { "path": "../coverage" },
-    { "path": "../detect" },
-    { "path": "../issues" },
-    { "path": "../sources" },
-    { "path": "../usages" }
+    { "path": "../context" },
+    { "path": "../sources" }
   ]
 }

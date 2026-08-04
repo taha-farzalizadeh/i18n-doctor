@@ -27,6 +27,8 @@ export function selectReporter(
         createTerminalReporter({
           ...(context.color !== undefined ? { color: context.color } : {}),
           hyperlinks: context.hyperlinks ?? false,
+          // Keep the report usable; full list is in --json
+          maxIssues: 50,
         }),
         context,
       );

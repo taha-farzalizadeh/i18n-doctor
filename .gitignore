@@ -3,4 +3,4 @@ dist/
 *.tsbuildinfo
 .DS_Store
 .cache/
-coverage/
+/coverage/
