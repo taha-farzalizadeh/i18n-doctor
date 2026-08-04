@@ -25,6 +25,10 @@ export function registerCheckCommand(program: Command): void {
     .option("--framework <id>", "Framework / library hint override")
     .option("--locale <locale>", "Restrict analysis to a locale")
     .option("--namespace <ns>", "Restrict analysis to a namespace")
+    .option(
+      "--ignore-duplicates",
+      "Ignore duplicate translation keys (turns off duplicate-key)",
+    )
     .action(async (pathArg: string | undefined, opts) => {
       if (opts.fix) {
         process.stdout.write("Not implemented yet\n");
@@ -68,5 +72,7 @@ export function toCheckOptions(
     (out as { locale?: string }).locale = opts["locale"];
   if (typeof opts["namespace"] === "string")
     (out as { namespace?: string }).namespace = opts["namespace"];
+  if (opts["ignoreDuplicates"])
+    (out as { ignoreDuplicates?: boolean }).ignoreDuplicates = true;
   return out;
 }

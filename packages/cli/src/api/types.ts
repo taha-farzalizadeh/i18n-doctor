@@ -37,6 +37,8 @@ export interface CheckCliOptions {
   readonly locale?: string;
   /** Restrict analysis to this namespace. */
   readonly namespace?: string;
+  /** Disable the duplicate-key rule. */
+  readonly ignoreDuplicates?: boolean;
 }
 
 export interface CliTimings {

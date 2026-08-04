@@ -29,7 +29,8 @@ describe("help", () => {
     expect(stdout).toMatch(/--json/);
     expect(stdout).toMatch(/--sarif/);
     expect(stdout).toMatch(/--markdown/);
-    expect(stdout).toMatch(/--html/);
+    expect(stdout).toMatch(/--namespace/);
+    expect(stdout).toMatch(/--ignore-duplicates/);
   });
 });
 

@@ -53,8 +53,16 @@ export function buildCliUserConfig(options: CheckCliOptions): UserConfig {
   if (options.noColor) output.color = false;
   if (options.verbose) output.verbose = true;
 
-  if (Object.keys(output).length === 0) return {};
-  return { output };
+  const hasOutput = Object.keys(output).length > 0;
+  if (!hasOutput && !options.ignoreDuplicates) return {};
+
+  const config: UserConfig = {
+    ...(hasOutput ? { output } : {}),
+    ...(options.ignoreDuplicates
+      ? { rules: { "duplicate-key": "off" as const } }
+      : {}),
+  };
+  return config;
 }
 
 function pickExplicitFormat(

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { mergeAnalysisResults } from "../src/internal/merge-results.js";
+import { buildCliUserConfig } from "../src/internal/format-options.js";
 import { runCheck } from "../src/internal/run-check.js";
 import { fixture } from "./helpers.js";
 import type { AnalysisResult } from "@i18n-unused/issues";
@@ -123,4 +124,25 @@ describe("exit codes", () => {
     expect(result.analysis.stats.missingKey).toBeGreaterThan(0);
     expect(result.exitCode).toBe(1);
   }, 60_000);
+});
+
+describe("--ignore-duplicates", () => {
+  it("maps to CLI config rules.duplicate-key=off", () => {
+    expect(buildCliUserConfig({ ignoreDuplicates: true }).rules).toEqual({
+      "duplicate-key": "off",
+    });
+  });
+
+  it("disables duplicate-key on the effective config", async () => {
+    const root = fixture({ "package.json": '{"name":"app"}' });
+    const result = await runCheck({
+      path: root,
+      ignoreDuplicates: true,
+      json: true,
+      noColor: true,
+    });
+    expect(result.config.rules.isEnabled("duplicate-key")).toBe(false);
+    expect(result.config.rules.getSeverity("duplicate-key")).toBe("off");
+    expect(result.analysis.stats.duplicateKey).toBe(0);
+  });
 });
