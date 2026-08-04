@@ -47,7 +47,7 @@ import {
   createSourceDetector,
   entriesFromCatalog,
   toTranslationEntry,
-} from "@i18n-unused/sources";
+} from "@i18n-doctor/sources";
 
 const catalog = await createSourceDetector().discover({ root });
 const entries = entriesFromCatalog(catalog);

@@ -20,15 +20,15 @@ export function parseJsonConfig(
     return { config: {}, diagnostics };
   }
 
-  // package.json embeds under "i18n-unused"
+  // package.json embeds under "i18n-doctor"
   if (
     typeof raw === "object" &&
     raw !== null &&
     !Array.isArray(raw) &&
-    "i18n-unused" in (raw as Record<string, unknown>) &&
+    "i18n-doctor" in (raw as Record<string, unknown>) &&
     path.endsWith("package.json")
   ) {
-    return validateUserConfig((raw as Record<string, unknown>)["i18n-unused"], path);
+    return validateUserConfig((raw as Record<string, unknown>)["i18n-doctor"], path);
   }
 
   return validateUserConfig(raw, path);

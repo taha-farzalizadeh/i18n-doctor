@@ -35,7 +35,7 @@ export function formatCoverageReport(
   const CYAN = "\u001b[36m";
 
   const lines: string[] = [];
-  lines.push(paint(BOLD, "i18n-unused coverage"));
+  lines.push(paint(BOLD, "i18n-doctor coverage"));
   lines.push(`${paint(DIM, "Root:")} ${result.root}`);
   lines.push(`${paint(DIM, "Base locale:")} ${result.baseLocale}`);
   lines.push(

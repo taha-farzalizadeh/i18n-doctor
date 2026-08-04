@@ -3,7 +3,7 @@
 ## Help
 
 ```text
-Usage: i18n-unused [options] [command]
+Usage: i18n-doctor [options] [command]
 
 Static localization analysis — unused, missing, and duplicate translation keys
 
@@ -32,7 +32,7 @@ Commands:
 · Analyzing issues…
 ✓ Done (412ms)
 
-i18n-unused issues
+i18n-doctor issues
 Root: /Users/you/app
 
 Summary
@@ -88,7 +88,7 @@ SARIF 2.1.0 document with `runs[0].results[]` mapped from issues (`ruleId` = iss
 ## Markdown (`--markdown`)
 
 ```markdown
-# i18n-unused report
+# i18n-doctor report
 
 **Root:** `/Users/you/app`
 
@@ -116,7 +116,7 @@ Not implemented yet
 
 ```text
 error[NOT_FOUND]: Path does not exist: /missing
-hint: Pass an existing project directory to `i18n-unused check`.
+hint: Pass an existing project directory to `i18n-doctor check`.
 
 error[CONFIG]: Invalid severity for rule "unused-key"
 error[PERMISSION]: Cannot access project path /secret: permission denied

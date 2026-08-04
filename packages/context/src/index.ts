@@ -1,5 +1,5 @@
 /**
- * @i18n-unused/context
+ * @i18n-doctor/context
  *
  * Namespace, locale, and configuration intelligence.
  * Resolves translation keys using framework configuration and static

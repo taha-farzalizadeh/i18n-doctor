@@ -1,4 +1,4 @@
-import type { ImportResolver, ModuleGraph } from "@i18n-unused/imports";
+import type { ImportResolver, ModuleGraph } from "@i18n-doctor/imports";
 import ts from "typescript";
 import type {
   EvaluationContext,

@@ -1,5 +1,5 @@
 /**
- * @i18n-unused/issues
+ * @i18n-doctor/issues
  *
  * Issue Engine + reporters.
  * Compares definition/usage facts — no AST, no CLI coupling.

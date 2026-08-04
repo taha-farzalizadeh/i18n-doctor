@@ -1,5 +1,5 @@
 /**
- * Example CLI for @i18n-unused/constants
+ * Example CLI for @i18n-doctor/constants
  *
  *   npx tsx packages/constants/examples/constants-cli.ts <root> <file> <identifier>
  *
@@ -8,7 +8,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { createAstEngine } from "@i18n-unused/ast";
+import { createAstEngine } from "@i18n-doctor/ast";
 import { createConstantEvaluator } from "../src/index.js";
 
 const rootArg = process.argv[2];

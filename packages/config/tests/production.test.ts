@@ -7,11 +7,11 @@ import { project } from "./helpers.js";
 
 describe("production config scenarios", () => {
   describe("config loading", () => {
-    it("loads package.json i18n-unused", () => {
+    it("loads package.json i18n-doctor", () => {
       const { resolver, root } = project({
         "package.json": JSON.stringify({
           name: "app",
-          "i18n-unused": {
+          "i18n-doctor": {
             ignoreKeys: ["pkg.*"],
             ignoreNamespaces: ["test"],
             ignoreLocales: ["pseudo"],
@@ -29,9 +29,9 @@ describe("production config scenarios", () => {
       const { resolver, root } = project({
         "package.json": JSON.stringify({
           name: "app",
-          "i18n-unused": { ignoreKeys: ["from-pkg"] },
+          "i18n-doctor": { ignoreKeys: ["from-pkg"] },
         }),
-        "i18n-unused.config.json": JSON.stringify({
+        "i18n-doctor.config.json": JSON.stringify({
           ignoreKeys: ["from-file"],
         }),
       });
@@ -43,8 +43,8 @@ describe("production config scenarios", () => {
     it("honors config file priority (.ts before .json)", () => {
       const { loader } = project({
         "package.json": JSON.stringify({ name: "app" }),
-        "i18n-unused.config.ts": `export default { ignoreKeys: ['ts'] };`,
-        "i18n-unused.config.json": JSON.stringify({ ignoreKeys: ["json"] }),
+        "i18n-doctor.config.ts": `export default { ignoreKeys: ['ts'] };`,
+        "i18n-doctor.config.json": JSON.stringify({ ignoreKeys: ["json"] }),
       });
       const loaded = loader.load();
       expect(loaded.configPath).toContain(".ts");
@@ -58,7 +58,7 @@ describe("production config scenarios", () => {
       const { resolver, root } = project({
         "package.json": JSON.stringify({ name: "app" }),
         "custom.json": JSON.stringify({ ignoreKeys: ["custom"] }),
-        "i18n-unused.config.json": JSON.stringify({ ignoreKeys: ["auto"] }),
+        "i18n-doctor.config.json": JSON.stringify({ ignoreKeys: ["auto"] }),
       });
       const e = resolver.resolve({
         root,
@@ -66,7 +66,7 @@ describe("production config scenarios", () => {
       });
       expect(e.ignoreKeys).toEqual(["custom"]);
       expect(
-        e.fragments.some((f) => f.path?.includes("i18n-unused.config")),
+        e.fragments.some((f) => f.path?.includes("i18n-doctor.config")),
       ).toBe(false);
     });
 
@@ -124,7 +124,7 @@ describe("production config scenarios", () => {
       const file = engine.parseFile({
         absolutePath: "/a.ts",
         relativePath: "a.ts",
-        sourceText: `t('a'); // i18n-unused-ignore\n`,
+        sourceText: `t('a'); // i18n-doctor-ignore\n`,
       });
       expect(engine.isSuppressed(file, { line: 1 }).suppressed).toBe(true);
     });
@@ -133,7 +133,7 @@ describe("production config scenarios", () => {
       const file = engine.parseFile({
         absolutePath: "/a.ts",
         relativePath: "a.ts",
-        sourceText: `/* i18n-unused-ignore-next-line */\nt('a');\n`,
+        sourceText: `/* i18n-doctor-ignore-next-line */\nt('a');\n`,
       });
       expect(engine.isSuppressed(file, { line: 2 }).suppressed).toBe(true);
     });
@@ -143,9 +143,9 @@ describe("production config scenarios", () => {
         absolutePath: "/a.ts",
         relativePath: "a.ts",
         sourceText: `
-/* i18n-unused-disable */
+/* i18n-doctor-disable */
 t('a');
-/* i18n-unused-enable */
+/* i18n-doctor-enable */
 t('b');
 `,
       });
@@ -157,7 +157,7 @@ t('b');
       const file = engine.parseFile({
         absolutePath: "/a.ts",
         relativePath: "a.ts",
-        sourceText: `const s = "// i18n-unused-ignore";\nt('a');\n`,
+        sourceText: `const s = "// i18n-doctor-ignore";\nt('a');\n`,
       });
       expect(engine.isSuppressed(file, { line: 1 }).suppressed).toBe(false);
       expect(engine.isSuppressed(file, { line: 2 }).suppressed).toBe(false);
@@ -167,7 +167,7 @@ t('b');
       const file = engine.parseFile({
         absolutePath: "/a.ts",
         relativePath: "a.ts",
-        sourceText: `t('a'); // i18n-unused-ignore not-a-real-rule\n`,
+        sourceText: `t('a'); // i18n-doctor-ignore not-a-real-rule\n`,
       });
       expect(
         engine.isSuppressed(file, { line: 1, rule: "unused-key" }).suppressed,
@@ -180,11 +180,11 @@ t('b');
         relativePath: "a.ts",
         sourceText: `
 /*
- * i18n-unused-disable
+ * i18n-doctor-disable
  */
 t('a');
 /*
- * i18n-unused-enable
+ * i18n-doctor-enable
  */
 `,
       });
@@ -196,7 +196,7 @@ t('a');
     it("CLI overrides config file", () => {
       const { resolver, root } = project({
         "package.json": JSON.stringify({ name: "app" }),
-        "i18n-unused.config.json": JSON.stringify({
+        "i18n-doctor.config.json": JSON.stringify({
           ignoreKeys: ["file"],
           exitOnError: true,
         }),
@@ -225,7 +225,7 @@ t('a');
     it("emits clear diagnostics for invalid configuration", () => {
       const { loader } = project({
         "package.json": JSON.stringify({ name: "app" }),
-        "i18n-unused.config.json": JSON.stringify({
+        "i18n-doctor.config.json": JSON.stringify({
           ignoreKeys: 123,
           mystery: true,
           rules: { "unused-key": "nope" },
@@ -245,7 +245,7 @@ t('a');
     it("warns when both rules and severities are set", () => {
       const { loader } = project({
         "package.json": JSON.stringify({ name: "app" }),
-        "i18n-unused.config.json": JSON.stringify({
+        "i18n-doctor.config.json": JSON.stringify({
           rules: { "unused-key": "error" },
           severities: { "unused-key": "warning" },
         }),
@@ -264,7 +264,7 @@ t('a');
     it("keeps static entries when array has dynamic values", () => {
       const { loader } = project({
         "package.json": JSON.stringify({ name: "app" }),
-        "i18n-unused.config.js": `
+        "i18n-doctor.config.js": `
           export default {
             ignoreKeys: ['static', process.env.X],
           };
@@ -283,12 +283,12 @@ t('a');
           name: "root",
           workspaces: ["packages/*"],
         }),
-        "i18n-unused.config.json": JSON.stringify({
+        "i18n-doctor.config.json": JSON.stringify({
           ignoreKeys: ["root-file"],
         }),
         "packages/web/package.json": JSON.stringify({
           name: "web",
-          "i18n-unused": { ignoreKeys: ["web-pkg"] },
+          "i18n-doctor": { ignoreKeys: ["web-pkg"] },
         }),
       });
       const all = resolver.resolveMonorepo({ root });
@@ -307,9 +307,9 @@ t('a');
         }),
         "packages/web/package.json": JSON.stringify({
           name: "web",
-          "i18n-unused": { ignoreKeys: ["web-pkg"] },
+          "i18n-doctor": { ignoreKeys: ["web-pkg"] },
         }),
-        "packages/web/i18n-unused.config.json": JSON.stringify({
+        "packages/web/i18n-doctor.config.json": JSON.stringify({
           ignoreKeys: ["web-file"],
         }),
       });
@@ -323,11 +323,11 @@ t('a');
     it("uses config packages field for discovery", () => {
       const { resolver, root } = project({
         "package.json": JSON.stringify({ name: "root" }),
-        "i18n-unused.config.json": JSON.stringify({
+        "i18n-doctor.config.json": JSON.stringify({
           packages: ["custom-pkgs/*"],
         }),
         "custom-pkgs/a/package.json": JSON.stringify({ name: "a" }),
-        "custom-pkgs/a/i18n-unused.config.json": JSON.stringify({
+        "custom-pkgs/a/i18n-doctor.config.json": JSON.stringify({
           ignoreKeys: ["a.*"],
         }),
         "packages/b/package.json": JSON.stringify({ name: "b" }),
@@ -349,7 +349,7 @@ t('a');
           workspaces: ["libs/core"],
         }),
         "libs/core/package.json": JSON.stringify({ name: "core" }),
-        "libs/core/i18n-unused.config.json": JSON.stringify({
+        "libs/core/i18n-doctor.config.json": JSON.stringify({
           ignoreKeys: ["core.*"],
         }),
       });
@@ -376,9 +376,9 @@ t('a');
       const { resolver, root } = project({
         "package.json": JSON.stringify({
           name: "app",
-          "i18n-unused": { ignoreKeys: ["a"], mystery: 1 },
+          "i18n-doctor": { ignoreKeys: ["a"], mystery: 1 },
         }),
-        "i18n-unused.config.json": JSON.stringify({
+        "i18n-doctor.config.json": JSON.stringify({
           ignoreKeys: ["b"],
           alsoUnknown: true,
         }),

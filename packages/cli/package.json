@@ -1,10 +1,10 @@
 {
-  "name": "@i18n-unused/cli",
+  "name": "@i18n-doctor/cli",
   "version": "0.0.0",
-  "description": "Production CLI for i18n-unused static localization analysis",
+  "description": "Production CLI for i18n-doctor static localization analysis",
   "type": "module",
   "bin": {
-    "i18n-unused": "./dist/bin.js"
+    "i18n-doctor": "./dist/bin.js"
   },
   "exports": {
     ".": {
@@ -22,13 +22,13 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@i18n-unused/config": "0.0.0",
-    "@i18n-unused/context": "0.0.0",
-    "@i18n-unused/coverage": "0.0.0",
-    "@i18n-unused/detect": "0.0.0",
-    "@i18n-unused/issues": "0.0.0",
-    "@i18n-unused/sources": "0.0.0",
-    "@i18n-unused/usages": "0.0.0",
+    "@i18n-doctor/config": "0.0.0",
+    "@i18n-doctor/context": "0.0.0",
+    "@i18n-doctor/coverage": "0.0.0",
+    "@i18n-doctor/detect": "0.0.0",
+    "@i18n-doctor/issues": "0.0.0",
+    "@i18n-doctor/sources": "0.0.0",
+    "@i18n-doctor/usages": "0.0.0",
     "commander": "^14.0.0"
   },
   "devDependencies": {

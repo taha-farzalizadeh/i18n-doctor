@@ -2,7 +2,7 @@
  * Merge multiple package AnalysisResults (monorepo) without re-analyzing.
  */
 
-import type { AnalysisResult, Issue } from "@i18n-unused/issues";
+import type { AnalysisResult, Issue } from "@i18n-doctor/issues";
 import { computeStats } from "./filter.js";
 import { sortIssues } from "./reporters/select.js";
 import { toPosixPath } from "./paths.js";

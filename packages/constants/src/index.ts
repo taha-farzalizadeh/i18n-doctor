@@ -1,5 +1,5 @@
 /**
- * @i18n-unused/constants
+ * @i18n-doctor/constants
  *
  * Static constant evaluation for translation keys.
  * Never executes JavaScript — folds literals, concats, templates,

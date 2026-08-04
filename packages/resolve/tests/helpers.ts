@@ -1,4 +1,4 @@
-import { createAstEngine } from "@i18n-unused/ast";
+import { createAstEngine } from "@i18n-doctor/ast";
 import type { ResolutionResult } from "../src/index.js";
 import { createLocalResolver } from "../src/index.js";
 import { locationSpan } from "../src/internal/location.js";

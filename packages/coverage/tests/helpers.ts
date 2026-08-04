@@ -3,7 +3,7 @@ import type {
   TranslationCatalog,
   TranslationKeyDefinition,
   TranslationSource,
-} from "@i18n-unused/sources";
+} from "@i18n-doctor/sources";
 
 export function loc(
   line = 1,

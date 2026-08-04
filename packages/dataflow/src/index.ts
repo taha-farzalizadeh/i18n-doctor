@@ -1,5 +1,5 @@
 /**
- * @i18n-unused/dataflow
+ * @i18n-doctor/dataflow
  *
  * Dynamic key analysis and basic data-flow.
  * Never executes JavaScript. Prefers multiple possible keys over

@@ -74,9 +74,9 @@ export interface ConstantEvaluatorOptions {
   readonly root: string;
   /**
    * Optional pre-built import module graph. When omitted, a graph is created
-   * lazily via @i18n-unused/imports.
+   * lazily via @i18n-doctor/imports.
    */
-  readonly moduleGraph?: import("@i18n-unused/imports").ModuleGraph;
+  readonly moduleGraph?: import("@i18n-doctor/imports").ModuleGraph;
   /** Forwarded to ImportResolver when creating a graph. */
   readonly aliases?: Readonly<Record<string, string>>;
   readonly tsconfigPath?: string;

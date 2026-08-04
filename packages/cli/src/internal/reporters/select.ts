@@ -1,14 +1,14 @@
 /**
- * CLI reporter selection + formatters for formats not in @i18n-unused/issues.
+ * CLI reporter selection + formatters for formats not in @i18n-doctor/issues.
  * Machine formats produce deterministic, POSIX-path output.
  */
 
-import type { AnalysisResult, Issue } from "@i18n-unused/issues";
+import type { AnalysisResult, Issue } from "@i18n-doctor/issues";
 import {
   createJsonReporter,
   createTerminalReporter,
   toFileUrl,
-} from "@i18n-unused/issues";
+} from "@i18n-doctor/issues";
 import type {
   CliOutputFormat,
   CliReportContext,
@@ -172,8 +172,8 @@ export function createSarifReporter(context: CliReportContext = {}): CliReporter
         {
           tool: {
             driver: {
-              name: "i18n-unused",
-              informationUri: "https://github.com/i18n-unused/i18n-unused",
+              name: "i18n-doctor",
+              informationUri: "https://github.com/i18n-doctor/i18n-doctor",
               rules: [
                 {
                   id: "duplicate-key",
@@ -242,7 +242,7 @@ export function createMarkdownReporter(
     report(result) {
       const stable = stabilizeResult(result);
       const lines: string[] = [
-        "# i18n-unused report",
+        "# i18n-doctor report",
         "",
         `**Root:** \`${stable.root}\``,
         "",
@@ -311,7 +311,7 @@ export function createHtmlReporter(context: CliReportContext = {}): CliReporter 
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
-<title>i18n-unused report</title>
+<title>i18n-doctor report</title>
 <style>
   body { font-family: ui-sans-serif, system-ui, sans-serif; margin: 2rem; color: #111; }
   table { border-collapse: collapse; width: 100%; }
@@ -322,7 +322,7 @@ export function createHtmlReporter(context: CliReportContext = {}): CliReporter 
 </style>
 </head>
 <body>
-<h1>i18n-unused report</h1>
+<h1>i18n-doctor report</h1>
 <p class="meta">Root: <code>${escapeHtml(stable.root)}</code></p>
 <p>Unused: <strong>${stable.stats.unusedKey}</strong> &#183;
 Missing: <strong>${stable.stats.missingKey}</strong> &#183;

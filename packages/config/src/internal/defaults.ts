@@ -50,11 +50,11 @@ export const DEFAULT_USER_CONFIG: Required<
 };
 
 export const CONFIG_FILENAMES = [
-  "i18n-unused.config.ts",
-  "i18n-unused.config.js",
-  "i18n-unused.config.mjs",
-  "i18n-unused.config.cjs",
-  "i18n-unused.config.json",
+  "i18n-doctor.config.ts",
+  "i18n-doctor.config.js",
+  "i18n-doctor.config.mjs",
+  "i18n-doctor.config.cjs",
+  "i18n-doctor.config.json",
 ] as const;
 
 export const SEVERITY_ALIASES: Readonly<Record<string, RuleSeverity>> = {

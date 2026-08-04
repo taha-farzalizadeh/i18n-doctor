@@ -1,5 +1,5 @@
 /**
- * Example CLI wiring for @i18n-unused/issues
+ * Example CLI wiring for @i18n-doctor/issues
  *
  *   npx tsx packages/issues/examples/issues-cli.ts [root] [--json]
  *
@@ -7,8 +7,8 @@
  */
 
 import path from "node:path";
-import { createSourceDetector } from "@i18n-unused/sources";
-import { createUsageDetector } from "@i18n-unused/usages";
+import { createSourceDetector } from "@i18n-doctor/sources";
+import { createUsageDetector } from "@i18n-doctor/usages";
 import {
   createIssueEngine,
   createJsonReporter,

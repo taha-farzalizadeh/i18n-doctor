@@ -1,5 +1,5 @@
 {
-  "name": "@i18n-unused/dataflow",
+  "name": "@i18n-doctor/dataflow",
   "version": "0.0.0",
   "description": "Dynamic key analysis and basic data-flow for translation keys",
   "type": "module",
@@ -19,9 +19,9 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@i18n-unused/ast": "0.0.0",
-    "@i18n-unused/constants": "0.0.0",
-    "@i18n-unused/imports": "0.0.0"
+    "@i18n-doctor/ast": "0.0.0",
+    "@i18n-doctor/constants": "0.0.0",
+    "@i18n-doctor/imports": "0.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.13.10",

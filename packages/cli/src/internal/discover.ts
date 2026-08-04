@@ -50,7 +50,7 @@ export function discoverProject(
   try {
     if (!io.existsSync(startPath)) {
       throw new CliError("NOT_FOUND", `Path does not exist: ${startPath}`, {
-        hint: "Pass an existing project directory to `i18n-unused check`.",
+        hint: "Pass an existing project directory to `i18n-doctor check`.",
       });
     }
 

@@ -1,5 +1,5 @@
 /**
- * @i18n-unused/resolve
+ * @i18n-doctor/resolve
  *
  * File-local alias and variable resolution.
  * Builds an alias graph + detects simple wrappers to improve usage accuracy.

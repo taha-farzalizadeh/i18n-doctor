@@ -1,5 +1,5 @@
 import path from "node:path";
-import { queryApi } from "@i18n-unused/ast";
+import { queryApi } from "@i18n-doctor/ast";
 import type ts from "typescript";
 import type { SourceLocation } from "../api/types.js";
 

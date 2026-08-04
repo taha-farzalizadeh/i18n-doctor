@@ -1,4 +1,4 @@
-import type { LiteFileEntry } from "@i18n-unused/scanner";
+import type { LiteFileEntry } from "@i18n-doctor/scanner";
 import { isI18nPathContext, looksLikeLocale } from "./locale.js";
 
 const SOURCE_DIR_RE =

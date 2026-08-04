@@ -6,7 +6,7 @@ import { withCapturedStdio } from "./helpers.js";
 describe("help", () => {
   it("exposes check command and exit-code help", () => {
     const program = createProgram();
-    expect(program.name()).toBe("i18n-unused");
+    expect(program.name()).toBe("i18n-doctor");
     expect(program.commands.map((c) => c.name())).toContain("check");
     const help = program.helpInformation();
     expect(help).toMatch(/check/);
@@ -14,7 +14,7 @@ describe("help", () => {
 
   it("runCli --help exits 0 and prints usage", async () => {
     const { result, stdout } = await withCapturedStdio(() =>
-      runCli(["node", "i18n-unused", "--help"]),
+      runCli(["node", "i18n-doctor", "--help"]),
     );
     expect(result).toBe(0);
     expect(stdout).toMatch(/Usage:/);
@@ -23,7 +23,7 @@ describe("help", () => {
 
   it("runCli check --help exits 0", async () => {
     const { result, stdout } = await withCapturedStdio(() =>
-      runCli(["node", "i18n-unused", "check", "--help"]),
+      runCli(["node", "i18n-doctor", "check", "--help"]),
     );
     expect(result).toBe(0);
     expect(stdout).toMatch(/--json/);
@@ -41,7 +41,7 @@ describe("version", () => {
 
   it("runCli --version exits 0", async () => {
     const { result, stdout } = await withCapturedStdio(() =>
-      runCli(["node", "i18n-unused", "--version"]),
+      runCli(["node", "i18n-doctor", "--version"]),
     );
     expect(result).toBe(0);
     expect(stdout.trim()).toBe(getPackageVersion());
@@ -49,7 +49,7 @@ describe("version", () => {
 
   it("runCli -V exits 0", async () => {
     const { result } = await withCapturedStdio(() =>
-      runCli(["node", "i18n-unused", "-V"]),
+      runCli(["node", "i18n-doctor", "-V"]),
     );
     expect(result).toBe(0);
   });

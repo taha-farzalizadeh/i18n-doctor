@@ -1,5 +1,5 @@
 {
-  "name": "@i18n-unused/scanner",
+  "name": "@i18n-doctor/scanner",
   "version": "0.0.0",
   "description": "Project scanner: discover files, normalize paths, and produce immutable project snapshots",
   "type": "module",

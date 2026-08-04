@@ -1,8 +1,8 @@
 /**
- * @i18n-unused/cli
+ * @i18n-doctor/cli
  *
  * Production CLI — command parsing, config, discovery, reporting, exit codes.
- * Analysis is delegated to @i18n-unused/{detect,sources,usages,issues,config}.
+ * Analysis is delegated to @i18n-doctor/{detect,sources,usages,issues,config}.
  */
 
 export type {

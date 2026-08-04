@@ -46,7 +46,7 @@ describe("coverage reporters", () => {
 
   it("terminal report includes summary and locations", () => {
     const text = formatCoverageReport(result, { color: false });
-    expect(text).toContain("i18n-unused coverage");
+    expect(text).toContain("i18n-doctor coverage");
     expect(text).toContain("Coverage:");
     expect(text).toContain("auth.login");
     expect(text).toContain("locales/en.json:2:1");

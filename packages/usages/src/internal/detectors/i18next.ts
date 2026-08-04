@@ -1,4 +1,4 @@
-import { traversalApi } from "@i18n-unused/ast";
+import { traversalApi } from "@i18n-doctor/ast";
 import ts from "typescript";
 import type {
   LibraryUsageDetector,

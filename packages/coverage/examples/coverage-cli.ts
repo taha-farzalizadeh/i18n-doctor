@@ -1,5 +1,5 @@
 /**
- * Example CLI for @i18n-unused/coverage
+ * Example CLI for @i18n-doctor/coverage
  *
  *   npx tsx packages/coverage/examples/coverage-cli.ts [root] [--json] [--base en]
  */

@@ -1,10 +1,10 @@
 import path from "node:path";
-import { createAstEngine, traversalApi } from "@i18n-unused/ast";
+import { createAstEngine, traversalApi } from "@i18n-doctor/ast";
 import {
   createScanner,
   type LiteFileEntry,
   type ProjectSnapshotView,
-} from "@i18n-unused/scanner";
+} from "@i18n-doctor/scanner";
 import ts from "typescript";
 import type { DetectionWarning } from "../api/types.js";
 import {

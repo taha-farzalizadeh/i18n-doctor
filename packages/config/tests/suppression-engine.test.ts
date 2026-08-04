@@ -12,22 +12,22 @@ describe("SuppressionEngine", () => {
     });
   }
 
-  it("honors // i18n-unused-ignore on same line", () => {
-    const file = parse(`const a = t('a'); // i18n-unused-ignore\n`);
+  it("honors // i18n-doctor-ignore on same line", () => {
+    const file = parse(`const a = t('a'); // i18n-doctor-ignore\n`);
     expect(engine.isSuppressed(file, { line: 1 }).suppressed).toBe(true);
     expect(engine.isSuppressed(file, { line: 1 }).reason).toBe(
-      "i18n-unused-ignore",
+      "i18n-doctor-ignore",
     );
   });
 
   it("honors ignore-next-line", () => {
-    const file = parse(`/* i18n-unused-ignore-next-line */\nconst a = t('a');\n`);
+    const file = parse(`/* i18n-doctor-ignore-next-line */\nconst a = t('a');\n`);
     expect(engine.isSuppressed(file, { line: 2 }).suppressed).toBe(true);
     expect(engine.isSuppressed(file, { line: 1 }).suppressed).toBe(false);
   });
 
   it("supports rule-filtered ignore", () => {
-    const file = parse(`t('a'); // i18n-unused-ignore unused-key\n`);
+    const file = parse(`t('a'); // i18n-doctor-ignore unused-key\n`);
     expect(
       engine.isSuppressed(file, { line: 1, rule: "unused-key" }).suppressed,
     ).toBe(true);
@@ -38,10 +38,10 @@ describe("SuppressionEngine", () => {
 
   it("supports disable / enable regions", () => {
     const file = parse(`
-/* i18n-unused-disable */
+/* i18n-doctor-disable */
 const a = t('a');
 const b = t('b');
-/* i18n-unused-enable */
+/* i18n-doctor-enable */
 const c = t('c');
 `);
     expect(engine.isSuppressed(file, { line: 3 }).suppressed).toBe(true);
@@ -51,9 +51,9 @@ const c = t('c');
 
   it("supports rule-specific disable", () => {
     const file = parse(`
-/* i18n-unused-disable unused-key */
+/* i18n-doctor-disable unused-key */
 const a = t('a');
-/* i18n-unused-enable unused-key */
+/* i18n-doctor-enable unused-key */
 const b = t('b');
 `);
     expect(
@@ -69,8 +69,8 @@ const b = t('b');
 
   it("parses directives deterministically", () => {
     const file = parse(`
-// i18n-unused-ignore
-/* i18n-unused-ignore-next-line unused-key */
+// i18n-doctor-ignore
+/* i18n-doctor-ignore-next-line unused-key */
 `);
     expect(file.directives.map((d) => d.kind)).toEqual([
       "ignore-line",
@@ -79,13 +79,13 @@ const b = t('b');
   });
 
   it("ignores directives inside string literals", () => {
-    const file = parse(`const s = "// i18n-unused-ignore";\nt('x');\n`);
+    const file = parse(`const s = "// i18n-doctor-ignore";\nt('x');\n`);
     expect(engine.isSuppressed(file, { line: 1 }).suppressed).toBe(false);
     expect(engine.isSuppressed(file, { line: 2 }).suppressed).toBe(false);
   });
 
   it("does not widen unknown rule filters to all rules", () => {
-    const file = parse(`t('a'); // i18n-unused-ignore totally-bogus\n`);
+    const file = parse(`t('a'); // i18n-doctor-ignore totally-bogus\n`);
     expect(
       engine.isSuppressed(file, { line: 1, rule: "unused-key" }).suppressed,
     ).toBe(false);

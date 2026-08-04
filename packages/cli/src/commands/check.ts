@@ -12,7 +12,7 @@ export function registerCheckCommand(program: Command): void {
     .command("check", { isDefault: true })
     .description("Analyze a project for unused, missing, and duplicate keys")
     .argument("[path]", "Project path (default: current directory)")
-    .option("-c, --config <path>", "Path to i18n-unused config file")
+    .option("-c, --config <path>", "Path to i18n-doctor config file")
     .option("--json", "Emit JSON report")
     .option("--sarif", "Emit SARIF 2.1.0 report")
     .option("--markdown", "Emit Markdown report")

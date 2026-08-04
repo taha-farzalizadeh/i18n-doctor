@@ -1,10 +1,10 @@
 import path from "node:path";
-import { createAstEngine } from "@i18n-unused/ast";
-import { createDetector } from "@i18n-unused/detect";
+import { createAstEngine } from "@i18n-doctor/ast";
+import { createDetector } from "@i18n-doctor/detect";
 import {
   createScanner,
   type ProjectSnapshotView,
-} from "@i18n-unused/scanner";
+} from "@i18n-doctor/scanner";
 import type { TranslationSourceDetectorFactory } from "../api/detector.js";
 import type {
   CatalogWarning,

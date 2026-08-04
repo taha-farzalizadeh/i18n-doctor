@@ -1,5 +1,5 @@
 /**
- * @i18n-unused/templates
+ * @i18n-doctor/templates
  *
  * Framework-specific template analyzers for static translation usage detection.
  * Returns TemplateUsage values structurally compatible with TranslationUsage.

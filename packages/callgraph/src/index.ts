@@ -1,5 +1,5 @@
 /**
- * @i18n-unused/callgraph
+ * @i18n-doctor/callgraph
  *
  * Call graph construction and translation wrapper detection.
  * Never executes JavaScript. I18n seeds are injectable and kept separate

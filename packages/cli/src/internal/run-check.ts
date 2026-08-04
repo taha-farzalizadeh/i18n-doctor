@@ -11,28 +11,28 @@ import {
   createSuppressionEngine,
   type EffectiveConfig,
   type UserConfig,
-} from "@i18n-unused/config";
-import { createContextAnalyzer } from "@i18n-unused/context";
+} from "@i18n-doctor/config";
+import { createContextAnalyzer } from "@i18n-doctor/context";
 import {
   createCoverageAnalyzer,
   type CoverageResult,
-} from "@i18n-unused/coverage";
+} from "@i18n-doctor/coverage";
 import {
   createDetector,
   type ProjectDetectionResult,
-} from "@i18n-unused/detect";
+} from "@i18n-doctor/detect";
 import {
   createIssueEngine,
   definitionsFromCatalog,
   usagesFromCatalog,
   type AnalysisResult,
   type IssueSeverity,
-} from "@i18n-unused/issues";
+} from "@i18n-doctor/issues";
 import {
   createSourceDetector,
   type TranslationCatalog,
-} from "@i18n-unused/sources";
-import { createUsageDetector } from "@i18n-unused/usages";
+} from "@i18n-doctor/sources";
+import { createUsageDetector } from "@i18n-doctor/usages";
 import type {
   CheckCliOptions,
   CheckRunResult,

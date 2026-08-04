@@ -4,8 +4,8 @@
  * before the long per-issue dump (often 1000+ blocks).
  */
 
-import type { CoverageResult } from "@i18n-unused/coverage";
-import { formatCoverageJson } from "@i18n-unused/coverage";
+import type { CoverageResult } from "@i18n-doctor/coverage";
+import { formatCoverageJson } from "@i18n-doctor/coverage";
 import type { CliOutputFormat } from "../api/types.js";
 
 export function appendCoverageToReport(

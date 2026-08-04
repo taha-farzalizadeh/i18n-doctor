@@ -1,6 +1,6 @@
 /**
  * Resolve base locale + compared locales from options, catalog, and optional
- * framework EffectiveI18nSettings (from @i18n-unused/context).
+ * framework EffectiveI18nSettings (from @i18n-doctor/context).
  */
 
 import type { CoverageDiagnostic } from "../api/types.js";

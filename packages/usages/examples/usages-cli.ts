@@ -1,5 +1,5 @@
 /**
- * Example CLI usage for @i18n-unused/usages
+ * Example CLI usage for @i18n-doctor/usages
  *
  *   npx tsx packages/usages/examples/usages-cli.ts [root]
  */

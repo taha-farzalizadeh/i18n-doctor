@@ -1,5 +1,5 @@
 {
-  "name": "i18n-unused",
+  "name": "i18n-doctor",
   "private": true,
   "description": "Static localization analysis monorepo",
   "workspaces": [

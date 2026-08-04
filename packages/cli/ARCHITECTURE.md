@@ -1,4 +1,4 @@
-# @i18n-unused/cli — Architecture
+# @i18n-doctor/cli — Architecture
 
 ## Responsibilities
 
@@ -6,8 +6,8 @@ The CLI owns **orchestration only**:
 
 - command parsing (Commander)
 - project discovery + path normalization
-- configuration loading (`@i18n-unused/config`)
-- framework detection (`@i18n-unused/detect`)
+- configuration loading (`@i18n-doctor/config`)
+- framework detection (`@i18n-doctor/detect`)
 - invoking existing analyzers (`sources` → `usages` → `issues`)
 - ignore / suppression / rule policy application (config engines)
 - monorepo package scoping
@@ -39,7 +39,7 @@ argv
 
 ```
 packages/cli/
-  package.json          # bin: i18n-unused
+  package.json          # bin: i18n-doctor
   ARCHITECTURE.md
   examples/outputs.md
   src/

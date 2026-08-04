@@ -2,10 +2,10 @@
  * Public CLI types — orchestration only; no analyzer logic.
  */
 
-import type { EffectiveConfig } from "@i18n-unused/config";
-import type { CoverageResult } from "@i18n-unused/coverage";
-import type { ProjectDetectionResult } from "@i18n-unused/detect";
-import type { AnalysisResult, IssueSeverity } from "@i18n-unused/issues";
+import type { EffectiveConfig } from "@i18n-doctor/config";
+import type { CoverageResult } from "@i18n-doctor/coverage";
+import type { ProjectDetectionResult } from "@i18n-doctor/detect";
+import type { AnalysisResult, IssueSeverity } from "@i18n-doctor/issues";
 
 /** Reporter formats supported by the CLI (beyond issues package). */
 export type CliOutputFormat =

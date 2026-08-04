@@ -1,5 +1,5 @@
-import { createAstEngine, isSupportedSourceFileName } from "@i18n-unused/ast";
-import type { LiteFileEntry, ProjectSnapshotView } from "@i18n-unused/scanner";
+import { createAstEngine, isSupportedSourceFileName } from "@i18n-doctor/ast";
+import type { LiteFileEntry, ProjectSnapshotView } from "@i18n-doctor/scanner";
 import type {
   TemplateFrameworkId,
   TranslationUsage,

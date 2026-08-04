@@ -1,5 +1,5 @@
 /**
- * Example CLI for @i18n-unused/dataflow
+ * Example CLI for @i18n-doctor/dataflow
  *
  *   npx tsx packages/dataflow/examples/dataflow-cli.ts <root> <file>
  */

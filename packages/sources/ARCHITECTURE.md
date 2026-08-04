@@ -24,7 +24,7 @@ Every extracted key is a **TranslationEntry**:
 
 `TranslationKeyDefinition` remains the public catalog leaf (backward compatible). Prefer `toTranslationEntry()` / `entriesFromCatalog()` for namespace-aware consumers. `fullKey` is populated by the detector.
 
-Projects without namespaces keep `namespace: null` / omit `namespace` — soft matching in `@i18n-unused/issues` still works.
+Projects without namespaces keep `namespace: null` / omit `namespace` — soft matching in `@i18n-doctor/issues` still works.
 
 ## Registration extraction (static only)
 
@@ -34,7 +34,7 @@ After candidate file extraction, the detector scans script files for:
 2. **`addResource(lng, ns, key, value)`** — synthesizes a single-key source.
 3. **`init({ resources })` / `createInstance({ resources })`** — expands the i18next resources tree (also via `extract-js` targets).
 
-Import targets are resolved with `@i18n-unused/imports` (relative + tsconfig `paths`). Application code is never executed.
+Import targets are resolved with `@i18n-doctor/imports` (relative + tsconfig `paths`). Application code is never executed.
 
 Unresolved dynamic registrations emit catalog warnings:
 
@@ -49,7 +49,7 @@ unresolved-resource-registration
 - **Coverage**: already groups by namespace; benefits automatically once sources carry `namespace`.
 - **Usages**: `useTranslation("home")`, `useTranslation(["a","b"])`, `t(key, { ns })`, and `const api = useTranslation("home"); api.t(...)` propagate namespace. Unresolved i18next namespaces use `namespaceResolved: false` and confidence `0.4`.
 
-## Matching contract (`@i18n-unused/issues`)
+## Matching contract (`@i18n-doctor/issues`)
 
 | Definition | Usage | Result |
 | --- | --- | --- |

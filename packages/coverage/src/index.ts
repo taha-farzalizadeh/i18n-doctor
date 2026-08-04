@@ -1,8 +1,8 @@
 /**
- * @i18n-unused/coverage
+ * @i18n-doctor/coverage
  *
  * Translation coverage and locale consistency.
- * Reuses @i18n-unused/sources catalogs — does not re-parse locale files.
+ * Reuses @i18n-doctor/sources catalogs — does not re-parse locale files.
  */
 
 export type {

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Binary entry for `i18n-unused`.
+ * Binary entry for `i18n-doctor`.
  * Works under npm, pnpm, yarn, and bun via the package bin field.
  */
 

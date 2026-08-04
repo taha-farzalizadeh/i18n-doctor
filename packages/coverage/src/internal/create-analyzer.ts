@@ -1,10 +1,10 @@
 /**
  * createCoverageAnalyzer — wires merger + analyzer; reuses source discovery.
- * Optionally loads framework defaultLocale via @i18n-unused/context.
+ * Optionally loads framework defaultLocale via @i18n-doctor/context.
  */
 
-import { createContextAnalyzer } from "@i18n-unused/context";
-import { createSourceDetector } from "@i18n-unused/sources";
+import { createContextAnalyzer } from "@i18n-doctor/context";
+import { createSourceDetector } from "@i18n-doctor/sources";
 import type { CoverageAnalyzerFactory } from "../api/analyzer.js";
 import type {
   AnalyzeCoverageInput,
@@ -14,7 +14,7 @@ import type {
   CoverageDiagnostic,
   CoverageResult,
 } from "../api/types.js";
-import type { TranslationCatalog } from "@i18n-unused/sources";
+import type { TranslationCatalog } from "@i18n-doctor/sources";
 import { analyzeCatalogs } from "./analyze-coverage.js";
 
 class DefaultCoverageAnalyzer implements CoverageAnalyzer {

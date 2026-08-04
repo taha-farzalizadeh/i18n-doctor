@@ -7,7 +7,7 @@
  * - init({ resources }) / createInstance({ resources }) (inline + named)
  *
  * Does not execute application code. Import targets are resolved via
- * @i18n-unused/imports (relative + tsconfig paths).
+ * @i18n-doctor/imports (relative + tsconfig paths).
  */
 
 import path from "node:path";
@@ -16,9 +16,9 @@ import {
   queryApi,
   traversalApi,
   type AstEngine,
-} from "@i18n-unused/ast";
-import { createImportResolver, type ImportResolver } from "@i18n-unused/imports";
-import type { ProjectSnapshotView } from "@i18n-unused/scanner";
+} from "@i18n-doctor/ast";
+import { createImportResolver, type ImportResolver } from "@i18n-doctor/imports";
+import type { ProjectSnapshotView } from "@i18n-doctor/scanner";
 import ts from "typescript";
 import type {
   CatalogWarning,

@@ -1,5 +1,5 @@
 /**
- * @i18n-unused/imports
+ * @i18n-doctor/imports
  *
  * Cross-file import/export resolution and module graph.
  * Uses the AST Engine. No type checking, runtime evaluation, or i18n logic.

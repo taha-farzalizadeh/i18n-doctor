@@ -6,12 +6,12 @@ describe("EffectiveConfigResolver", () => {
     const { resolver, root } = project({
       "package.json": JSON.stringify({
         name: "app",
-        "i18n-unused": {
+        "i18n-doctor": {
           ignoreKeys: ["from-pkg"],
           exitOnError: false,
         },
       }),
-      "i18n-unused.config.json": JSON.stringify({
+      "i18n-doctor.config.json": JSON.stringify({
         ignoreKeys: ["from-file"],
         ignoreFiles: ["**/vendor/**"],
         rules: { "missing-key": "warning" },
@@ -38,7 +38,7 @@ describe("EffectiveConfigResolver", () => {
   it("is deterministic across repeated resolves", () => {
     const { resolver, root } = project({
       "package.json": JSON.stringify({ name: "app" }),
-      "i18n-unused.config.json": JSON.stringify({
+      "i18n-doctor.config.json": JSON.stringify({
         ignoreKeys: ["a.*", "b.*"],
         rules: { "unused-key": "error", "duplicate-key": "info" },
       }),
@@ -58,16 +58,16 @@ describe("EffectiveConfigResolver", () => {
       "package.json": JSON.stringify({
         name: "root",
         workspaces: ["packages/*"],
-        "i18n-unused": {
+        "i18n-doctor": {
           ignoreKeys: ["root.*"],
           rules: { "unused-key": "warning" },
         },
       }),
-      "i18n-unused.config.json": JSON.stringify({
+      "i18n-doctor.config.json": JSON.stringify({
         ignoreFiles: ["**/dist/**"],
       }),
       "packages/web/package.json": JSON.stringify({ name: "web" }),
-      "packages/web/i18n-unused.config.json": JSON.stringify({
+      "packages/web/i18n-doctor.config.json": JSON.stringify({
         ignoreKeys: ["web.*"],
         rules: { "unused-key": "error" },
       }),
@@ -90,7 +90,7 @@ describe("EffectiveConfigResolver", () => {
   it("CLI overrides package config", () => {
     const { resolver, root } = project({
       "package.json": JSON.stringify({ name: "app" }),
-      "i18n-unused.config.json": JSON.stringify({
+      "i18n-doctor.config.json": JSON.stringify({
         output: { format: "terminal" },
       }),
     });

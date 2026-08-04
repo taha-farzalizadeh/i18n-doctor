@@ -1,11 +1,11 @@
 import path from "node:path";
-import { createAstEngine } from "@i18n-unused/ast";
-import { createConstantEvaluator } from "@i18n-unused/constants";
+import { createAstEngine } from "@i18n-doctor/ast";
+import { createConstantEvaluator } from "@i18n-doctor/constants";
 import {
   createImportResolver,
   type ImportResolver,
   type ModuleGraph,
-} from "@i18n-unused/imports";
+} from "@i18n-doctor/imports";
 import fs from "node:fs";
 import ts from "typescript";
 import type { CallGraphAnalyzerFactory } from "../api/analyzer.js";

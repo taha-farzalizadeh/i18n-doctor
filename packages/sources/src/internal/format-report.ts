@@ -2,7 +2,7 @@ import type { TranslationCatalog } from "../api/types.js";
 
 export function formatCatalogReport(catalog: TranslationCatalog): string {
   const lines: string[] = [];
-  lines.push("i18n-unused sources");
+  lines.push("i18n-doctor sources");
   lines.push(`Root: ${catalog.root}`);
   lines.push("");
   lines.push("Summary");

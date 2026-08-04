@@ -1,5 +1,5 @@
-import type { FileAliasAnalysis, ResolutionResult } from "@i18n-unused/resolve";
-import { createLocalResolver } from "@i18n-unused/resolve";
+import type { FileAliasAnalysis, ResolutionResult } from "@i18n-doctor/resolve";
+import { createLocalResolver } from "@i18n-doctor/resolve";
 import type ts from "typescript";
 import type { FileBindingTable, TFunctionBinding } from "../api/types.js";
 import { resolveTFunction } from "./bindings.js";

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildLocaleTree, splitKeyPath, walkLocaleTree } from "../src/index.js";
-import type { TranslationKeyDefinition } from "@i18n-unused/sources";
+import type { TranslationKeyDefinition } from "@i18n-doctor/sources";
 import { keyDef } from "./helpers.js";
 
 describe("splitKeyPath", () => {

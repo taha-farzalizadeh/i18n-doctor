@@ -1,5 +1,5 @@
 /**
- * @i18n-unused/scanner
+ * @i18n-doctor/scanner
  *
  * Public surface: types, interfaces, configuration, and scanner factory.
  */

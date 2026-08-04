@@ -1,5 +1,5 @@
 /**
- * Example usage of @i18n-unused/ast
+ * Example usage of @i18n-doctor/ast
  *
  * Run after build:
  *   node --experimental-strip-types examples/basic-usage.ts

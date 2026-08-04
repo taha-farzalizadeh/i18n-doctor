@@ -1,5 +1,5 @@
 /**
- * Post/pre-analysis filtering using @i18n-unused/config engines.
+ * Post/pre-analysis filtering using @i18n-doctor/config engines.
  * Does not change issue matching logic — only drops/remaps findings.
  */
 
@@ -10,7 +10,7 @@ import type {
   RuleId,
   RuleSeverity,
   SuppressionEngine,
-} from "@i18n-unused/config";
+} from "@i18n-doctor/config";
 import type {
   AnalysisResult,
   DefinitionFact,
@@ -18,7 +18,7 @@ import type {
   IssueSeverity,
   IssueStats,
   UsageFact,
-} from "@i18n-unused/issues";
+} from "@i18n-doctor/issues";
 
 export function filterDefinitionFacts(
   definitions: readonly DefinitionFact[],

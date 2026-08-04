@@ -42,7 +42,7 @@ export function formatTerminalReport(
     color ? `${code}${text}${RESET}` : text;
 
   const lines: string[] = [];
-  lines.push(paint(BOLD, "i18n-unused issues"));
+  lines.push(paint(BOLD, "i18n-doctor issues"));
   lines.push(`${paint(DIM, "Root:")} ${result.root}`);
   lines.push("");
   lines.push(paint(BOLD, "Summary"));

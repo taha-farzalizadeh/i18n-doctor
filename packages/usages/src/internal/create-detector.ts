@@ -1,9 +1,9 @@
 import path from "node:path";
-import { createDetector } from "@i18n-unused/detect";
+import { createDetector } from "@i18n-doctor/detect";
 import {
   createScanner,
   type ProjectSnapshotView,
-} from "@i18n-unused/scanner";
+} from "@i18n-doctor/scanner";
 import type { UsageDetectorFactory } from "../api/detector.js";
 import type {
   UsageCatalog,

@@ -1,5 +1,5 @@
 {
-  "name": "@i18n-unused/templates",
+  "name": "@i18n-doctor/templates",
   "version": "0.0.0",
   "description": "Framework template analyzers for translation key usages",
   "type": "module",

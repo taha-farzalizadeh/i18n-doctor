@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AnalysisResult, Issue } from "@i18n-unused/issues";
+import type { AnalysisResult, Issue } from "@i18n-doctor/issues";
 import { selectReporter, stabilizeResult } from "../src/internal/reporters/select.js";
 
 function sample(overrides: Partial<AnalysisResult> = {}): AnalysisResult {
@@ -82,7 +82,7 @@ describe("stable reporters", () => {
     const a = selectReporter("markdown").report(sample());
     const b = selectReporter("markdown").report(sample());
     expect(a).toBe(b);
-    expect(a).toContain("# i18n-unused report");
+    expect(a).toContain("# i18n-doctor report");
     expect(a).toContain("locales/en.json");
     expect(a).not.toContain("locales\\en.json");
   });

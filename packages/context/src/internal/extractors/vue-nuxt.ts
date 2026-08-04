@@ -2,7 +2,7 @@
  * Extract vue-i18n createI18n() and nuxt-i18n / i18n.config settings.
  */
 
-import { traversalApi } from "@i18n-unused/ast";
+import { traversalApi } from "@i18n-doctor/ast";
 import ts from "typescript";
 import { locationOf } from "../location.js";
 import {

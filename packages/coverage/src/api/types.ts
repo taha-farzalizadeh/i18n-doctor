@@ -1,14 +1,14 @@
 /**
  * Translation Coverage / Locale Consistency types.
  *
- * Consumes TranslationCatalog from @i18n-unused/sources — no re-parsing.
+ * Consumes TranslationCatalog from @i18n-doctor/sources — no re-parsing.
  * Additive extensions only — existing fields remain stable.
  */
 
 import type {
   TranslationCatalog,
   TranslationKeyDefinition,
-} from "@i18n-unused/sources";
+} from "@i18n-doctor/sources";
 
 /** Exact location of a key definition in a locale file. */
 export interface CoverageFileLocation {
@@ -229,7 +229,7 @@ export interface CoverageAnalyzerOptions {
    */
   readonly fallbackLocales?: readonly string[];
   /**
-   * When analyzing from root, load framework i18n config via @i18n-unused/context.
+   * When analyzing from root, load framework i18n config via @i18n-doctor/context.
    * @default true for analyzeFromRoot
    */
   readonly useContext?: boolean;

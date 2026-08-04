@@ -1,5 +1,5 @@
 import path from "node:path";
-import { createAstEngine, type AstEngine } from "@i18n-unused/ast";
+import { createAstEngine, type AstEngine } from "@i18n-doctor/ast";
 import type ts from "typescript";
 import type { ModuleGraph, ModuleRecord } from "../api/types.js";
 import type { FsAccess } from "./fs-access.js";

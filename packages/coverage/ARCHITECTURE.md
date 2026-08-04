@@ -1,4 +1,4 @@
-# @i18n-unused/coverage — Architecture
+# @i18n-doctor/coverage — Architecture
 
 ## Goals
 
@@ -19,8 +19,8 @@ Analyze all locales against a **base locale** and report:
 ## Pipeline
 
 ```
-TranslationCatalog  (@i18n-unused/sources)
-        + optional EffectiveI18nSettings (@i18n-unused/context)
+TranslationCatalog  (@i18n-doctor/sources)
+        + optional EffectiveI18nSettings (@i18n-doctor/context)
         │
         ▼
  Locale Merger      (group by namespace → key → locale; duplicate diagnostics)

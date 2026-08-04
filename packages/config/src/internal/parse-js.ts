@@ -3,7 +3,7 @@
  * from JS/TS config files. Never executes the file.
  */
 
-import { createAstEngine, traversalApi } from "@i18n-unused/ast";
+import { createAstEngine, traversalApi } from "@i18n-doctor/ast";
 import ts from "typescript";
 import type { ConfigDiagnostic } from "../api/types.js";
 import { validateUserConfig } from "./validate.js";

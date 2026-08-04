@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { CoverageResult } from "@i18n-unused/coverage";
+import type { CoverageResult } from "@i18n-doctor/coverage";
 import { appendCoverageToReport } from "../src/internal/append-coverage.js";
 
 function fakeCoverage(overrides: Partial<CoverageResult> = {}): CoverageResult {
@@ -63,7 +63,7 @@ function fakeCoverage(overrides: Partial<CoverageResult> = {}): CoverageResult {
 describe("appendCoverageToReport", () => {
   it("injects locale coverage immediately after issues Summary", () => {
     const issues = [
-      "i18n-unused issues",
+      "i18n-doctor issues",
       "Root: /proj",
       "",
       "Summary",

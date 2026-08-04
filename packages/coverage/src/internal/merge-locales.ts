@@ -5,7 +5,7 @@
 import type {
   TranslationCatalog,
   TranslationKeyDefinition,
-} from "@i18n-unused/sources";
+} from "@i18n-doctor/sources";
 import type {
   CoverageDiagnostic,
   MergedLocaleModel,

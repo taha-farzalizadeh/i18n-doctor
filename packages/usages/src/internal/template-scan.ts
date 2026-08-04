@@ -3,7 +3,7 @@ import {
   extractVueScripts as extractVueScriptsFromTemplates,
   type TemplateUsage,
   type VueScriptSlice,
-} from "@i18n-unused/templates";
+} from "@i18n-doctor/templates";
 import type {
   TemplateFrameworkId,
   TranslationUsage,

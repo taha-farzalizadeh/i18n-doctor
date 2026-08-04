@@ -1,4 +1,4 @@
-# i18n-unused
+# i18n-doctor
 
 > **Beta — v0.9.0**
 > This is an early release. APIs may change, edge cases exist, and your feedback matters. See [Contributing](#contributing) to help shape the project.
@@ -28,13 +28,13 @@ Analysis is purely static. No runtime, no bundler, no side effects.
 
 ```bash
 # npm
-npm install -D @i18n-unused/cli
+npm install -D @i18n-doctor/cli
 
 # yarn
-yarn add -D @i18n-unused/cli
+yarn add -D @i18n-doctor/cli
 
 # pnpm
-pnpm add -D @i18n-unused/cli
+pnpm add -D @i18n-doctor/cli
 ```
 
 ---
@@ -44,13 +44,13 @@ pnpm add -D @i18n-unused/cli
 Run from the root of your project:
 
 ```bash
-npx i18n-unused check
+npx i18n-doctor check
 ```
 
 Or point it at a specific path:
 
 ```bash
-npx i18n-unused check ./apps/web
+npx i18n-doctor check ./apps/web
 ```
 
 ---
@@ -58,7 +58,7 @@ npx i18n-unused check ./apps/web
 ## CLI reference
 
 ```
-Usage: i18n-unused [options] [command]
+Usage: i18n-doctor [options] [command]
 
 Commands:
   check [options] [path]   Analyze a project for unused, missing, and duplicate keys
@@ -112,7 +112,7 @@ Options:
 · Analyzing issues…
 ✓ Done (412ms)
 
-i18n-unused issues
+i18n-doctor issues
 Root: /Users/you/app
 
 Summary
@@ -155,7 +155,7 @@ Also available: `--sarif` (SARIF 2.1.0), `--markdown`, `--html`.
 
 ## Configuration
 
-Place an `i18n-unused.config.json` (or `.js` / `.ts`) at your project root. The CLI will pick it up automatically, or you can point to it with `--config`.
+Place an `i18n-doctor.config.json` (or `.js` / `.ts`) at your project root. The CLI will pick it up automatically, or you can point to it with `--config`.
 
 ```json
 {
@@ -182,7 +182,7 @@ You can also suppress individual issues inline in source code using comments —
 Pass the path to any workspace package, or run from the monorepo root and let the CLI discover packages automatically:
 
 ```bash
-npx i18n-unused check ./packages/web
+npx i18n-doctor check ./packages/web
 ```
 
 ---
@@ -193,28 +193,28 @@ This repo is a monorepo. Each package is independently publishable.
 
 | Package | Description |
 |---|---|
-| `@i18n-unused/cli` | CLI entry point and orchestration |
-| `@i18n-unused/ast` | TypeScript Compiler API — parse JS/JSX/TS/TSX, traversal and query helpers |
-| `@i18n-unused/callgraph` | Call graph construction and translation wrapper detection |
-| `@i18n-unused/config` | Config loading, ignore rules, inline suppression |
-| `@i18n-unused/detect` | Framework, package manager, language, and i18n library detection |
-| `@i18n-unused/sources` | Translation source discovery and key catalog extraction |
-| `@i18n-unused/usages` | Translation key usage detection with source locations |
-| `@i18n-unused/issues` | Issue engine and reporters |
-| `@i18n-unused/coverage` | Cross-locale coverage analysis |
-| `@i18n-unused/scanner` | File system scanning utilities |
-| `@i18n-unused/imports` | Import resolution helpers |
-| `@i18n-unused/resolve` | Key and path resolution |
-| `@i18n-unused/templates` | Template literal and dynamic key analysis |
-| `@i18n-unused/context` | Shared execution context |
-| `@i18n-unused/constants` | Shared constants |
-| `@i18n-unused/dataflow` | Dataflow analysis utilities |
+| `@i18n-doctor/cli` | CLI entry point and orchestration |
+| `@i18n-doctor/ast` | TypeScript Compiler API — parse JS/JSX/TS/TSX, traversal and query helpers |
+| `@i18n-doctor/callgraph` | Call graph construction and translation wrapper detection |
+| `@i18n-doctor/config` | Config loading, ignore rules, inline suppression |
+| `@i18n-doctor/detect` | Framework, package manager, language, and i18n library detection |
+| `@i18n-doctor/sources` | Translation source discovery and key catalog extraction |
+| `@i18n-doctor/usages` | Translation key usage detection with source locations |
+| `@i18n-doctor/issues` | Issue engine and reporters |
+| `@i18n-doctor/coverage` | Cross-locale coverage analysis |
+| `@i18n-doctor/scanner` | File system scanning utilities |
+| `@i18n-doctor/imports` | Import resolution helpers |
+| `@i18n-doctor/resolve` | Key and path resolution |
+| `@i18n-doctor/templates` | Template literal and dynamic key analysis |
+| `@i18n-doctor/context` | Shared execution context |
+| `@i18n-doctor/constants` | Shared constants |
+| `@i18n-doctor/dataflow` | Dataflow analysis utilities |
 
 ---
 
 ## Contributing
 
-**i18n-unused is in beta and actively needs help.** Here's how you can contribute:
+**i18n-doctor is in beta and actively needs help.** Here's how you can contribute:
 
 - **Find bugs** — run it on your project and open an issue with repro steps
 - **Add features** — pick up an open issue or propose something new
@@ -238,8 +238,8 @@ There's no bureaucracy here. If it improves the project, it'll land.
 ### Development setup
 
 ```bash
-git clone https://github.com/your-org/i18n-unused
-cd i18n-unused
+git clone https://github.com/your-org/i18n-doctor
+cd i18n-doctor
 npm install
 npm run build
 ```

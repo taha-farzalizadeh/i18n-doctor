@@ -1,5 +1,5 @@
 /**
- * Example CLI for @i18n-unused/context
+ * Example CLI for @i18n-doctor/context
  *
  *   npx tsx packages/context/examples/context-cli.ts <root>
  */

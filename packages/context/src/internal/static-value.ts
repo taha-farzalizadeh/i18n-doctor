@@ -4,7 +4,7 @@
  * file-local const aliases only.
  */
 
-import { traversalApi } from "@i18n-unused/ast";
+import { traversalApi } from "@i18n-doctor/ast";
 import ts from "typescript";
 
 export function unwrap(expr: ts.Expression): ts.Expression {

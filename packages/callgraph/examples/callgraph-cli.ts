@@ -1,5 +1,5 @@
 /**
- * Example CLI for @i18n-unused/callgraph
+ * Example CLI for @i18n-doctor/callgraph
  *
  *   npx tsx packages/callgraph/examples/callgraph-cli.ts <root> <file> [file...]
  */

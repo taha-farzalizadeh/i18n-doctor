@@ -1,5 +1,5 @@
 /**
- * Example CLI for @i18n-unused/resolve
+ * Example CLI for @i18n-doctor/resolve
  *
  *   npx tsx packages/resolve/examples/resolve-cli.ts <file> [identifier]
  *
@@ -9,7 +9,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { createAstEngine } from "@i18n-unused/ast";
+import { createAstEngine } from "@i18n-doctor/ast";
 import ts from "typescript";
 import { createLocalResolver } from "../src/index.js";
 

@@ -1,5 +1,5 @@
 /**
- * @i18n-unused/ast
+ * @i18n-doctor/ast
  *
  * TypeScript Compiler API based AST engine.
  * Parses JS/JSX/TS/TSX, preserves locations/comments/parents,

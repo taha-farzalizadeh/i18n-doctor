@@ -2,7 +2,7 @@
  * Extract Next.js `i18n: { defaultLocale, locales }` from next.config.*.
  */
 
-import { traversalApi } from "@i18n-unused/ast";
+import { traversalApi } from "@i18n-doctor/ast";
 import ts from "typescript";
 import { locationOf } from "../location.js";
 import {

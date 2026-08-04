@@ -13,10 +13,10 @@ import { fixture, i18nDemo, withCapturedStdio } from "./helpers.js";
 describe("invalid path / missing project", () => {
   it("discover throws NOT_FOUND for missing path", () => {
     expect(() =>
-      discoverProject({ pathArg: "/no/such/i18n-unused-path-xyz" }),
+      discoverProject({ pathArg: "/no/such/i18n-doctor-path-xyz" }),
     ).toThrow(CliError);
     try {
-      discoverProject({ pathArg: "/no/such/i18n-unused-path-xyz" });
+      discoverProject({ pathArg: "/no/such/i18n-doctor-path-xyz" });
     } catch (e) {
       expect(e).toBeInstanceOf(CliError);
       expect((e as CliError).code).toBe("NOT_FOUND");
@@ -26,7 +26,7 @@ describe("invalid path / missing project", () => {
 
   it("runCheck on missing path exits via CliError", async () => {
     await expect(
-      runCheck({ path: "/no/such/i18n-unused-path-xyz", json: true }),
+      runCheck({ path: "/no/such/i18n-doctor-path-xyz", json: true }),
     ).rejects.toMatchObject({ code: "NOT_FOUND", exitCode: 2 });
   });
 
@@ -34,9 +34,9 @@ describe("invalid path / missing project", () => {
     const { result, stderr } = await withCapturedStdio(() =>
       runCli([
         "node",
-        "i18n-unused",
+        "i18n-doctor",
         "check",
-        "/no/such/i18n-unused-path-xyz",
+        "/no/such/i18n-doctor-path-xyz",
         "--json",
       ]),
     );
@@ -133,7 +133,7 @@ describe("invalid config", () => {
     const { result, stderr } = await withCapturedStdio(() =>
       runCli([
         "node",
-        "i18n-unused",
+        "i18n-doctor",
         "check",
         root,
         "--config",
@@ -182,7 +182,7 @@ describe("check formats on real fixture", () => {
       noColor: true,
     });
     expect(result.format).toBe("markdown");
-    expect(result.report).toContain("# i18n-unused report");
+    expect(result.report).toContain("# i18n-doctor report");
   });
 
   it("html", async () => {

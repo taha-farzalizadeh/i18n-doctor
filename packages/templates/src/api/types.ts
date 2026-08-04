@@ -40,7 +40,7 @@ export interface TemplateLocation {
 }
 
 /**
- * Structurally compatible with @i18n-unused/usages TranslationUsage.
+ * Structurally compatible with @i18n-doctor/usages TranslationUsage.
  * Framework analyzers never import the usages package (avoids cycles).
  */
 export interface TemplateUsage {

@@ -204,7 +204,7 @@ export interface ConfigLoaderOptions {
   /** Extra explicit config path (absolute or root-relative). */
   readonly configPath?: string;
   /**
-   * When true, also read package.json "i18n-unused".
+   * When true, also read package.json "i18n-doctor".
    * @default true
    */
   readonly readPackageJson?: boolean;

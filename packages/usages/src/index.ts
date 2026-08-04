@@ -1,5 +1,5 @@
 /**
- * @i18n-unused/usages
+ * @i18n-doctor/usages
  *
  * Translation key usage detection with full source locations.
  * File-local binding aliases only — no cross-file resolution,

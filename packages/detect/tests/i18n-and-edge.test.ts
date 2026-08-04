@@ -278,7 +278,7 @@ describe("edge cases", () => {
 
   it("never throws when root does not exist", async () => {
     const result = await createDetector().detect({
-      root: "/tmp/i18n-unused-does-not-exist-" + Date.now(),
+      root: "/tmp/i18n-doctor-does-not-exist-" + Date.now(),
     });
     expect(result.unknowns.length).toBeGreaterThan(0);
     expect(result.primary.framework).toBeUndefined();

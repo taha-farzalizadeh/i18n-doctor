@@ -1,5 +1,5 @@
 /**
- * @i18n-unused/sources
+ * @i18n-doctor/sources
  *
  * Translation source detection: finds where keys are defined.
  * Namespace-aware for i18next registrations (addResourceBundle, etc.).

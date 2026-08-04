@@ -3,7 +3,7 @@
  * Static AST only — never executes init.
  */
 
-import { traversalApi } from "@i18n-unused/ast";
+import { traversalApi } from "@i18n-doctor/ast";
 import ts from "typescript";
 import { locationOf } from "../location.js";
 import {

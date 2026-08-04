@@ -1,5 +1,5 @@
 /**
- * Example CLI for @i18n-unused/config
+ * Example CLI for @i18n-doctor/config
  *
  *   npx tsx packages/config/examples/config-cli.ts <root>
  */
@@ -67,12 +67,12 @@ const demo = suppress.parseFile({
   absolutePath: path.join(root, "demo.ts"),
   relativePath: "demo.ts",
   sourceText: `
-const x = t('a'); // i18n-unused-ignore
-/* i18n-unused-ignore-next-line */
+const x = t('a'); // i18n-doctor-ignore
+/* i18n-doctor-ignore-next-line */
 const y = t('b');
-/* i18n-unused-disable unused-key */
+/* i18n-doctor-disable unused-key */
 const z = t('c');
-/* i18n-unused-enable */
+/* i18n-doctor-enable */
 `,
 });
 console.log("\nSuppression demo:");

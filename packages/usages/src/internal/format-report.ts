@@ -2,7 +2,7 @@ import type { TranslationUsage, UsageCatalog } from "../api/types.js";
 
 export function formatUsageReport(catalog: UsageCatalog): string {
   const lines: string[] = [];
-  lines.push("i18n-unused usages");
+  lines.push("i18n-doctor usages");
   lines.push(`Root: ${catalog.root}`);
   lines.push("");
   lines.push("Summary");

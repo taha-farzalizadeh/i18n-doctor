@@ -6,7 +6,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { createAstEngine } from "@i18n-unused/ast";
+import { createAstEngine } from "@i18n-doctor/ast";
 import type {
   ConfigAnalyzer,
   ContextAnalyzerOptions,

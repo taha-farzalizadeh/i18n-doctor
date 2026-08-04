@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { LiteFileEntry } from "@i18n-unused/scanner";
+import type { LiteFileEntry } from "@i18n-doctor/scanner";
 import { createSourceDetector } from "../src/index.js";
 import { scoreCandidate } from "../src/internal/candidates.js";
 import { inferLocaleFromPath, looksLikeLocale } from "../src/internal/locale.js";

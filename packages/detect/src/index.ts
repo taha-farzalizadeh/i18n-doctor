@@ -1,5 +1,5 @@
 /**
- * @i18n-unused/detect
+ * @i18n-doctor/detect
  *
  * Framework, package manager, language, and localization library detection.
  * Does not detect translation keys, analyze usages, build symbol tables,

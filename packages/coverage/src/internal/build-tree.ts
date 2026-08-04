@@ -3,7 +3,7 @@
  * Single-pass freeze (no duplicated node cloning).
  */
 
-import type { TranslationKeyDefinition } from "@i18n-unused/sources";
+import type { TranslationKeyDefinition } from "@i18n-doctor/sources";
 import type { LocaleTree, LocaleTreeNode } from "../api/types.js";
 
 interface MutableNode {
@@ -16,7 +16,7 @@ interface MutableNode {
   frozen?: LocaleTreeNode;
 }
 
-/** Split on `.` only — matches @i18n-unused/sources flatten (`items[0].label`). */
+/** Split on `.` only — matches @i18n-doctor/sources flatten (`items[0].label`). */
 export function splitKeyPath(key: string): string[] {
   if (!key) return [];
   return key.split(".");

@@ -65,7 +65,7 @@ export interface TranslationUsage {
   readonly detector?: string;
 }
 
-/** Framework template surfaces supported by @i18n-unused/templates. */
+/** Framework template surfaces supported by @i18n-doctor/templates. */
 export type TemplateFrameworkId =
   | "vue"
   | "nuxt"
@@ -139,10 +139,10 @@ export interface LibraryDetectInput {
   /** File-local binding facts (no cross-file resolution). */
   readonly bindings: FileBindingTable;
   /**
-   * File-local alias graph from @i18n-unused/resolve.
+   * File-local alias graph from @i18n-doctor/resolve.
    * Used to follow `const tx = t` / wrappers before binding lookup.
    */
-  readonly aliasAnalysis: import("@i18n-unused/resolve").FileAliasAnalysis;
+  readonly aliasAnalysis: import("@i18n-doctor/resolve").FileAliasAnalysis;
   readonly libraryHints: ReadonlySet<string>;
 }
 

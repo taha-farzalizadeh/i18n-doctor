@@ -1,11 +1,11 @@
 /**
  * Inline suppression directives.
  *
- *   // i18n-unused-ignore
- *   // i18n-unused-ignore unused-key
- *   /* i18n-unused-ignore-next-line *\/
- *   /* i18n-unused-disable *\/
- *   /* i18n-unused-enable *\/
+ *   // i18n-doctor-ignore
+ *   // i18n-doctor-ignore unused-key
+ *   /* i18n-doctor-ignore-next-line *\/
+ *   /* i18n-doctor-disable *\/
+ *   /* i18n-doctor-enable *\/
  *
  * Directives inside string/template literals are ignored.
  * Unknown rule names never widen to "all rules".
@@ -23,11 +23,11 @@ import type {
 import { RULE_IDS } from "./defaults.js";
 
 const DIRECTIVE_RE =
-  /(?:\/\/|\/\*)\s*i18n-unused-(ignore-next-line|ignore|disable|enable)\b([^*\n]*?)(?:\*\/|$)/g;
+  /(?:\/\/|\/\*)\s*i18n-doctor-(ignore-next-line|ignore|disable|enable)\b([^*\n]*?)(?:\*\/|$)/g;
 
-/** Continuations inside multi-line block comments: ` * i18n-unused-disable` */
+/** Continuations inside multi-line block comments: ` * i18n-doctor-disable` */
 const STAR_LINE_RE =
-  /^\s*\*\s*i18n-unused-(ignore-next-line|ignore|disable|enable)\b(.*)$/;
+  /^\s*\*\s*i18n-doctor-(ignore-next-line|ignore|disable|enable)\b(.*)$/;
 
 const RULE_SET = new Set<string>(RULE_IDS);
 
@@ -221,7 +221,7 @@ export function matchSuppression(
     return {
       suppressed: true,
       ...(lastRegion !== undefined ? { directive: lastRegion } : {}),
-      reason: "i18n-unused-disable",
+      reason: "i18n-doctor-disable",
     };
   }
 
@@ -232,7 +232,7 @@ export function matchSuppression(
     return {
       suppressed: true,
       directive: nextLine,
-      reason: "i18n-unused-ignore-next-line",
+      reason: "i18n-doctor-ignore-next-line",
     };
   }
 
@@ -243,7 +243,7 @@ export function matchSuppression(
     return {
       suppressed: true,
       directive: sameLine,
-      reason: "i18n-unused-ignore",
+      reason: "i18n-doctor-ignore",
     };
   }
 

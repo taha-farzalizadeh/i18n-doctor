@@ -3,7 +3,7 @@ import { mergeAnalysisResults } from "../src/internal/merge-results.js";
 import { buildCliUserConfig } from "../src/internal/format-options.js";
 import { runCheck } from "../src/internal/run-check.js";
 import { fixture } from "./helpers.js";
-import type { AnalysisResult } from "@i18n-unused/issues";
+import type { AnalysisResult } from "@i18n-doctor/issues";
 
 describe("monorepo support", () => {
   it("mergeAnalysisResults sorts and recounts", () => {
@@ -74,7 +74,7 @@ describe("monorepo support", () => {
         private: true,
         workspaces: ["packages/*"],
       }),
-      "i18n-unused.config.json": JSON.stringify({
+      "i18n-doctor.config.json": JSON.stringify({
         packages: ["packages/*"],
       }),
       "packages/web/package.json": JSON.stringify({
@@ -107,7 +107,7 @@ describe("exit codes", () => {
         name: "app",
         dependencies: { i18next: "23.0.0", "react-i18next": "14.0.0" },
       }),
-      "i18n-unused.config.json": JSON.stringify({
+      "i18n-doctor.config.json": JSON.stringify({
         exitOnError: true,
         failOnWarning: false,
       }),

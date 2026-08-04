@@ -1,5 +1,5 @@
 /**
- * Example CLI usage for @i18n-unused/detect
+ * Example CLI usage for @i18n-doctor/detect
  *
  *   npx tsx packages/detect/examples/detect-cli.ts [root]
  */

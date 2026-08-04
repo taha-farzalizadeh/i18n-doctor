@@ -3,7 +3,7 @@ import type { ProjectDetectionResult } from "../api/types.js";
 /** Pretty-print detection result for CLI output. */
 export function formatDetectionReport(result: ProjectDetectionResult): string {
   const lines: string[] = [];
-  lines.push(`i18n-unused detect`);
+  lines.push(`i18n-doctor detect`);
   lines.push(`Root: ${result.root}`);
   lines.push("");
 

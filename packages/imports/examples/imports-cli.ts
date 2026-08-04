@@ -1,5 +1,5 @@
 /**
- * Example CLI for @i18n-unused/imports
+ * Example CLI for @i18n-doctor/imports
  *
  *   npx tsx packages/imports/examples/imports-cli.ts <root> <file> <identifier>
  *

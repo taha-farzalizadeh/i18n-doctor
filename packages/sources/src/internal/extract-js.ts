@@ -4,7 +4,7 @@ import {
   traversalApi,
   type AstEngine,
   type SourceLocation as AstSourceLocation,
-} from "@i18n-unused/ast";
+} from "@i18n-doctor/ast";
 import ts from "typescript";
 import type { SourceLocation } from "../api/types.js";
 import {

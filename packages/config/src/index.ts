@@ -1,5 +1,5 @@
 /**
- * @i18n-unused/config
+ * @i18n-doctor/config
  *
  * Configuration loading, ignore rules, and inline suppression.
  * Config files are never executed — JSON parse or static AST only.

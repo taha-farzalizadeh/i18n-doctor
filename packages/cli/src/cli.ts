@@ -1,5 +1,5 @@
 /**
- * Commander program factory for i18n-unused.
+ * Commander program factory for i18n-doctor.
  */
 
 import { Command, CommanderError } from "commander";
@@ -11,7 +11,7 @@ export function createProgram(): Command {
   const program = new Command();
 
   program
-    .name("i18n-unused")
+    .name("i18n-doctor")
     .description(
       "Static localization analysis — unused, missing, and duplicate translation keys",
     )
@@ -26,9 +26,9 @@ Exit codes:
   2  Usage, configuration, or I/O error
 
 Examples:
-  $ i18n-unused check
-  $ i18n-unused check ./apps/web --json
-  $ i18n-unused check --config ./i18n-unused.config.json --verbose
+  $ i18n-doctor check
+  $ i18n-doctor check ./apps/web --json
+  $ i18n-doctor check --config ./i18n-doctor.config.json --verbose
 `,
     )
     .showHelpAfterError()

@@ -1,8 +1,8 @@
 import type {
   TranslationCatalog,
   TranslationKeyDefinition,
-} from "@i18n-unused/sources";
-import type { TranslationUsage, UsageCatalog } from "@i18n-unused/usages";
+} from "@i18n-doctor/sources";
+import type { TranslationUsage, UsageCatalog } from "@i18n-doctor/usages";
 import type { DefinitionFact, UsageFact } from "../api/types.js";
 import { resolveAbsolute, toPosixPath } from "./location.js";
 

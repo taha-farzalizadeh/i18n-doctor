@@ -1,5 +1,5 @@
 import path from "node:path";
-import { createAstEngine } from "@i18n-unused/ast";
+import { createAstEngine } from "@i18n-doctor/ast";
 import ts from "typescript";
 import {
   createDataFlowEngine,

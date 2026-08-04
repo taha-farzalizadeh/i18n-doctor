@@ -2,7 +2,7 @@
  * Map CLI flags → output format and config CLI overrides.
  */
 
-import type { OutputFormat, UserConfig } from "@i18n-unused/config";
+import type { OutputFormat, UserConfig } from "@i18n-doctor/config";
 import type { CheckCliOptions, CliOutputFormat } from "../api/types.js";
 import { CliError } from "./errors.js";
 

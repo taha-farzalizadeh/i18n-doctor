@@ -37,7 +37,7 @@ class DefaultConfigLoader implements ConfigLoader {
         .split(path.sep)
         .join("/");
 
-    // 1) package.json "i18n-unused" at scope root
+    // 1) package.json "i18n-doctor" at scope root
     if (this.options.readPackageJson !== false) {
       const pkgPath = path.join(scopeRoot, "package.json");
       if (this.fileExists(pkgPath)) {
@@ -156,7 +156,7 @@ class DefaultConfigLoader implements ConfigLoader {
         this.cache.set(norm, frag);
         return frag;
       }
-      if (!("i18n-unused" in parsedJson)) {
+      if (!("i18n-doctor" in parsedJson)) {
         const empty: ConfigFragment = {
           source: "package-json",
           path: relativeHint,
