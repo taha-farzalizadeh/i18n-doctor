@@ -1,6 +1,6 @@
 {
   "name": "i18n-doctor",
-  "version": "0.9.1",
+  "version": "0.9.2",
   "description": "Find unused, missing, and duplicate i18n translation keys in your JavaScript and TypeScript project",
   "type": "module",
   "bin": {
