@@ -16,6 +16,11 @@
   "keywords": [
     "i18n",
     "i18n-doctor",
+    "i18n-unused",
+    "i18n-unused-keys",
+    "i18n-checker",
+    "i18n-lens",
+    "i18n-analyzer",
     "internationalization",
     "localization",
     "translation",
