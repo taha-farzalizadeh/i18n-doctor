@@ -1,0 +1,52 @@
+{
+  "name": "i18n-doctor",
+  "version": "0.9.1",
+  "description": "Find unused, missing, and duplicate i18n translation keys in your JavaScript and TypeScript project",
+  "type": "module",
+  "bin": {
+    "i18n-doctor": "./bin.js"
+  },
+  "files": [
+    "bin.js",
+    "README.md"
+  ],
+  "dependencies": {
+    "@i18n-doctor/cli": "0.9.1"
+  },
+  "keywords": [
+    "i18n",
+    "i18n-doctor",
+    "internationalization",
+    "localization",
+    "translation",
+    "static-analysis",
+    "unused-keys",
+    "missing-keys",
+    "duplicate-keys",
+    "i18next",
+    "react-i18next",
+    "react-intl",
+    "vue-i18n",
+    "next-intl",
+    "lingui",
+    "cli",
+    "lint",
+    "check"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/taha-farzalizadeh/i18n-doctor.git",
+    "directory": "packages/i18n-doctor"
+  },
+  "homepage": "https://github.com/taha-farzalizadeh/i18n-doctor#readme",
+  "bugs": {
+    "url": "https://github.com/taha-farzalizadeh/i18n-doctor/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
