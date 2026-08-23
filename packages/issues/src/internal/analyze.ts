@@ -172,33 +172,33 @@ function findUnusedKeys(
       continue;
     }
 
+    // One issue per definition site so every locale/catalog file that carries
+    // the unused key is underlined — not only the base locale.
     const ordered = sortDefinitions(defs);
-    const primary = pickPrimaryDefinition(ordered, options.defaultLocale);
-    const related = ordered
-      .filter((d) => d !== primary)
-      .map(definitionToLocation);
-
-    const nsHint = primary.namespace
-      ? ` in namespace "${primary.namespace}"`
-      : "";
-    issues.push({
-      type: "unused-key",
-      severity: options.severities.unusedKey,
-      message: `Unused translation key "${primary.key}"${nsHint} — defined but never referenced.`,
-      key: primary.key,
-      location: definitionToLocation(primary),
-      relatedLocations: related,
-      source: {
-        kind: "definition",
-        ...(primary.locale !== undefined ? { locale: primary.locale } : {}),
-        ...(primary.namespace !== undefined
-          ? { namespace: primary.namespace }
-          : {}),
-        ...(primary.confidence !== undefined
-          ? { confidence: primary.confidence }
-          : {}),
-      },
-    });
+    for (const def of ordered) {
+      const related = ordered
+        .filter((d) => d !== def)
+        .map(definitionToLocation);
+      const nsHint = def.namespace
+        ? ` in namespace "${def.namespace}"`
+        : "";
+      issues.push({
+        type: "unused-key",
+        severity: options.severities.unusedKey,
+        message: `Unused translation key "${def.key}"${nsHint} — defined but never referenced.`,
+        key: def.key,
+        location: definitionToLocation(def),
+        relatedLocations: related,
+        source: {
+          kind: "definition",
+          ...(def.locale !== undefined ? { locale: def.locale } : {}),
+          ...(def.namespace !== undefined ? { namespace: def.namespace } : {}),
+          ...(def.confidence !== undefined
+            ? { confidence: def.confidence }
+            : {}),
+        },
+      });
+    }
   }
   return issues;
 }
@@ -268,25 +268,6 @@ function definitionsInScope(
     (d) => !d.locale || d.locale === locale,
   );
   return scoped;
-}
-
-function pickPrimaryDefinition(
-  defs: readonly DefinitionFact[],
-  defaultLocale?: string,
-): DefinitionFact {
-  const ranked = [...defs].sort((a, b) => {
-    const score = (d: DefinitionFact) => {
-      if (defaultLocale && d.locale === defaultLocale) return 0;
-      if (d.locale === "en" || d.locale === "en-US") return 1;
-      if (!d.locale) return 2;
-      return 3;
-    };
-    return (
-      score(a) - score(b) ||
-      compareDefinitionOrder(a, b)
-    );
-  });
-  return ranked[0]!;
 }
 
 function sortDefinitions(

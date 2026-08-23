@@ -81,6 +81,7 @@ export function applyIssuePolicies(
   result: AnalysisResult,
   config: EffectiveConfig,
   suppress: SuppressionEngine,
+  readFile: ReadFile = readFileFromDisk,
 ): AnalysisResult {
   const cache = new Map<
     string,
@@ -95,7 +96,7 @@ export function applyIssuePolicies(
     const severity = mapRuleSeverity(config.rules.getSeverity(rule));
     if (severity === undefined) continue;
 
-    if (isSuppressed(issue, suppress, cache)) continue;
+    if (isSuppressed(issue, suppress, cache, readFile)) continue;
 
     issues.push(severity === issue.severity ? issue : { ...issue, severity });
   }
@@ -108,23 +109,39 @@ export function applyIssuePolicies(
   };
 }
 
+/** Reads a file's text, or returns undefined when unavailable. */
+export type ReadFile = (absolutePath: string) => string | undefined;
+
+function readFileFromDisk(absolutePath: string): string | undefined {
+  try {
+    return fs.readFileSync(absolutePath, "utf8");
+  } catch {
+    return undefined;
+  }
+}
+
 function isSuppressed(
   issue: Issue,
   suppress: SuppressionEngine,
   cache: Map<string, ReturnType<SuppressionEngine["parseFile"]> | null>,
+  readFile: ReadFile,
 ): boolean {
   const abs = issue.location.absolutePath;
   let file = cache.get(abs);
   if (file === undefined) {
-    try {
-      const sourceText = fs.readFileSync(abs, "utf8");
-      file = suppress.parseFile({
-        absolutePath: abs,
-        relativePath: issue.location.relativePath,
-        sourceText,
-      });
-    } catch {
+    const sourceText = readFile(abs);
+    if (sourceText === undefined) {
       file = null;
+    } else {
+      try {
+        file = suppress.parseFile({
+          absolutePath: abs,
+          relativePath: issue.location.relativePath,
+          sourceText,
+        });
+      } catch {
+        file = null;
+      }
     }
     cache.set(abs, file);
   }

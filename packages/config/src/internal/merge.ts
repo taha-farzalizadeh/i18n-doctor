@@ -3,6 +3,7 @@ import type {
   ConfigSourceKind,
   EffectiveConfig,
   ExitBehavior,
+  LanguageServerConfig,
   OutputConfig,
   RuleConfiguration,
   RuleId,
@@ -11,6 +12,7 @@ import type {
 } from "../api/types.js";
 import {
   CONFIG_FILENAMES,
+  DEFAULT_LANGUAGE_SERVER,
   DEFAULT_OUTPUT,
   DEFAULT_RULE_SEVERITIES,
   DEFAULT_USER_CONFIG,
@@ -66,6 +68,9 @@ export function mergeFragments(
   let minConfidence = DEFAULT_USER_CONFIG.minConfidence;
   let packages: readonly string[] | undefined;
   let output: Required<OutputConfig> = { ...DEFAULT_OUTPUT };
+  let languageServer: Required<LanguageServerConfig> = {
+    ...DEFAULT_LANGUAGE_SERVER,
+  };
   const severities: Record<RuleId, RuleSeverity> = {
     ...DEFAULT_RULE_SEVERITIES,
   };
@@ -124,6 +129,18 @@ export function mergeFragments(
       }
       fieldSources.output = frag.source;
     }
+    if (c.languageServer !== undefined) {
+      languageServer = {
+        enabled: c.languageServer.enabled ?? languageServer.enabled,
+        debounce: c.languageServer.debounce ?? languageServer.debounce,
+        logLevel: c.languageServer.logLevel ?? languageServer.logLevel,
+        maxDiagnosticsPerFile:
+          c.languageServer.maxDiagnosticsPerFile ??
+          languageServer.maxDiagnosticsPerFile,
+        coverage: c.languageServer.coverage ?? languageServer.coverage,
+      };
+      fieldSources.languageServer = frag.source;
+    }
     if (c.rules !== undefined) {
       for (const id of RULE_IDS) {
         const raw = c.rules[id];
@@ -164,6 +181,7 @@ export function mergeFragments(
     output,
     ...(packages !== undefined ? { packages } : {}),
     minConfidence,
+    languageServer,
     fieldSources,
     diagnostics,
     fragments: ranked,
@@ -222,6 +240,7 @@ export function defaultsFragment(): ConfigFragment {
       minConfidence: DEFAULT_USER_CONFIG.minConfidence,
       rules: { ...DEFAULT_RULE_SEVERITIES },
       output: { ...DEFAULT_OUTPUT },
+      languageServer: { ...DEFAULT_LANGUAGE_SERVER },
     },
     diagnostics: [],
   };

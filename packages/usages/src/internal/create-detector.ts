@@ -2,6 +2,7 @@ import path from "node:path";
 import { createDetector } from "@i18n-doctor/detect";
 import {
   createScanner,
+  type FileSystemPort,
   type ProjectSnapshotView,
 } from "@i18n-doctor/scanner";
 import type { UsageDetectorFactory } from "../api/detector.js";
@@ -49,6 +50,7 @@ class DefaultUsageDetector implements UsageDetector {
       ...(this.defaults.libraryHints ?? []),
       ...(options.libraryHints ?? []),
     ]);
+    const fsPort = options.fs ?? this.defaults.fs;
     const warnings: UsageWarning[] = [];
 
     let scanMs = 0;
@@ -57,7 +59,7 @@ class DefaultUsageDetector implements UsageDetector {
 
     try {
       const scanStarted = performance.now();
-      const snapshot = await scanProject(root, warnings);
+      const snapshot = await scanProject(root, warnings, fsPort);
       scanMs = performance.now() - scanStarted;
 
       if (useDetection) {
@@ -140,9 +142,11 @@ const USAGE_EXTENSIONS = [
 async function scanProject(
   root: string,
   warnings: UsageWarning[],
+  fsPort?: FileSystemPort,
 ): Promise<ProjectSnapshotView> {
   try {
     const scanner = createScanner({
+      ...(fsPort ? { fs: fsPort } : {}),
       config: {
         root,
         ignoreDefaults: true,
@@ -168,6 +172,7 @@ async function scanProject(
       path: root,
     });
     const scanner = createScanner({
+      ...(fsPort ? { fs: fsPort } : {}),
       config: {
         root,
         packages: ["."],

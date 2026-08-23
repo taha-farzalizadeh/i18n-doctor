@@ -55,6 +55,8 @@ export interface UserConfig {
    * @default 0
    */
   readonly minConfidence?: number;
+  /** IDE / Language Server options. Ignored by the CLI. */
+  readonly languageServer?: LanguageServerConfig;
 }
 
 export interface OutputConfig {
@@ -63,6 +65,32 @@ export interface OutputConfig {
   readonly file?: string;
   readonly color?: boolean;
   readonly verbose?: boolean;
+}
+
+export type LanguageServerLogLevel =
+  | "silent"
+  | "error"
+  | "warn"
+  | "info"
+  | "debug";
+
+/**
+ * Language-server-only options. Shares the i18n-doctor configuration file so
+ * IDE integrations never need a second config format.
+ */
+export interface LanguageServerConfig {
+  /** Publish diagnostics at all. @default true */
+  readonly enabled?: boolean;
+  /** Debounce window in ms between an edit and re-analysis. @default 250 */
+  readonly debounce?: number;
+  readonly logLevel?: LanguageServerLogLevel;
+  /**
+   * Upper bound on diagnostics published per document.
+   * Protects the IDE from pathological projects. @default 500
+   */
+  readonly maxDiagnosticsPerFile?: number;
+  /** Report keys missing from non-base locales. @default true */
+  readonly coverage?: boolean;
 }
 
 /** Validated + normalized configuration fragment from one source. */
@@ -118,6 +146,8 @@ export interface EffectiveConfig {
   readonly output: Required<OutputConfig>;
   readonly packages?: readonly string[];
   readonly minConfidence: number;
+  /** Fully defaulted Language Server options. */
+  readonly languageServer: Required<LanguageServerConfig>;
   /** Provenance of each top-level field. */
   readonly fieldSources: Readonly<
     Partial<Record<keyof UserConfig | "output.format", ConfigSourceKind>>

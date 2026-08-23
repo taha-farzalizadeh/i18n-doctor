@@ -3,16 +3,11 @@
  * No analyzer logic is duplicated here.
  */
 
-import fs from "node:fs";
 import path from "node:path";
 import {
   createEffectiveConfigResolver,
-  createIgnoreEngine,
-  createSuppressionEngine,
-  type EffectiveConfig,
   type UserConfig,
 } from "@i18n-doctor/config";
-import { createContextAnalyzer } from "@i18n-doctor/context";
 import {
   createCoverageAnalyzer,
   type CoverageResult,
@@ -21,32 +16,19 @@ import {
   createDetector,
   type ProjectDetectionResult,
 } from "@i18n-doctor/detect";
-import {
-  createIssueEngine,
-  definitionsFromCatalog,
-  usagesFromCatalog,
-  type AnalysisResult,
-  type IssueSeverity,
-} from "@i18n-doctor/issues";
-import {
-  createSourceDetector,
-  type TranslationCatalog,
-} from "@i18n-doctor/sources";
-import { createUsageDetector } from "@i18n-doctor/usages";
+import type { AnalysisResult } from "@i18n-doctor/issues";
+import type { TranslationCatalog } from "@i18n-doctor/sources";
 import type {
   CheckCliOptions,
   CheckRunResult,
   CliTimings,
 } from "../api/types.js";
 import { countBySeverity } from "../api/types.js";
+import { analyzeScope } from "./analyze-scope.js";
+import { resolveAnalysisScopes } from "./scopes.js";
 import { appendCoverageToReport } from "./append-coverage.js";
 import { assertConfigReadable, discoverProject } from "./discover.js";
 import { CliError } from "./errors.js";
-import {
-  applyIssuePolicies,
-  filterDefinitionFacts,
-  filterUsageFacts,
-} from "./filter.js";
 import {
   buildCliUserConfig,
   earlyFormatGuess,
@@ -183,8 +165,13 @@ export async function runCheck(
 
     const part = await analyzeScope({
       scope,
-      options,
-      libraryHints,
+      filters: {
+        ...(options.locale !== undefined ? { locale: options.locale } : {}),
+        ...(options.namespace !== undefined
+          ? { namespace: options.namespace }
+          : {}),
+      },
+      ...(libraryHints ? { libraryHints } : {}),
       limits,
       useDetection: !options.framework,
     });
@@ -311,161 +298,6 @@ export async function runCheck(
   return result;
 }
 
-interface ScopeAnalysis {
-  readonly analysis: AnalysisResult;
-  readonly sourceCatalog: TranslationCatalog;
-  readonly sourcesMs: number;
-  readonly usagesMs: number;
-  readonly analyzeMs: number;
-  readonly filterMs: number;
-}
-
-async function analyzeScope(input: {
-  readonly scope: EffectiveConfig;
-  readonly options: CheckCliOptions;
-  readonly libraryHints: readonly string[] | undefined;
-  readonly limits: ReturnType<typeof resolveScanLimits>;
-  readonly useDetection: boolean;
-}): Promise<ScopeAnalysis> {
-  const root = input.scope.packageRoot ?? input.scope.root;
-
-  // Parallel source + usage collection (largest wall-time win on big trees).
-  const tSources = now();
-  const tUsages = now();
-  const [sourceCatalog, usageCatalog] = await Promise.all([
-    createSourceDetector().discover({
-      root,
-      useDetection: input.useDetection,
-      ...(input.libraryHints ? { libraryHints: input.libraryHints } : {}),
-      minConfidence: input.scope.minConfidence,
-      maxCandidates: input.limits.maxCandidates,
-    }),
-    createUsageDetector().detect({
-      root,
-      useDetection: input.useDetection,
-      ...(input.libraryHints ? { libraryHints: input.libraryHints } : {}),
-      minConfidence: input.scope.minConfidence,
-      maxFiles: input.limits.maxFiles,
-    }),
-  ]);
-  // Attribute wall time of the parallel section to both (sum used for totals).
-  const parallelMs = Math.max(now() - tSources, now() - tUsages);
-  const sourcesMs = parallelMs / 2;
-  const usagesMs = parallelMs / 2;
-
-  const ignore = createIgnoreEngine(input.scope);
-  const filters = {
-    ...(input.options.locale !== undefined
-      ? { locale: input.options.locale }
-      : {}),
-    ...(input.options.namespace !== undefined
-      ? { namespace: input.options.namespace }
-      : {}),
-  };
-
-  const definitions = filterDefinitionFacts(
-    definitionsFromCatalog(sourceCatalog),
-    ignore,
-    filters,
-  );
-  const usages = filterUsageFacts(
-    usagesFromCatalog(usageCatalog),
-    ignore,
-    filters,
-  );
-
-  const severities = toEngineSeverities(input.scope);
-  const i18nContext = createContextAnalyzer({ root }).analyze({
-    packageRoot: root,
-  });
-  const defaultNS = i18nContext.effective.defaultNS;
-  const fallbackNS = i18nContext.effective.fallbackNS;
-
-  let t0 = now();
-  const raw = createIssueEngine().analyze({
-    root,
-    definitions,
-    usages,
-    options: {
-      minConfidence: input.scope.minConfidence,
-      ...(input.options.locale !== undefined
-        ? { defaultLocale: input.options.locale }
-        : i18nContext.effective.defaultLocale !== undefined
-          ? { defaultLocale: i18nContext.effective.defaultLocale }
-          : {}),
-      ...(defaultNS !== undefined ? { defaultNS } : {}),
-      ...(fallbackNS !== undefined && fallbackNS.length > 0
-        ? { fallbackNS }
-        : {}),
-      ...(severities ? { severities } : {}),
-    },
-  });
-  const analyzeMs = now() - t0;
-
-  t0 = now();
-  const analysis = applyIssuePolicies(
-    raw,
-    input.scope,
-    createSuppressionEngine(),
-  );
-  const filterMs = now() - t0;
-
-  return { analysis, sourceCatalog, sourcesMs, usagesMs, analyzeMs, filterMs };
-}
-
-/**
- * Single-root by default. When `packages` is configured (or workspace
- * packages are discovered via resolveMonorepo), analyze each package scope.
- */
-function resolveAnalysisScopes(
-  resolver: ReturnType<typeof createEffectiveConfigResolver>,
-  rootConfig: EffectiveConfig,
-  resolveBase: {
-    root: string;
-    cli?: UserConfig;
-    configPath?: string;
-  },
-): readonly EffectiveConfig[] {
-  const wantsMonorepo =
-    (rootConfig.packages?.length ?? 0) > 0 || hasWorkspaceField(resolveBase.root);
-
-  if (!wantsMonorepo) {
-    return [rootConfig];
-  }
-
-  const all = resolver.resolveMonorepo({
-    root: resolveBase.root,
-    ...(resolveBase.cli !== undefined ? { cli: resolveBase.cli } : {}),
-  });
-
-  // Prefer package scopes; keep root only when it is the sole entry.
-  const packages = all.filter(
-    (c) => c.packageRoot !== undefined && c.packageRoot !== c.root,
-  );
-  if (packages.length === 0) return [rootConfig];
-  return packages;
-}
-
-function hasWorkspaceField(root: string): boolean {
-  try {
-    const text = fs.readFileSync(path.join(root, "package.json"), "utf8");
-    const pkg = JSON.parse(text) as {
-      workspaces?: unknown;
-      pnpm?: { workspaces?: unknown };
-    };
-    if (pkg.workspaces) return true;
-    if (pkg.pnpm?.workspaces) return true;
-  } catch {
-    // ignore
-  }
-  // pnpm-workspace.yaml / lerna / nx — light signals
-  return (
-    fs.existsSync(path.join(root, "pnpm-workspace.yaml")) ||
-    fs.existsSync(path.join(root, "pnpm-workspace.yml")) ||
-    fs.existsSync(path.join(root, "lerna.json"))
-  );
-}
-
 function now(): number {
   return performance.now();
 }
@@ -479,39 +311,6 @@ function resolveLibraryHints(
   }
   const lib = detection.primary.i18nLibrary?.id;
   return lib ? [lib] : undefined;
-}
-
-function toEngineSeverities(
-  config: EffectiveConfig,
-):
-  | {
-      unusedKey?: IssueSeverity;
-      missingKey?: IssueSeverity;
-      duplicateKey?: IssueSeverity;
-    }
-  | undefined {
-  const mapOne = (
-    rule: "unused-key" | "missing-key" | "duplicate-key",
-  ): IssueSeverity | undefined => {
-    const s = config.rules.getSeverity(rule);
-    if (s === "off") return undefined;
-    if (s === "info" || s === "warning" || s === "error") return s;
-    return undefined;
-  };
-
-  const unusedKey = mapOne("unused-key");
-  const missingKey = mapOne("missing-key");
-  const duplicateKey = mapOne("duplicate-key");
-
-  const out: {
-    unusedKey?: IssueSeverity;
-    missingKey?: IssueSeverity;
-    duplicateKey?: IssueSeverity;
-  } = {};
-  if (unusedKey) out.unusedKey = unusedKey;
-  if (missingKey) out.missingKey = missingKey;
-  if (duplicateKey) out.duplicateKey = duplicateKey;
-  return Object.keys(out).length > 0 ? out : undefined;
 }
 
 /** Write report to stdout (or nowhere for silent). */

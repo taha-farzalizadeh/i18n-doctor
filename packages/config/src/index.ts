@@ -19,6 +19,8 @@ export type {
   FileSuppressions,
   IgnoreEngine,
   IgnoreMatch,
+  LanguageServerConfig,
+  LanguageServerLogLevel,
   LoadedConfig,
   OutputConfig,
   OutputFormat,
@@ -71,6 +73,12 @@ export {
 } from "./internal/merge.js";
 
 export { validateUserConfig } from "./internal/validate.js";
-export { RULE_IDS, DEFAULT_RULE_SEVERITIES, CONFIG_FILENAMES } from "./internal/defaults.js";
+export {
+  RULE_IDS,
+  DEFAULT_RULE_SEVERITIES,
+  DEFAULT_LANGUAGE_SERVER,
+  LANGUAGE_SERVER_LOG_LEVELS,
+  CONFIG_FILENAMES,
+} from "./internal/defaults.js";
 export { compileGlob } from "./internal/glob.js";
 export type { CompileGlobOptions } from "./internal/glob.js";

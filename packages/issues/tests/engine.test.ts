@@ -46,7 +46,7 @@ describe("issue engine — unused key", () => {
     expect(result.issues).toHaveLength(0);
   });
 
-  it("collapses the same key across locales into one unused issue", () => {
+  it("emits an unused issue for every locale that defines the key", () => {
     const result = createIssueEngine().analyze({
       root: ROOT,
       definitions: [
@@ -66,14 +66,15 @@ describe("issue engine — unused key", () => {
       usages: [],
     });
 
-    expect(result.stats.unusedKey).toBe(1);
-    const issue = result.issues[0]!;
-    // Prefers en as primary; related are remaining locales sorted by path
-    expect(issue.location.relativePath).toBe("src/locales/en/auth.json");
-    expect(issue.relatedLocations.map((l) => l.relativePath)).toEqual([
+    expect(result.stats.unusedKey).toBe(3);
+    const unused = result.issues.filter((i) => i.type === "unused-key");
+    expect(unused.map((i) => i.location.relativePath).sort()).toEqual([
       "src/locales/de/auth.json",
+      "src/locales/en/auth.json",
       "src/locales/fr/auth.json",
     ]);
+    // Each issue points at the other locales as related definitions.
+    expect(unused[0]!.relatedLocations).toHaveLength(2);
   });
 });
 
@@ -167,10 +168,13 @@ describe("issue engine — multiple locales", () => {
       usages: [use("greeting", "src/App.tsx", 1)],
     });
 
-    expect(result.stats.unusedKey).toBe(1);
-    expect(result.issues.find((i) => i.type === "unused-key")?.key).toBe(
-      "farewell",
-    );
+    expect(result.stats.unusedKey).toBe(2);
+    const unused = result.issues.filter((i) => i.type === "unused-key");
+    expect(unused.map((i) => i.key)).toEqual(["farewell", "farewell"]);
+    expect(unused.map((i) => i.location.relativePath).sort()).toEqual([
+      "locales/en.json",
+      "locales/fr.json",
+    ]);
   });
 
   it("respects strictLocale for missing keys", () => {

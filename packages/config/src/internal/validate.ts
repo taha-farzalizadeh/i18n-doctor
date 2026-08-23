@@ -1,11 +1,13 @@
 import type {
   ConfigDiagnostic,
+  LanguageServerConfig,
+  LanguageServerLogLevel,
   OutputConfig,
   OutputFormat,
   RuleSeverity,
   UserConfig,
 } from "../api/types.js";
-import { RULE_IDS } from "./defaults.js";
+import { LANGUAGE_SERVER_LOG_LEVELS, RULE_IDS } from "./defaults.js";
 import { coerceSeverity } from "./severity.js";
 
 export { coerceSeverity } from "./severity.js";
@@ -61,6 +63,7 @@ export function validateUserConfig(
     "packages",
     "minConfidence",
     "severities",
+    "languageServer",
   ]);
 
   for (const key of Object.keys(obj).sort()) {
@@ -101,6 +104,7 @@ export function validateUserConfig(
   const minConfidence = readNumber(obj, "minConfidence", diagnostics, loc);
   const rules = readRules(obj, diagnostics, loc);
   const output = readOutput(obj, diagnostics, loc);
+  const languageServer = readLanguageServer(obj, diagnostics, loc);
 
   const config: UserConfig = {
     ...(ignoreKeys !== undefined ? { ignoreKeys } : {}),
@@ -115,6 +119,7 @@ export function validateUserConfig(
     ...(minConfidence !== undefined ? { minConfidence } : {}),
     ...(rules !== undefined ? { rules } : {}),
     ...(output !== undefined ? { output } : {}),
+    ...(languageServer !== undefined ? { languageServer } : {}),
   };
 
   return { config, diagnostics };
@@ -348,6 +353,105 @@ function readOutput(
     ...(color !== undefined ? { color } : {}),
     ...(verbose !== undefined ? { verbose } : {}),
   };
+}
+
+function readLanguageServer(
+  obj: Record<string, unknown>,
+  diagnostics: ConfigDiagnostic[],
+  path?: string,
+): LanguageServerConfig | undefined {
+  if (!("languageServer" in obj)) return undefined;
+  const raw = obj.languageServer;
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+    diagnostics.push(typeError("languageServer", "object", path, raw));
+    return undefined;
+  }
+  const o = raw as Record<string, unknown>;
+  const known = new Set([
+    "enabled",
+    "debounce",
+    "logLevel",
+    "maxDiagnosticsPerFile",
+    "coverage",
+  ]);
+  for (const key of Object.keys(o).sort()) {
+    if (known.has(key)) continue;
+    diagnostics.push({
+      code: "config-unknown-key",
+      severity: "warning",
+      message: `Unknown configuration key "languageServer.${key}"`,
+      ...(path !== undefined ? { path } : {}),
+      hint: `Known keys: ${[...known].sort().join(", ")}`,
+    });
+  }
+
+  const enabled = readBoolean(o, "enabled", diagnostics, path);
+  const coverage = readBoolean(o, "coverage", diagnostics, path);
+  const debounce = readBoundedInteger(o, "debounce", 0, 60_000, diagnostics, path);
+  const maxDiagnosticsPerFile = readBoundedInteger(
+    o,
+    "maxDiagnosticsPerFile",
+    1,
+    100_000,
+    diagnostics,
+    path,
+  );
+
+  let logLevel: LanguageServerLogLevel | undefined;
+  if ("logLevel" in o) {
+    if (
+      typeof o.logLevel === "string" &&
+      (LANGUAGE_SERVER_LOG_LEVELS as readonly string[]).includes(o.logLevel)
+    ) {
+      logLevel = o.logLevel as LanguageServerLogLevel;
+    } else {
+      diagnostics.push({
+        code: "config-invalid-value",
+        severity: "error",
+        message: `Invalid languageServer.logLevel: ${JSON.stringify(o.logLevel)}`,
+        ...(path !== undefined ? { path } : {}),
+        hint: `Use one of: ${LANGUAGE_SERVER_LOG_LEVELS.join(", ")}`,
+      });
+    }
+  }
+
+  const config: LanguageServerConfig = {
+    ...(enabled !== undefined ? { enabled } : {}),
+    ...(debounce !== undefined ? { debounce } : {}),
+    ...(logLevel !== undefined ? { logLevel } : {}),
+    ...(maxDiagnosticsPerFile !== undefined
+      ? { maxDiagnosticsPerFile }
+      : {}),
+    ...(coverage !== undefined ? { coverage } : {}),
+  };
+  return Object.keys(config).length > 0 ? config : undefined;
+}
+
+function readBoundedInteger(
+  obj: Record<string, unknown>,
+  key: string,
+  min: number,
+  max: number,
+  diagnostics: ConfigDiagnostic[],
+  path?: string,
+): number | undefined {
+  if (!(key in obj)) return undefined;
+  const v = obj[key];
+  if (typeof v !== "number" || !Number.isFinite(v)) {
+    diagnostics.push(typeError(`languageServer.${key}`, "number", path, v));
+    return undefined;
+  }
+  const rounded = Math.round(v);
+  if (rounded < min || rounded > max) {
+    diagnostics.push({
+      code: "config-invalid-value",
+      severity: "error",
+      message: `"languageServer.${key}" must be between ${min} and ${max} (got ${v})`,
+      ...(path !== undefined ? { path } : {}),
+    });
+    return undefined;
+  }
+  return rounded;
 }
 
 function typeError(

@@ -67,7 +67,20 @@ function toLocated(
         duplicates.push(full);
       }
       seen.add(key);
-      children.set(key, toLocated(valueNode, text, duplicates, full));
+      const valueLocated = toLocated(valueNode, text, duplicates, full);
+      // Leaf entries underline the property key, not the translated value.
+      if (valueLocated.children === undefined) {
+        children.set(key, {
+          ...valueLocated,
+          location: offsetToLocation(
+            text,
+            keyNode.offset,
+            keyNode.offset + keyNode.length,
+          ),
+        });
+      } else {
+        children.set(key, valueLocated);
+      }
     }
     return { value: undefined, location, children };
   }

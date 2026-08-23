@@ -91,7 +91,16 @@ function objectLiteralToLocated(
       continue;
     }
     const child = expressionToLocated(prop.initializer, sourceFile);
-    if (child) {
+    if (!child) {
+      continue;
+    }
+    // Leaf entries underline the property key, not the translated value.
+    if (child.children === undefined) {
+      children.set(key, {
+        ...child,
+        location: toLoc(queryApi.getLocation(sourceFile, prop.name)),
+      });
+    } else {
       children.set(key, child);
     }
   }

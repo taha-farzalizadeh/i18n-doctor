@@ -28,6 +28,7 @@
     "@i18n-doctor/coverage": "0.9.1",
     "@i18n-doctor/detect": "0.9.1",
     "@i18n-doctor/issues": "0.9.1",
+    "@i18n-doctor/scanner": "0.9.1",
     "@i18n-doctor/sources": "0.9.1",
     "@i18n-doctor/usages": "0.9.1",
     "commander": "^14.0.0"

@@ -75,7 +75,20 @@ function nodeToLocated(node: Node | null | undefined, text: string): LocatedNode
       if (!key) {
         continue;
       }
-      children.set(key, nodeToLocated(valueNode, text));
+      const valueLocated = nodeToLocated(valueNode, text);
+      // Leaf entries underline the property key, not the translated value.
+      if (
+        valueLocated.children === undefined &&
+        keyNode != null &&
+        isScalar(keyNode)
+      ) {
+        children.set(key, {
+          ...valueLocated,
+          location: rangeToLocation(text, keyNode.range ?? null),
+        });
+      } else {
+        children.set(key, valueLocated);
+      }
     }
     return { value: undefined, location, children };
   }

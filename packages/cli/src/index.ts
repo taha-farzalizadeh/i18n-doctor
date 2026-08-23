@@ -18,6 +18,22 @@ export type {
 
 export { countBySeverity } from "./api/types.js";
 
+export type {
+  AnalyzeScopeInput,
+  ScopeAnalysis,
+  ScopeAnalysisFilters,
+  ScopeAnalysisIo,
+} from "./internal/analyze-scope.js";
+export {
+  analyzeScope,
+  AnalysisCancelledError,
+} from "./internal/analyze-scope.js";
+export type { ResolveScopesOptions } from "./internal/scopes.js";
+export {
+  resolveAnalysisScopes,
+  hasWorkspaceField,
+} from "./internal/scopes.js";
+
 export { createProgram, runCli } from "./cli.js";
 export { runCheck, writeCheckReport } from "./internal/run-check.js";
 export {
@@ -35,5 +51,6 @@ export {
 export { getPackageVersion } from "./internal/version.js";
 export { toPosixPath, normalizeAbsolute, pathsEqual } from "./internal/paths.js";
 export { detectTerminalCapabilities } from "./internal/supports.js";
+export type { ScanLimits } from "./internal/scan-limits.js";
 export { resolveScanLimits } from "./internal/scan-limits.js";
 export { mergeAnalysisResults } from "./internal/merge-results.js";

@@ -67,6 +67,8 @@ export type {
   WorkspaceDetectorPort,
 } from "./ports/index.js";
 
+export { createNodeFileSystem } from "./infrastructure/node-fs.js";
+
 export {
   DEFAULT_BUILTIN_EXCLUDE_PATTERNS,
   DEFAULT_CASE_POLICY,

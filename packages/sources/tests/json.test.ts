@@ -86,4 +86,14 @@ describe("JSON extraction", () => {
       expect.objectContaining({ key: "hello", value: "Hi" }),
     ]);
   });
+
+  it("locates nested leaf entries on the property key token", () => {
+    const text = '{\n  "auth": {\n    "logout": "Log out"\n  }\n}\n';
+    const result = extractJsonEntries(text);
+    const entry = result.entries.find((e) => e.key === "auth.logout");
+    expect(entry).toBeDefined();
+    expect(text.slice(entry!.location.start!, entry!.location.end!)).toBe(
+      '"logout"',
+    );
+  });
 });

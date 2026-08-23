@@ -119,6 +119,11 @@ export class NodeFileSystem implements FileSystemPort {
   }
 }
 
+/** Node-backed {@link FileSystemPort} — the scanner default. */
+export function createNodeFileSystem(): FileSystemPort {
+  return new NodeFileSystem();
+}
+
 export async function readTextFile(
   fsPort: FileSystemPort,
   osPath: AbsoluteOsPath,

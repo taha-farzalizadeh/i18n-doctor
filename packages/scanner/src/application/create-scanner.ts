@@ -20,7 +20,6 @@ import { createSnapshotView } from "./snapshot.js";
 import { walkProject } from "./walker.js";
 
 export interface CreateScannerInternalOptions extends CreateScannerOptions {
-  readonly fs?: FileSystemPort;
   readonly workspaceDetector?: WorkspaceDetectorPort;
 }
 

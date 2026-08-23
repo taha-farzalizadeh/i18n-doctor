@@ -4,3 +4,12 @@ dist/
 .DS_Store
 .cache/
 /coverage/
+
+# Secrets / credentials — never commit
+.env
+.env.*
+*.pem
+*.p12
+*.jks
+chain.crt
+private_key.pem

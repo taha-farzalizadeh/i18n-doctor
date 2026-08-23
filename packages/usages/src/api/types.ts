@@ -123,6 +123,11 @@ export interface UsageDetectorOptions {
    * @default true
    */
   readonly scanTemplates?: boolean;
+  /**
+   * Filesystem port forwarded to the project scanner.
+   * Lets editors/language servers analyze unsaved buffers. Defaults to Node fs.
+   */
+  readonly fs?: import("@i18n-doctor/scanner").FileSystemPort;
 }
 
 /** Per-library detector over a single parsed script file. */

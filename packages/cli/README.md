@@ -1,6 +1,6 @@
 # @i18n-doctor/cli
 
-> **Beta — v0.9.0** · [GitHub](https://github.com/taha-farzalizadeh/i18n-doctor) · [Issues](https://github.com/taha-farzalizadeh/i18n-doctor/issues)
+> **Beta — v0.9.2** · [GitHub](https://github.com/taha-farzalizadeh/i18n-doctor) · [Issues](https://github.com/taha-farzalizadeh/i18n-doctor/issues)
 
 Static localization analysis for JavaScript and TypeScript projects.  
 Finds **unused**, **missing**, and **duplicate** translation keys — without executing your code.

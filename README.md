@@ -1,6 +1,6 @@
 # i18n-doctor
 
-> **Beta — v0.9.0**
+> **Beta — v0.9.2**
 > This is an early release. APIs may change, edge cases exist, and your feedback matters. See [Contributing](#contributing) to help shape the project.
 
 Static localization analysis for JavaScript and TypeScript projects. Finds unused, missing, and duplicate translation keys — without executing your code.
@@ -187,6 +187,50 @@ npx i18n-doctor check ./packages/web
 
 ---
 
+## Editor support
+
+### VS Code
+
+Install **i18n-doctor** from the
+[VS Code Marketplace](https://marketplace.visualstudio.com/vscode)
+(Extensions → search **i18n-doctor**). The extension ships a bundled language
+server — no project dependency required.
+
+See [`packages/vscode`](./packages/vscode).
+
+### JetBrains (WebStorm)
+
+Install **i18n-doctor** from the [JetBrains Marketplace](https://plugins.jetbrains.com)
+(**Settings → Plugins → Marketplace**). Requires Node.js ≥ 18
+(**Settings → Languages & Frameworks → JavaScript Runtime**). No project
+dependency needed.
+
+See [`packages/jetbrains`](./packages/jetbrains). Maintainers: publishing guide
+in [`PUBLISHING.md`](./packages/jetbrains/PUBLISHING.md).
+
+### Language server (any LSP client)
+
+```bash
+npm install --save-dev @i18n-doctor/language-server
+i18n-doctor-language-server --stdio
+```
+
+Editor-only options live under `languageServer` in the same config file:
+
+```json
+{
+  "languageServer": {
+    "debounce": 250,
+    "logLevel": "error"
+  }
+}
+```
+
+See [`packages/language-server`](./packages/language-server) for the full option
+list and custom client notes.
+
+---
+
 ## Packages
 
 This repo is a monorepo. Each package is independently publishable.
@@ -194,6 +238,9 @@ This repo is a monorepo. Each package is independently publishable.
 | Package | Description |
 |---|---|
 | `@i18n-doctor/cli` | CLI entry point and orchestration |
+| `@i18n-doctor/language-server` | LSP server exposing the analysis as live editor diagnostics |
+| `i18n-doctor-vscode` | VS Code extension (LSP client; ships the bundled server) |
+| `i18n-doctor-jetbrains` | JetBrains / WebStorm plugin (LSP client; ships the bundled server) |
 | `@i18n-doctor/ast` | TypeScript Compiler API — parse JS/JSX/TS/TSX, traversal and query helpers |
 | `@i18n-doctor/callgraph` | Call graph construction and translation wrapper detection |
 | `@i18n-doctor/config` | Config loading, ignore rules, inline suppression |
@@ -250,7 +297,7 @@ Requires Node.js ≥ 18.
 
 ## Beta status
 
-v0.9.0 is a beta release. That means:
+v0.9.2 is a beta release. That means:
 
 - Core analysis works and is usable on real projects
 - Some edge cases aren't handled yet (dynamic keys, complex wrapper chains, custom i18n libraries)

@@ -1,4 +1,6 @@
 import type {
+  LanguageServerConfig,
+  LanguageServerLogLevel,
   OutputConfig,
   RuleId,
   RuleSeverity,
@@ -22,6 +24,22 @@ export const DEFAULT_OUTPUT: Required<OutputConfig> = {
   file: "",
   color: true,
   verbose: false,
+};
+
+export const LANGUAGE_SERVER_LOG_LEVELS: readonly LanguageServerLogLevel[] = [
+  "silent",
+  "error",
+  "warn",
+  "info",
+  "debug",
+] as const;
+
+export const DEFAULT_LANGUAGE_SERVER: Required<LanguageServerConfig> = {
+  enabled: true,
+  debounce: 250,
+  logLevel: "error",
+  maxDiagnosticsPerFile: 500,
+  coverage: true,
 };
 
 export const DEFAULT_USER_CONFIG: Required<

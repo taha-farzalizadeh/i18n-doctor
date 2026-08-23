@@ -1,0 +1,134 @@
+{
+  "name": "i18n-doctor-vscode",
+  "displayName": "i18n-doctor",
+  "description": "Live i18n diagnostics — missing, unused, and duplicate translation keys underlined as you type, powered by the i18n-doctor language server",
+  "version": "0.9.2",
+  "private": true,
+  "publisher": "i18n-doctor",
+  "license": "MIT",
+  "icon": "media/icon.png",
+  "main": "./dist/extension.js",
+  "engines": {
+    "vscode": "^1.90.0",
+    "node": ">=18"
+  },
+  "categories": [
+    "Linters",
+    "Programming Languages"
+  ],
+  "keywords": [
+    "i18n",
+    "i18next",
+    "translation",
+    "localization",
+    "diagnostics",
+    "lsp"
+  ],
+  "activationEvents": [
+    "workspaceContains:**/i18n-doctor.config.ts",
+    "workspaceContains:**/i18n-doctor.config.js",
+    "workspaceContains:**/i18n-doctor.config.mjs",
+    "workspaceContains:**/i18n-doctor.config.cjs",
+    "workspaceContains:**/i18n-doctor.config.json",
+    "onLanguage:javascript",
+    "onLanguage:javascriptreact",
+    "onLanguage:typescript",
+    "onLanguage:typescriptreact",
+    "onLanguage:json"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "i18nDoctor.restartServer",
+        "title": "Restart Language Server",
+        "category": "i18n-doctor"
+      }
+    ],
+    "configuration": {
+      "title": "i18n-doctor",
+      "properties": {
+        "i18nDoctor.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable i18n-doctor diagnostics."
+        },
+        "i18nDoctor.languageServer.debounce": {
+          "type": "number",
+          "default": 250,
+          "minimum": 0,
+          "maximum": 60000,
+          "description": "Milliseconds to wait after an edit before re-analyzing. Overrides the project's i18n-doctor config."
+        },
+        "i18nDoctor.languageServer.logLevel": {
+          "type": "string",
+          "enum": [
+            "silent",
+            "error",
+            "warn",
+            "info",
+            "debug"
+          ],
+          "default": "error",
+          "description": "Language server log verbosity (visible in the i18n-doctor output channel). Overrides the project's i18n-doctor config."
+        },
+        "i18nDoctor.languageServer.maxDiagnosticsPerFile": {
+          "type": "number",
+          "default": 500,
+          "minimum": 1,
+          "maximum": 100000,
+          "description": "Maximum diagnostics published per file. Overrides the project's i18n-doctor config."
+        },
+        "i18nDoctor.languageServer.coverage": {
+          "type": "boolean",
+          "default": true,
+          "description": "Report locale coverage problems (keys missing from some locales). Overrides the project's i18n-doctor config."
+        },
+        "i18nDoctor.languageServer.path": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "description": "Absolute path to an alternative language server module (development override). Leave empty to use the bundled server."
+        },
+        "i18nDoctor.trace.server": {
+          "type": "string",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "default": "off",
+          "description": "Trace LSP communication between VS Code and the i18n-doctor language server."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "npm run typecheck && node scripts/build.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "package": "npm run build && vsce package --no-dependencies -o dist/i18n-doctor.vsix"
+  },
+  "dependencies": {
+    "@i18n-doctor/language-server": "0.9.1",
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "@types/vscode": "^1.90.0",
+    "@vscode/vsce": "^3.3.0",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.8.2",
+    "vitest": "^4.1.10",
+    "vscode-jsonrpc": "^9.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/taha-farzalizadeh/i18n-doctor.git",
+    "directory": "packages/vscode"
+  },
+  "homepage": "https://github.com/taha-farzalizadeh/i18n-doctor#readme",
+  "bugs": {
+    "url": "https://github.com/taha-farzalizadeh/i18n-doctor/issues"
+  }
+}

@@ -131,6 +131,11 @@ export interface SourceDetectorOptions {
    * @default true
    */
   readonly includeUnknownStructures?: boolean;
+  /**
+   * Filesystem port forwarded to the project scanner.
+   * Lets editors/language servers analyze unsaved buffers. Defaults to Node fs.
+   */
+  readonly fs?: import("@i18n-doctor/scanner").FileSystemPort;
 }
 
 export interface TranslationSourceDetector {

@@ -1,0 +1,79 @@
+<idea-plugin>
+  <id>com.i18ndoctor.jetbrains</id>
+  <name>i18n-doctor</name>
+  <vendor url="https://github.com/taha-farzalizadeh/i18n-doctor">i18n-doctor</vendor>
+
+  <description><![CDATA[
+    <h2>Live i18n diagnostics for JavaScript &amp; TypeScript</h2>
+    <p>
+      Underlines <b>missing</b>, <b>unused</b>, and <b>duplicate</b> translation keys
+      as you type. Powered by the bundled <code>i18n-doctor</code> language server
+      over LSP — this plugin does not re-implement analysis.
+    </p>
+    <ul>
+      <li><code>t("auth.nonexistent")</code> — underlines exactly <code>"auth.nonexistent"</code></li>
+      <li>Unused catalog keys — highlighted on the property name in every locale file</li>
+      <li>Live updates for unsaved buffers — no IDE restart</li>
+      <li>No project dependency — the language server is shipped inside the plugin</li>
+    </ul>
+    <p>
+      <b>Requires Node.js ≥ 18.</b> Configure it under
+      <em>Settings → Languages &amp; Frameworks → JavaScript Runtime</em>
+      (or set an explicit Node path under <em>i18n-doctor</em> settings).
+    </p>
+    <p>
+      Compatible with WebStorm / IntelliJ IDEA Ultimate / PhpStorm and other IDEs
+      that include the platform LSP API (2024.3+).
+    </p>
+    <p>
+      Docs:
+      <a href="https://github.com/taha-farzalizadeh/i18n-doctor/tree/main/packages/jetbrains">
+        packages/jetbrains
+      </a>
+    </p>
+  ]]></description>
+
+  <change-notes><![CDATA[
+    <h3>0.9.2</h3>
+    <p>JetBrains Marketplace release.</p>
+    <ul>
+      <li>LSP client for the bundled i18n-doctor language server</li>
+      <li>Live diagnostics for missing / unused / duplicate / coverage keys</li>
+      <li>Self-contained server bundle (no project dependency required)</li>
+      <li>Uses WebStorm JavaScript Runtime for Node.js when available</li>
+      <li>Plugin icons for light and dark themes</li>
+    </ul>
+  ]]></change-notes>
+
+  <!-- Commercial JetBrains IDEs (WebStorm, IDEA Ultimate, …) ship the LSP host. -->
+  <depends>com.intellij.modules.platform</depends>
+  <depends>com.intellij.modules.ultimate</depends>
+  <depends>JavaScript</depends>
+
+  <extensions defaultExtensionNs="com.intellij">
+    <platform.lsp.serverSupportProvider
+        implementation="com.i18ndoctor.jetbrains.lsp.I18nDoctorLspSupportProvider"/>
+
+    <applicationService
+        serviceImplementation="com.i18ndoctor.jetbrains.settings.I18nDoctorSettings"/>
+
+    <projectConfigurable
+        parentId="language"
+        instance="com.i18ndoctor.jetbrains.settings.I18nDoctorConfigurable"
+        id="com.i18ndoctor.jetbrains.settings"
+        displayName="i18n-doctor"
+        nonDefaultProject="true"/>
+
+    <notificationGroup id="i18n-doctor" displayType="BALLOON"/>
+  </extensions>
+
+  <actions>
+    <action
+        id="i18nDoctor.RestartServer"
+        class="com.i18ndoctor.jetbrains.actions.RestartServerAction"
+        text="Restart Language Server"
+        description="Stop and restart the i18n-doctor language server">
+      <add-to-group group-id="ToolsMenu" anchor="last"/>
+    </action>
+  </actions>
+</idea-plugin>
