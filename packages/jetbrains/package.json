@@ -17,7 +17,7 @@
     "verify": "./gradlew verifyPlugin"
   },
   "dependencies": {
-    "@i18n-doctor/language-server": "0.9.1"
+    "@i18n-doctor/language-server": "0.9.4"
   },
   "devDependencies": {
     "esbuild": "^0.25.0",

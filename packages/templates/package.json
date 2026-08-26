@@ -1,6 +1,6 @@
 {
   "name": "@i18n-doctor/templates",
-  "version": "0.9.1",
+  "version": "0.9.3",
   "description": "Framework template analyzers for translation key usages",
   "type": "module",
   "exports": {

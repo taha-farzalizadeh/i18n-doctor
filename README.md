@@ -1,6 +1,6 @@
 # i18n-doctor
 
-> **Beta — v0.9.2**
+> **Beta — v0.9.3**
 > This is an early release. APIs may change, edge cases exist, and your feedback matters. See [Contributing](#contributing) to help shape the project.
 
 Static localization analysis for JavaScript and TypeScript projects. Finds unused, missing, and duplicate translation keys — and hardcoded UI text that never goes through translation — without executing your code.
@@ -313,7 +313,7 @@ Requires Node.js ≥ 18.
 
 ## Beta status
 
-v0.9.2 is a beta release. That means:
+v0.9.3 is a beta release. That means:
 
 - Core analysis works and is usable on real projects
 - Prop-passed `t`, static key concat, soft dynamic-unused hints, and untranslated UI text are supported

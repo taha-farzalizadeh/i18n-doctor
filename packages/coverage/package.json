@@ -1,6 +1,6 @@
 {
   "name": "@i18n-doctor/coverage",
-  "version": "0.9.1",
+  "version": "0.9.3",
   "description": "Translation coverage and locale consistency analysis",
   "type": "module",
   "exports": {
@@ -20,8 +20,8 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@i18n-doctor/context": "0.9.1",
-    "@i18n-doctor/sources": "0.9.1"
+    "@i18n-doctor/context": "0.9.3",
+    "@i18n-doctor/sources": "0.9.3"
   },
   "devDependencies": {
     "@types/node": "^22.13.10",

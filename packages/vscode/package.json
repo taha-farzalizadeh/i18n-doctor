@@ -110,7 +110,7 @@
     "package": "npm run build && vsce package --no-dependencies -o dist/i18n-doctor.vsix"
   },
   "dependencies": {
-    "@i18n-doctor/language-server": "0.9.1",
+    "@i18n-doctor/language-server": "0.9.4",
     "vscode-languageclient": "^9.0.1"
   },
   "devDependencies": {

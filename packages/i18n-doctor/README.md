@@ -1,6 +1,6 @@
 # i18n-doctor
 
-> **Beta — v0.9.2**
+> **Beta — v0.9.3**
 
 Static localization analysis for JavaScript and TypeScript projects.  
 Finds **unused**, **missing**, and **duplicate** translation keys — without executing your code.
@@ -109,7 +109,7 @@ Add an `i18n-doctor.config.json` at your project root:
 
 ## Beta
 
-This is v0.9.2 — a beta release. Core analysis works on real projects but edge cases exist.
+This is v0.9.3 — a beta release. Core analysis works on real projects but edge cases exist.
 Prop-passed `t`, static key concat, soft dynamic-unused hints, and untranslated UI text are supported.
 Bug reports and contributions are very welcome.
 
