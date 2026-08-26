@@ -14,9 +14,11 @@ import type {
 import type {
   AnalysisResult,
   DefinitionFact,
+  DynamicUsageFact,
   Issue,
   IssueSeverity,
   IssueStats,
+  UntranslatedLiteralFact,
   UsageFact,
 } from "@i18n-doctor/issues";
 
@@ -77,6 +79,42 @@ export function filterUsageFacts(
   });
 }
 
+export function filterDynamicUsageFacts(
+  usages: readonly DynamicUsageFact[],
+  ignore: IgnoreEngine,
+  filters: { readonly locale?: string; readonly namespace?: string },
+): DynamicUsageFact[] {
+  void filters.locale;
+  return usages.filter((u) => {
+    if (ignore.shouldAnalyzeFile(u.relativePath).ignored) return false;
+    if (
+      u.namespace !== undefined &&
+      ignore.isNamespaceIgnored(u.namespace).ignored
+    ) {
+      return false;
+    }
+    if (
+      filters.namespace &&
+      u.namespace !== undefined &&
+      u.namespace !== filters.namespace
+    ) {
+      return false;
+    }
+    return true;
+  });
+}
+
+export function filterUntranslatedLiteralFacts(
+  literals: readonly UntranslatedLiteralFact[],
+  ignore: IgnoreEngine,
+): UntranslatedLiteralFact[] {
+  return literals.filter((lit) => {
+    if (ignore.shouldAnalyzeFile(lit.relativePath).ignored) return false;
+    if (ignore.isKeyIgnored(lit.text).ignored) return false;
+    return true;
+  });
+}
+
 export function applyIssuePolicies(
   result: AnalysisResult,
   config: EffectiveConfig,
@@ -98,7 +136,12 @@ export function applyIssuePolicies(
 
     if (isSuppressed(issue, suppress, cache, readFile)) continue;
 
-    issues.push(severity === issue.severity ? issue : { ...issue, severity });
+    const nextSeverity = softenDynamicUnusedSeverity(issue, severity);
+    issues.push(
+      nextSeverity === issue.severity
+        ? issue
+        : { ...issue, severity: nextSeverity },
+    );
   }
 
   return {
@@ -159,16 +202,41 @@ function mapRuleSeverity(
   return severity;
 }
 
+/**
+ * Keep dynamic-maybe-unused softer than a hard unused finding even when the
+ * unused-key rule is configured as warning/error.
+ */
+function softenDynamicUnusedSeverity(
+  issue: Issue,
+  ruleSeverity: IssueSeverity,
+): IssueSeverity {
+  if (
+    issue.type !== "unused-key" ||
+    issue.source.reason !== "dynamic-usage"
+  ) {
+    return ruleSeverity;
+  }
+  if (ruleSeverity === "error") {
+    return "warning";
+  }
+  if (ruleSeverity === "warning") {
+    return "info";
+  }
+  return ruleSeverity;
+}
+
 export function computeStats(issues: readonly Issue[]): IssueStats {
   let unusedKey = 0;
   let missingKey = 0;
   let duplicateKey = 0;
+  let untranslatedText = 0;
   const bySeverity: Partial<Record<IssueSeverity, number>> = {};
 
   for (const issue of issues) {
     if (issue.type === "unused-key") unusedKey += 1;
     else if (issue.type === "missing-key") missingKey += 1;
-    else duplicateKey += 1;
+    else if (issue.type === "duplicate-key") duplicateKey += 1;
+    else if (issue.type === "untranslated-text") untranslatedText += 1;
     bySeverity[issue.severity] = (bySeverity[issue.severity] ?? 0) + 1;
   }
 
@@ -177,6 +245,7 @@ export function computeStats(issues: readonly Issue[]): IssueStats {
     unusedKey,
     missingKey,
     duplicateKey,
+    untranslatedText,
     bySeverity,
   };
 }

@@ -65,6 +65,41 @@ export interface TranslationUsage {
   readonly detector?: string;
 }
 
+/**
+ * A translation call whose key argument could not be fully resolved
+ * (e.g. `t("HELLO_" + suffix)`). Static fragments help soften unused-key findings.
+ */
+export interface DynamicTranslationUsage {
+  readonly absolutePath: string;
+  readonly relativePath: string;
+  readonly location: UsageLocation;
+  readonly library: UsageLibraryId;
+  readonly namespace?: string;
+  readonly namespaces?: readonly string[];
+  readonly confidence: Confidence;
+  readonly context: UsageContext;
+  readonly evidence?: string;
+  readonly prefixes: readonly string[];
+  readonly suffixes: readonly string[];
+  readonly contains: readonly string[];
+}
+
+/**
+ * Likely user-facing static text that is not passed through a translation helper.
+ */
+export interface UntranslatedLiteral {
+  /** Display text (may be truncated). */
+  readonly text: string;
+  readonly absolutePath: string;
+  readonly relativePath: string;
+  readonly location: UsageLocation;
+  readonly confidence: Confidence;
+  readonly context: "jsx-text" | "jsx-expression" | "jsx-attribute";
+  readonly attribute?: string;
+  readonly library: UsageLibraryId;
+  readonly evidence?: string;
+}
+
 /** Framework template surfaces supported by @i18n-doctor/templates. */
 export type TemplateFrameworkId =
   | "vue"
@@ -82,11 +117,15 @@ export interface UsageWarning {
 export interface UsageCatalog {
   readonly root: string;
   readonly usages: readonly TranslationUsage[];
+  readonly dynamicUsages: readonly DynamicTranslationUsage[];
+  readonly untranslatedLiterals: readonly UntranslatedLiteral[];
   readonly libraries: readonly UsageLibraryId[];
   readonly warnings: readonly UsageWarning[];
   readonly stats: {
     readonly fileCount: number;
     readonly usageCount: number;
+    readonly dynamicUsageCount: number;
+    readonly untranslatedCount: number;
     readonly byLibrary: Readonly<Partial<Record<UsageLibraryId, number>>>;
     readonly byContext: Readonly<Partial<Record<UsageContext, number>>>;
   };

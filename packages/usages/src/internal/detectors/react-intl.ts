@@ -51,7 +51,7 @@ export const reactIntlUsageDetector: LibraryUsageDetector = {
             isIntlObject(bindings, member.object));
 
         if (isFormatMessage) {
-          const fromObj = idFromObjectLiteral(node.arguments[0]);
+          const fromObj = idFromObjectLiteral(node.arguments[0], sourceFile);
           if (fromObj) {
             usages.push(
               buildUsage({
@@ -68,7 +68,7 @@ export const reactIntlUsageDetector: LibraryUsageDetector = {
             return;
           }
           const keyNode = node.arguments[0];
-          const key = staticStringKey(keyNode);
+          const key = staticStringKey(keyNode, sourceFile);
           if (key !== undefined && keyNode) {
             usages.push(
               buildUsage({
@@ -90,7 +90,7 @@ export const reactIntlUsageDetector: LibraryUsageDetector = {
         const tag = jsxTagName(node);
         const base = tag.includes(".") ? tag.slice(tag.lastIndexOf(".") + 1) : tag;
         if (base === "FormattedMessage") {
-          const attr = jsxAttributeValue(node, "id");
+          const attr = jsxAttributeValue(node, "id", sourceFile);
           if (attr) {
             usages.push(
               buildUsage({

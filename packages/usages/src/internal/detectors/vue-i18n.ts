@@ -36,7 +36,7 @@ export const vueI18nUsageDetector: LibraryUsageDetector = {
         return;
       }
       const keyNode = node.arguments[0];
-      const key = staticStringKey(keyNode);
+      const key = staticStringKey(keyNode, sourceFile);
       if (key === undefined || !keyNode) {
         return;
       }

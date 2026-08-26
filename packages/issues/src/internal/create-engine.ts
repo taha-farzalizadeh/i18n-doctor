@@ -15,6 +15,12 @@ class DefaultIssueEngine implements IssueEngine {
       root: input.root,
       definitions: input.definitions,
       usages: input.usages,
+      ...(input.dynamicUsages !== undefined
+        ? { dynamicUsages: input.dynamicUsages }
+        : {}),
+      ...(input.untranslatedLiterals !== undefined
+        ? { untranslatedLiterals: input.untranslatedLiterals }
+        : {}),
       options: {
         ...this.defaults,
         ...input.options,

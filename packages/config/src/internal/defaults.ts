@@ -11,12 +11,14 @@ export const RULE_IDS: readonly RuleId[] = [
   "unused-key",
   "missing-key",
   "duplicate-key",
+  "untranslated-text",
 ] as const;
 
 export const DEFAULT_RULE_SEVERITIES: Readonly<Record<RuleId, RuleSeverity>> = {
   "unused-key": "warning",
   "missing-key": "error",
   "duplicate-key": "warning",
+  "untranslated-text": "info",
 };
 
 export const DEFAULT_OUTPUT: Required<OutputConfig> = {

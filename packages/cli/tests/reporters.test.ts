@@ -41,6 +41,7 @@ function sample(overrides: Partial<AnalysisResult> = {}): AnalysisResult {
       unusedKey: 1,
       missingKey: 1,
       duplicateKey: 0,
+      untranslatedText: 0,
       bySeverity: { error: 1, warning: 1 },
     },
     timings: { totalMs: 10.7, analyzeMs: 4.2 },

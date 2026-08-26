@@ -3,7 +3,7 @@
 > **Beta — v0.9.2**
 > This is an early release. APIs may change, edge cases exist, and your feedback matters. See [Contributing](#contributing) to help shape the project.
 
-Static localization analysis for JavaScript and TypeScript projects. Finds unused, missing, and duplicate translation keys — without executing your code.
+Static localization analysis for JavaScript and TypeScript projects. Finds unused, missing, and duplicate translation keys — and hardcoded UI text that never goes through translation — without executing your code.
 
 ---
 
@@ -12,7 +12,14 @@ Static localization analysis for JavaScript and TypeScript projects. Finds unuse
 - **Unused keys** — translation keys defined in your locale files but never referenced in source code
 - **Missing keys** — keys used in code that have no matching translation
 - **Duplicate keys** — keys defined more than once in the same namespace
+- **Untranslated text** — likely user-facing JSX/UI strings that are not passed through `t()` / `formatMessage` (info by default)
 - **Cross-locale coverage** — keys present in one locale but absent in others
+
+Also understands common usage patterns that static tools often miss:
+
+- Prop-passed translators (`function Child({ t }) { return t("key") }`)
+- Static key composition (`t("HELLO_" + "AGAIN")`, same-file `const` keys)
+- Soft unused hints when a key may still be covered by dynamic usage (`t("HELLO_" + suffix)`)
 
 Analysis is purely static. No runtime, no bundler, no side effects.
 
@@ -116,10 +123,11 @@ i18n-doctor issues
 Root: /Users/you/app
 
 Summary
-  Unused:    2
-  Missing:   1
-  Duplicate: 0
-  Total:     3
+  Unused:       2
+  Missing:      1
+  Duplicate:    0
+  Untranslated: 1
+  Total:        4
 
 ! UNUSED KEY  auth.legacy.banner
   Defined  locales/en/auth.json:12:3
@@ -135,7 +143,7 @@ Paths are clickable OSC-8 hyperlinks in supported terminals.
 ```json
 {
   "root": "/Users/you/app",
-  "stats": { "total": 3, "unusedKey": 2, "missingKey": 1, "duplicateKey": 0 },
+  "stats": { "total": 4, "unusedKey": 2, "missingKey": 1, "duplicateKey": 0, "untranslatedText": 1 },
   "issues": [
     {
       "type": "missing-key",
@@ -164,7 +172,8 @@ Place an `i18n-doctor.config.json` (or `.js` / `.ts`) at your project root. The 
   "rules": {
     "unused-key": "error",
     "missing-key": "error",
-    "duplicate-key": "warning"
+    "duplicate-key": "warning",
+    "untranslated-text": "info"
   },
   "ignore": [
     "legacy.*",
@@ -173,7 +182,14 @@ Place an `i18n-doctor.config.json` (or `.js` / `.ts`) at your project root. The 
 }
 ```
 
-You can also suppress individual issues inline in source code using comments — see the config package docs for suppression syntax.
+| Rule | Default | Meaning |
+| --- | --- | --- |
+| `unused-key` | `warning` | Defined in locale files, never used in code |
+| `missing-key` | `error` | Used in code, missing from locale files |
+| `duplicate-key` | `warning` | Same key defined more than once |
+| `untranslated-text` | `info` | Hardcoded UI text not passed through a translator |
+
+Set any rule to `"off"` to disable it. Inline suppressions work too, e.g. `// i18n-doctor-ignore untranslated-text`.
 
 ---
 
@@ -300,11 +316,24 @@ Requires Node.js ≥ 18.
 v0.9.2 is a beta release. That means:
 
 - Core analysis works and is usable on real projects
-- Some edge cases aren't handled yet (dynamic keys, complex wrapper chains, custom i18n libraries)
+- Prop-passed `t`, static key concat, soft dynamic-unused hints, and untranslated UI text are supported
+- Some edge cases remain (fully opaque dynamic keys, complex cross-file wrappers, custom i18n libraries)
 - The config schema may have breaking changes before v1.0
 - `--fix` is reserved but not yet implemented
 
 If something doesn't work on your project, please open an issue. That's exactly the kind of feedback that moves this to stable.
+
+---
+
+## Changelog (recent)
+
+### Analyzer / IDE (2026-08)
+
+- **Untranslated text** — flag hardcoded JSX/UI strings not passed through translators (`untranslated-text`, default `info`)
+- **Prop-passed `t`** — detect usages when `t` is received via props
+- **Static key composition** — resolve `t("a" + "b")`, static templates, same-file `const` keys
+- **Dynamic unused softening** — when `t("HELLO_" + suffix)` exists, matching catalog keys get an info “may be unused” hint instead of a hard unused warning
+- **JetBrains 0.9.5** / **VS Code 0.9.4** — rebundled language server with the above
 
 ---
 

@@ -1,16 +1,211 @@
 import ts from "typescript";
 
-/** Static string key from a call/JSX argument. No constant folding. */
+/**
+ * Statically resolve a translation-key expression.
+ * Supports:
+ * - string / no-substitution templates
+ * - `"a" + "b"` / nested concat (all parts static)
+ * - `` `a${"b"}c` `` when every hole is static
+ * - parentheses / `as` / satisfies wrappers
+ * - same-file `const` string bindings (when `sourceFile` is provided)
+ *
+ * Returns undefined for anything dynamic (e.g. `"HELLO_" + suffix`).
+ */
 export function staticStringKey(
   node: ts.Expression | undefined,
+  sourceFile?: ts.SourceFile,
+  seen: Set<ts.Node> = new Set(),
 ): string | undefined {
   if (!node) {
     return undefined;
   }
+  if (seen.has(node)) {
+    return undefined;
+  }
+  seen.add(node);
+
+  if (ts.isAsExpression(node) || ts.isSatisfiesExpression(node) || ts.isParenthesizedExpression(node)) {
+    return staticStringKey(node.expression, sourceFile, seen);
+  }
+
   if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
     return node.text;
   }
+
+  if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.PlusToken) {
+    const left = staticStringKey(node.left, sourceFile, seen);
+    const right = staticStringKey(node.right, sourceFile, seen);
+    if (left === undefined || right === undefined) {
+      return undefined;
+    }
+    return left + right;
+  }
+
+  if (ts.isTemplateExpression(node)) {
+    let out = node.head.text;
+    for (const span of node.templateSpans) {
+      const part = staticStringKey(span.expression, sourceFile, seen);
+      if (part === undefined) {
+        return undefined;
+      }
+      out += part + span.literal.text;
+    }
+    return out;
+  }
+
+  if (ts.isIdentifier(node) && sourceFile) {
+    return resolveConstStringBinding(node, sourceFile, seen);
+  }
+
   return undefined;
+}
+
+export interface StaticKeyFragments {
+  readonly prefixes: readonly string[];
+  readonly suffixes: readonly string[];
+  readonly contains: readonly string[];
+}
+
+/**
+ * Extract known static pieces from a key expression that cannot be fully
+ * resolved (e.g. `"HELLO_" + suffix` → prefix `HELLO_`).
+ * Used to soften unused-key findings that may still be covered at runtime.
+ */
+export function staticKeyFragments(
+  node: ts.Expression | undefined,
+  sourceFile?: ts.SourceFile,
+  seen: Set<ts.Node> = new Set(),
+): StaticKeyFragments {
+  const prefixes: string[] = [];
+  const suffixes: string[] = [];
+  const contains: string[] = [];
+
+  const add = (list: string[], value: string | undefined): void => {
+    if (value && value.length > 0 && !list.includes(value)) {
+      list.push(value);
+    }
+  };
+
+  const walk = (expr: ts.Expression | undefined): void => {
+    if (!expr || seen.has(expr)) {
+      return;
+    }
+    seen.add(expr);
+
+    if (
+      ts.isAsExpression(expr) ||
+      ts.isSatisfiesExpression(expr) ||
+      ts.isParenthesizedExpression(expr)
+    ) {
+      walk(expr.expression);
+      return;
+    }
+
+    const fully = staticStringKey(expr, sourceFile, new Set(seen));
+    if (fully !== undefined) {
+      add(contains, fully);
+      return;
+    }
+
+    if (
+      ts.isBinaryExpression(expr) &&
+      expr.operatorToken.kind === ts.SyntaxKind.PlusToken
+    ) {
+      const left = staticStringKey(expr.left, sourceFile, new Set(seen));
+      const right = staticStringKey(expr.right, sourceFile, new Set(seen));
+      if (left !== undefined && right === undefined) {
+        add(prefixes, left);
+        walk(expr.right);
+        return;
+      }
+      if (right !== undefined && left === undefined) {
+        add(suffixes, right);
+        walk(expr.left);
+        return;
+      }
+      walk(expr.left);
+      walk(expr.right);
+      return;
+    }
+
+    if (ts.isTemplateExpression(expr)) {
+      add(prefixes, expr.head.text || undefined);
+      for (let i = 0; i < expr.templateSpans.length; i++) {
+        const span = expr.templateSpans[i]!;
+        const hole = staticStringKey(span.expression, sourceFile, new Set(seen));
+        if (hole !== undefined) {
+          add(contains, hole);
+        } else {
+          walk(span.expression);
+        }
+        const lit = span.literal.text;
+        if (!lit) {
+          continue;
+        }
+        if (i === expr.templateSpans.length - 1) {
+          add(suffixes, lit);
+        } else {
+          add(contains, lit);
+        }
+      }
+      return;
+    }
+
+    if (ts.isConditionalExpression(expr)) {
+      walk(expr.whenTrue);
+      walk(expr.whenFalse);
+    }
+  };
+
+  walk(node);
+  return { prefixes, suffixes, contains };
+}
+
+/**
+ * Resolve `const name = <static string expr>` declared before `id` in the same file.
+ * Innermost / latest declaration before the use site wins.
+ */
+function resolveConstStringBinding(
+  id: ts.Identifier,
+  sourceFile: ts.SourceFile,
+  seen: Set<ts.Node>,
+): string | undefined {
+  const name = id.text;
+  const usePos = id.getStart(sourceFile);
+  let best: { declPos: number; value: string } | undefined;
+
+  const visit = (node: ts.Node): void => {
+    if (
+      ts.isVariableDeclaration(node) &&
+      ts.isIdentifier(node.name) &&
+      node.name.text === name &&
+      node.initializer
+    ) {
+      const list = node.parent;
+      const stmt = list?.parent;
+      const isConst =
+        list &&
+        ts.isVariableDeclarationList(list) &&
+        (list.flags & ts.NodeFlags.Const) !== 0;
+      if (
+        isConst &&
+        stmt &&
+        ts.isVariableStatement(stmt) &&
+        node.name.getStart(sourceFile) < usePos
+      ) {
+        const value = staticStringKey(node.initializer, sourceFile, new Set(seen));
+        if (value !== undefined) {
+          const declPos = node.name.getStart(sourceFile);
+          if (!best || declPos >= best.declPos) {
+            best = { declPos, value };
+          }
+        }
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return best?.value;
 }
 
 export function calleeIdentifier(expr: ts.Expression): string | undefined {
@@ -68,6 +263,7 @@ export function rootIdentifier(expr: ts.Expression): string | undefined {
 /** formatMessage({ id: "key" }) → key node + text */
 export function idFromObjectLiteral(
   expr: ts.Expression | undefined,
+  sourceFile?: ts.SourceFile,
 ): { key: string; node: ts.Node } | undefined {
   if (!expr || !ts.isObjectLiteralExpression(expr)) {
     return undefined;
@@ -84,7 +280,7 @@ export function idFromObjectLiteral(
     if (name !== "id") {
       continue;
     }
-    const key = staticStringKey(prop.initializer);
+    const key = staticStringKey(prop.initializer, sourceFile);
     if (key !== undefined) {
       return { key, node: prop.initializer };
     }
@@ -101,6 +297,7 @@ export function jsxTagName(
 export function jsxAttributeValue(
   element: ts.JsxOpeningElement | ts.JsxSelfClosingElement,
   attrName: string,
+  sourceFile?: ts.SourceFile,
 ): { key: string; node: ts.Node } | undefined {
   for (const attr of element.attributes.properties) {
     if (!ts.isJsxAttribute(attr) || !ts.isIdentifier(attr.name)) {
@@ -113,7 +310,7 @@ export function jsxAttributeValue(
       return { key: attr.initializer.text, node: attr.initializer };
     }
     if (ts.isJsxExpression(attr.initializer) && attr.initializer.expression) {
-      const key = staticStringKey(attr.initializer.expression);
+      const key = staticStringKey(attr.initializer.expression, sourceFile);
       if (key !== undefined) {
         return { key, node: attr.initializer.expression };
       }

@@ -1,6 +1,6 @@
 # i18n-doctor for VS Code
 
-> **Beta — v0.9.2**
+> **Beta — v0.9.4**
 
 Live i18n diagnostics in VS Code. This extension is an LSP client: it starts the
 bundled [`@i18n-doctor/language-server`](../language-server) over stdio and lets
@@ -28,6 +28,8 @@ server is bundled with the extension.
 | --- | --- |
 | `t("auth.nonexistent")` | Error underline exactly over `"auth.nonexistent"` |
 | Unused catalog entry | Warning on the locale file |
+| Key may be covered only by dynamic usage | Info: “may be unused” with related dynamic call site |
+| Hardcoded JSX / UI attribute text | Info: `untranslated-text` |
 | Key missing from another locale | Warning on the base catalog entry |
 | Edit the source or the locale | Diagnostics update after the server's debounce |
 
@@ -100,6 +102,11 @@ Produces `dist/i18n-doctor.vsix`. The build step esbuilds:
   CommonJS file
 
 So a published extension is self-contained.
+
+### Changelog (recent)
+
+- **0.9.4** — Bundled analyzer: prop-passed `t`, static key concat, soft unused for dynamic keys, `untranslated-text` (info)
+- Earlier — LSP client, self-contained server bundle, marketplace icon
 
 ### Extension icon
 

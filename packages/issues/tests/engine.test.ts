@@ -46,6 +46,69 @@ describe("issue engine — unused key", () => {
     expect(result.issues).toHaveLength(0);
   });
 
+  it("softens unused keys that match a dynamic usage prefix", () => {
+    const result = createIssueEngine().analyze({
+      root: ROOT,
+      definitions: [
+        def("HELLO_ALL", "locales/en.json", 1, { locale: "en" }),
+        def("OTHER_KEY", "locales/en.json", 2, { locale: "en" }),
+      ],
+      usages: [],
+      dynamicUsages: [
+        {
+          absolutePath: `${ROOT}/src/D.tsx`,
+          relativePath: "src/D.tsx",
+          line: 5,
+          column: 10,
+          prefixes: ["HELLO_"],
+          suffixes: [],
+          contains: [],
+          confidence: 0.4,
+        },
+      ],
+    });
+
+    const hello = result.issues.find((i) => i.key === "HELLO_ALL");
+    const other = result.issues.find((i) => i.key === "OTHER_KEY");
+    expect(hello?.type).toBe("unused-key");
+    expect(hello?.severity).toBe("info");
+    expect(hello?.source.reason).toBe("dynamic-usage");
+    expect(hello?.message).toMatch(/may be unused/);
+    expect(hello?.message).toMatch(/HELLO_/);
+    expect(hello?.message).toMatch(/src\/D\.tsx:5/);
+    expect(hello?.relatedLocations[0]?.relativePath).toBe("src/D.tsx");
+
+    expect(other?.severity).toBe("warning");
+    expect(other?.source.reason).toBeUndefined();
+    expect(other?.message).toMatch(/Unused translation key/);
+  });
+
+  it("flags untranslated static text", () => {
+    const result = createIssueEngine().analyze({
+      root: ROOT,
+      definitions: [],
+      usages: [],
+      untranslatedLiterals: [
+        {
+          text: "Welcome back",
+          absolutePath: `${ROOT}/src/Login.tsx`,
+          relativePath: "src/Login.tsx",
+          line: 6,
+          column: 10,
+          confidence: 0.85,
+          context: "jsx-text",
+          library: "react-i18next",
+        },
+      ],
+    });
+    expect(result.stats.untranslatedText).toBe(1);
+    const issue = result.issues[0]!;
+    expect(issue.type).toBe("untranslated-text");
+    expect(issue.severity).toBe("info");
+    expect(issue.message).toMatch(/no translation/);
+    expect(issue.source.kind).toBe("literal");
+  });
+
   it("emits an unused issue for every locale that defines the key", () => {
     const result = createIssueEngine().analyze({
       root: ROOT,

@@ -3,7 +3,7 @@
 > **Beta — v0.9.2** · [GitHub](https://github.com/taha-farzalizadeh/i18n-doctor) · [Issues](https://github.com/taha-farzalizadeh/i18n-doctor/issues)
 
 Static localization analysis for JavaScript and TypeScript projects.  
-Finds **unused**, **missing**, and **duplicate** translation keys — without executing your code.
+Finds **unused**, **missing**, **duplicate** translation keys, and **untranslated** hardcoded UI text — without executing your code.
 
 ## Install & run
 
@@ -33,6 +33,28 @@ Options:
   --namespace     Restrict to one namespace
   --base-locale   Base locale for cross-locale coverage
   --no-coverage   Skip locale consistency analysis
+```
+
+## Rules
+
+Configure in `i18n-doctor.config.json`:
+
+| Rule | Default | Meaning |
+| --- | --- | --- |
+| `unused-key` | `warning` | Locale key never referenced in code |
+| `missing-key` | `error` | Code uses a key missing from locale files |
+| `duplicate-key` | `warning` | Key defined more than once |
+| `untranslated-text` | `info` | Hardcoded UI text not passed through `t()` / similar |
+
+Example:
+
+```json
+{
+  "rules": {
+    "untranslated-text": "warning",
+    "unused-key": "error"
+  }
+}
 ```
 
 ## Exit codes

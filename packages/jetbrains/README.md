@@ -1,6 +1,6 @@
 # i18n-doctor for JetBrains (WebStorm)
 
-> **Beta — v0.9.3**
+> **Beta — v0.9.5**
 
 Live i18n diagnostics in WebStorm and other JetBrains IDEs that ship the
 platform LSP API. This plugin is a **thin LSP client**: it starts the bundled
@@ -40,6 +40,8 @@ After install:
 | --- | --- |
 | `t("auth.nonexistent")` | Error underline exactly over `"auth.nonexistent"` |
 | Unused catalog entry | Warning on the property key in every locale file that defines it |
+| Key may be covered only by dynamic usage | Info: “may be unused” with related dynamic call site |
+| Hardcoded JSX / UI attribute text | Info: `untranslated-text` (“This text has no translation”) |
 | Key missing from another locale | Coverage warning on the base catalog entry |
 | Edit source or locale (including unsaved buffers) | Diagnostics update after the server's debounce |
 
@@ -91,8 +93,8 @@ npm run runIde -w i18n-doctor-jetbrains   # sandboxed WebStorm + demo project
 npm test -w i18n-doctor-jetbrains
 ```
 
-Current release version is **`0.9.3`** — bump it before every Marketplace
-upload (next would be `0.9.3`; see [PUBLISHING.md](./PUBLISHING.md)). Listing
+Current release version is **`0.9.5`** — bump it before every Marketplace
+upload (next would be `0.9.6`; see [PUBLISHING.md](./PUBLISHING.md)). Listing
 copy: [MARKETPLACE.md](./MARKETPLACE.md).
 
 Architecture:

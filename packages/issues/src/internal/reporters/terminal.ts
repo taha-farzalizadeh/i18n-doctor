@@ -49,6 +49,9 @@ export function formatTerminalReport(
   lines.push(`  ${paint(YELLOW, "Unused:")}    ${result.stats.unusedKey}`);
   lines.push(`  ${paint(RED, "Missing:")}   ${result.stats.missingKey}`);
   lines.push(`  ${paint(CYAN, "Duplicate:")} ${result.stats.duplicateKey}`);
+  lines.push(
+    `  ${paint(CYAN, "Untranslated:")} ${result.stats.untranslatedText}`,
+  );
   lines.push(`  Total:     ${result.stats.total}`);
   lines.push("");
 
@@ -118,6 +121,9 @@ function formatIssueBlock(
     appendLocations(lines, issue, hyperlinks, paint);
     lines.push("");
     lines.push(`  ${paint(DIM, "No definition found")}`);
+  } else if (issue.type === "untranslated-text") {
+    lines.push(`  ${paint(DIM, "Location:")}`);
+    appendLocations(lines, issue, hyperlinks, paint);
   } else {
     lines.push(`  ${paint(DIM, "Defined:")}`);
     appendLocations(lines, issue, hyperlinks, paint);
@@ -148,6 +154,8 @@ function issueTitle(type: Issue["type"]): string {
       return "MISSING KEY";
     case "duplicate-key":
       return "DUPLICATE KEY";
+    case "untranslated-text":
+      return "UNTRANSLATED TEXT";
   }
 }
 

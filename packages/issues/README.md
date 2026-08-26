@@ -4,6 +4,15 @@
 
 Issue engine and multi-format reporters (terminal, JSON, SARIF, Markdown, HTML).
 
+Issue types:
+
+| Type | Default severity |
+| --- | --- |
+| `unused-key` | warning (info when softened by dynamic usage) |
+| `missing-key` | error |
+| `duplicate-key` | warning |
+| `untranslated-text` | info |
+
 This package is an internal engine module. Most users only need the CLI:
 
 ```bash

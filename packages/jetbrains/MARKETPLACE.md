@@ -16,7 +16,7 @@ i18n-doctor
 ## Short description (one line)
 
 ```
-Live i18n diagnostics — missing, unused, and duplicate translation keys underlined as you type
+Live i18n diagnostics — missing, unused, coverage, and untranslated UI text as you type
 ```
 
 ## Detailed description (HTML)
@@ -28,8 +28,8 @@ Marketplace accepts HTML. Copy everything between the markers:
 <h2>Live i18n diagnostics for JavaScript &amp; TypeScript</h2>
 
 <p>
-  <b>i18n-doctor</b> underlines missing, unused, and duplicate translation keys
-  while you edit — powered by the same analyzer as the
+  <b>i18n-doctor</b> underlines missing, unused, duplicate, and untranslated
+  text issues while you edit — powered by the same analyzer as the
   <code>i18n-doctor</code> CLI. This plugin is a thin Language Server Protocol
   (LSP) client: it does not re-implement parsing or analysis inside the IDE.
 </p>
@@ -42,7 +42,12 @@ Marketplace accepts HTML. Copy everything between the markers:
   </li>
   <li>
     <b>Unused keys</b> — unused catalog entries are highlighted on the property
-    key in every locale file that defines them.
+    key in every locale file that defines them. Softened to info when a
+    dynamic usage may cover the key.
+  </li>
+  <li>
+    <b>Untranslated text</b> — hardcoded JSX / UI attribute strings not passed
+    through a translator (default severity: info).
   </li>
   <li>
     <b>Duplicates &amp; coverage</b> — duplicate definitions and cross-locale gaps
@@ -101,7 +106,7 @@ Marketplace accepts HTML. Copy everything between the markers:
   <li>CLI: <code>npx i18n-doctor check</code></li>
 </ul>
 
-<p><i>Beta v0.9.3 — please report issues on GitHub.</i></p>
+<p><i>Beta v0.9.5 — please report issues on GitHub.</i></p>
 <!-- END MARKETPLACE DESCRIPTION -->
 ```
 
@@ -156,6 +161,29 @@ Capture from `npm run runIde -w i18n-doctor-jetbrains` + `examples/demo-project`
 - Use channel **default** for public releases.
 - Use channel **eap** only if you intentionally ship pre-releases.
 
+## Change notes (0.9.5)
+
+```html
+<h3>0.9.5</h3>
+<p>Detect hardcoded UI text that is not passed through translation helpers.</p>
+<ul>
+  <li>New <code>untranslated-text</code> findings for JSX text and common UI attributes</li>
+  <li>Default severity: info (raise via config <code>rules["untranslated-text"]</code>)</li>
+</ul>
+```
+
+## Change notes (0.9.4)
+
+```html
+<h3>0.9.4</h3>
+<p>Analyzer improvements in the bundled language server.</p>
+<ul>
+  <li>Detect keys used via prop-passed <code>t</code></li>
+  <li>Resolve statically concatenated keys</li>
+  <li>Soften unused-key findings when a dynamic usage may cover the key</li>
+</ul>
+```
+
 ## Change notes (0.9.3)
 
 ```html
@@ -172,13 +200,14 @@ Capture from `npm run runIde -w i18n-doctor-jetbrains` + `examples/demo-project`
 Update this block every time you bump the version before publish:
 
 ```
-0.9.3 — Fix internal API usages for Marketplace approval
+0.9.5 — Untranslated hardcoded UI text (info)
+• Prop-passed t + static key concat + dynamic unused softening (0.9.4)
 • LSP client for the bundled i18n-doctor language server
-• Live diagnostics for missing / unused / duplicate / coverage keys
+• Live diagnostics for missing / unused / duplicate / coverage / untranslated text
 • Self-contained server bundle (no project dependency required)
 • Uses WebStorm JavaScript Runtime for Node.js when available
 • Plugin icons for light and dark themes
 ```
 
-**Before the next deploy**, change `0.9.3` → the new version (e.g. `0.9.4`) in
+**Before the next deploy**, change `0.9.5` → the new version (e.g. `0.9.6`) in
 `gradle.properties`, `package.json`, `plugin.xml`, and this section.

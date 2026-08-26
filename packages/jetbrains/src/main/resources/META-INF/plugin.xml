@@ -34,6 +34,19 @@
   ]]></description>
 
   <change-notes><![CDATA[
+    <h3>0.9.5</h3>
+    <p>Detect hardcoded UI text that is not passed through translation helpers.</p>
+    <ul>
+      <li>New <code>untranslated-text</code> findings for JSX text and common UI attributes</li>
+      <li>Default severity: info (raise via config <code>rules["untranslated-text"]</code>)</li>
+    </ul>
+    <h3>0.9.4</h3>
+    <p>Analyzer improvements in the bundled language server.</p>
+    <ul>
+      <li>Detect keys used via prop-passed <code>t</code> (e.g. <code>{ t }</code> / <code>props.t</code>)</li>
+      <li>Resolve statically concatenated keys (e.g. <code>t("HELLO_" + "AGAIN")</code>)</li>
+      <li>Soften unused-key findings when a dynamic usage may cover the key (e.g. <code>t("HELLO_" + suffix)</code>)</li>
+    </ul>
     <h3>0.9.3</h3>
     <p>Fix Marketplace Plugin Verifier rejection: stop using internal Platform APIs.</p>
     <ul>

@@ -20,6 +20,7 @@ export function mergeAnalysisResults(
         unusedKey: 0,
         missingKey: 0,
         duplicateKey: 0,
+        untranslatedText: 0,
         bySeverity: {},
       },
       timings: { totalMs: 0, analyzeMs: 0 },

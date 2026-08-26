@@ -9,6 +9,7 @@ export type {
   AnalysisResult,
   AnalyzeInput,
   DefinitionFact,
+  DynamicUsageFact,
   FileLocation,
   Issue,
   IssueEngine,
@@ -20,6 +21,7 @@ export type {
   JsonReporterOptions,
   Reporter,
   TerminalReporterOptions,
+  UntranslatedLiteralFact,
   UsageFact,
 } from "./api/types.js";
 
@@ -35,6 +37,10 @@ export {
   definitionFromKey,
   usagesFromCatalog,
   usageFromTranslationUsage,
+  dynamicUsagesFromCatalog,
+  dynamicUsageFromTranslation,
+  untranslatedLiteralsFromCatalog,
+  untranslatedFromLiteral,
 } from "./internal/adapters.js";
 
 export {

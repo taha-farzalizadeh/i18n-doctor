@@ -51,15 +51,17 @@ whole file or line), and one of these codes:
 | Code | Severity | Reported on | Meaning |
 | --- | --- | --- | --- |
 | `missing-key` | error | the `t()` call | The key is used but not defined |
-| `unused-key` | warning | the catalog entry | The key is defined but never used |
+| `unused-key` | warning | the catalog entry | The key is defined but never used (may soften to info when a dynamic usage could cover it) |
 | `duplicate-key` | warning | the catalog entry | One key defined twice in a locale |
+| `untranslated-text` | info | JSX text / UI attribute | Hardcoded user-facing text not passed through a translator |
 | `missing-translation` | warning | the base catalog entry | Another locale lacks the key |
 | `extra-translation` | info | the catalog entry | A locale has a key the base locale lacks |
 | `namespace-unresolved` | info | the `t()` call | The namespace could not be resolved |
 
-The first three come from `@i18n-doctor/issues`, so their severities follow the
-`rules` block of your config: `{"rules": {"unused-key": "off"}}` silences a code
-in the editor exactly as it does on the command line. `data` carries
+The issue codes (`missing-key`, `unused-key`, `duplicate-key`, `untranslated-text`)
+come from `@i18n-doctor/issues`, so their severities follow the `rules` block of
+your config: `{"rules": {"untranslated-text": "off"}}` silences a code in the
+editor exactly as it does on the command line. `data` carries
 `{ code, key, namespace?, locale?, analyzerMessage?, confidence? }` for clients
 that want to build their own UI.
 

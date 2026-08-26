@@ -2,10 +2,12 @@ import type {
   AnalysisResult,
   AnalyzeInput,
   DefinitionFact,
+  DynamicUsageFact,
   Issue,
   IssueEngineOptions,
   IssueSeverity,
   IssueStats,
+  UntranslatedLiteralFact,
   UsageFact,
 } from "../api/types.js";
 import {
@@ -14,6 +16,7 @@ import {
   logicalDefinitionKey,
   logicalUsageKey,
   matchContextFromOptions,
+  resolveUsageNamespaces,
   type MatchContext,
 } from "./identity.js";
 import { definitionToLocation, usageToLocation } from "./location.js";
@@ -22,6 +25,7 @@ const DEFAULT_SEVERITIES = {
   unusedKey: "warning" as IssueSeverity,
   missingKey: "error" as IssueSeverity,
   duplicateKey: "warning" as IssueSeverity,
+  untranslatedText: "info" as IssueSeverity,
 };
 
 type NormalizedOptions = Required<
@@ -45,8 +49,18 @@ export function analyzeIssues(input: AnalyzeInput): AnalysisResult {
 
   const issues: Issue[] = [];
   issues.push(...findDuplicateKeys(definitions, options));
-  issues.push(...findUnusedKeys(definitions, usages, options));
+  issues.push(
+    ...findUnusedKeys(
+      definitions,
+      usages,
+      input.dynamicUsages ?? [],
+      options,
+    ),
+  );
   issues.push(...findMissingKeys(definitions, usages, options));
+  issues.push(
+    ...findUntranslatedText(input.untranslatedLiterals ?? [], options),
+  );
 
   issues.sort(compareIssues);
 
@@ -89,6 +103,9 @@ function normalizeOptions(options: IssueEngineOptions = {}): NormalizedOptions {
       missingKey: options.severities?.missingKey ?? DEFAULT_SEVERITIES.missingKey,
       duplicateKey:
         options.severities?.duplicateKey ?? DEFAULT_SEVERITIES.duplicateKey,
+      untranslatedText:
+        options.severities?.untranslatedText ??
+        DEFAULT_SEVERITIES.untranslatedText,
     },
   };
 }
@@ -153,6 +170,7 @@ function findDuplicateKeys(
 function findUnusedKeys(
   definitions: readonly DefinitionFact[],
   usages: readonly UsageFact[],
+  dynamicUsages: readonly DynamicUsageFact[],
   options: NormalizedOptions,
 ): Issue[] {
   const byLogical = new Map<string, DefinitionFact[]>();
@@ -172,16 +190,45 @@ function findUnusedKeys(
       continue;
     }
 
+    const dynamicHits = dynamicUsages.filter((dyn) =>
+      defs.some((def) => definitionMatchesDynamicUsage(def, dyn, options.match)),
+    );
+
     // One issue per definition site so every locale/catalog file that carries
     // the unused key is underlined — not only the base locale.
     const ordered = sortDefinitions(defs);
     for (const def of ordered) {
-      const related = ordered
+      const relatedDefs = ordered
         .filter((d) => d !== def)
         .map(definitionToLocation);
+      const relatedDynamic = dynamicHits.map(dynamicUsageToLocation);
+      const related = [...relatedDynamic, ...relatedDefs];
       const nsHint = def.namespace
         ? ` in namespace "${def.namespace}"`
         : "";
+
+      if (dynamicHits.length > 0) {
+        const hint = formatDynamicHint(def.key, dynamicHits);
+        issues.push({
+          type: "unused-key",
+          severity: "info",
+          message: `Translation key "${def.key}"${nsHint} may be unused — ${hint}`,
+          key: def.key,
+          location: definitionToLocation(def),
+          relatedLocations: related,
+          source: {
+            kind: "definition",
+            reason: "dynamic-usage",
+            ...(def.locale !== undefined ? { locale: def.locale } : {}),
+            ...(def.namespace !== undefined ? { namespace: def.namespace } : {}),
+            ...(def.confidence !== undefined
+              ? { confidence: def.confidence }
+              : {}),
+          },
+        });
+        continue;
+      }
+
       issues.push({
         type: "unused-key",
         severity: options.severities.unusedKey,
@@ -199,6 +246,136 @@ function findUnusedKeys(
         },
       });
     }
+  }
+  return issues;
+}
+
+function definitionMatchesDynamicUsage(
+  definition: DefinitionFact,
+  dynamic: DynamicUsageFact,
+  ctx: MatchContext,
+): boolean {
+  if (!keyMatchesDynamicFragments(definition.key, dynamic)) {
+    return false;
+  }
+  if (!ctx.matchNamespace || !definition.namespace) {
+    return true;
+  }
+  const namespaces = resolveUsageNamespaces(
+    {
+      key: definition.key,
+      absolutePath: dynamic.absolutePath,
+      relativePath: dynamic.relativePath,
+      line: dynamic.line,
+      column: dynamic.column,
+      ...(dynamic.namespace !== undefined
+        ? { namespace: dynamic.namespace }
+        : {}),
+      ...(dynamic.namespaces !== undefined
+        ? { namespaces: dynamic.namespaces }
+        : {}),
+    },
+    ctx,
+  );
+  return namespaces.includes(definition.namespace);
+}
+
+function keyMatchesDynamicFragments(
+  key: string,
+  dynamic: DynamicUsageFact,
+): boolean {
+  for (const prefix of dynamic.prefixes) {
+    if (prefix.length > 0 && key.startsWith(prefix)) {
+      return true;
+    }
+  }
+  for (const suffix of dynamic.suffixes) {
+    if (suffix.length > 0 && key.endsWith(suffix)) {
+      return true;
+    }
+  }
+  for (const part of dynamic.contains) {
+    if (part.length > 0 && key.includes(part)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function formatDynamicHint(
+  key: string,
+  hits: readonly DynamicUsageFact[],
+): string {
+  const primary = hits[0]!;
+  const fragment =
+    primary.prefixes.find((p) => key.startsWith(p)) ??
+    primary.suffixes.find((s) => key.endsWith(s)) ??
+    primary.contains.find((c) => key.includes(c)) ??
+    primary.prefixes[0] ??
+    primary.suffixes[0] ??
+    primary.contains[0] ??
+    "…";
+  const where = `${primary.relativePath}:${primary.line}`;
+  const more =
+    hits.length > 1 ? ` (+${hits.length - 1} other dynamic site(s))` : "";
+  return `possible dynamic usage matching "${fragment}" in ${where}${more}`;
+}
+
+function dynamicUsageToLocation(dyn: DynamicUsageFact) {
+  return {
+    absolutePath: dyn.absolutePath,
+    relativePath: dyn.relativePath,
+    line: dyn.line,
+    column: dyn.column,
+    ...(dyn.endLine !== undefined ? { endLine: dyn.endLine } : {}),
+    ...(dyn.endColumn !== undefined ? { endColumn: dyn.endColumn } : {}),
+    ...(dyn.start !== undefined ? { start: dyn.start } : {}),
+    ...(dyn.end !== undefined ? { end: dyn.end } : {}),
+    ...(dyn.namespace !== undefined ? { namespace: dyn.namespace } : {}),
+  };
+}
+
+function findUntranslatedText(
+  literals: readonly UntranslatedLiteralFact[],
+  options: NormalizedOptions,
+): Issue[] {
+  const issues: Issue[] = [];
+  for (const lit of literals) {
+    if ((lit.confidence ?? 1) < options.minConfidence) {
+      continue;
+    }
+    const display =
+      lit.text.length > 60 ? `${lit.text.slice(0, 59)}…` : lit.text;
+    const where =
+      lit.attribute !== undefined
+        ? ` in attribute "${lit.attribute}"`
+        : lit.context === "jsx-text"
+          ? " in JSX text"
+          : "";
+    issues.push({
+      type: "untranslated-text",
+      severity: options.severities.untranslatedText,
+      message: `This text has no translation${where}: "${display}"`,
+      key: lit.text,
+      location: {
+        absolutePath: lit.absolutePath,
+        relativePath: lit.relativePath,
+        line: lit.line,
+        column: lit.column,
+        ...(lit.endLine !== undefined ? { endLine: lit.endLine } : {}),
+        ...(lit.endColumn !== undefined ? { endColumn: lit.endColumn } : {}),
+        ...(lit.start !== undefined ? { start: lit.start } : {}),
+        ...(lit.end !== undefined ? { end: lit.end } : {}),
+      },
+      relatedLocations: [],
+      source: {
+        kind: "literal",
+        ...(lit.library !== undefined ? { library: lit.library } : {}),
+        ...(lit.confidence !== undefined
+          ? { confidence: lit.confidence }
+          : {}),
+      },
+    });
   }
   return issues;
 }
@@ -306,6 +483,7 @@ function compareIssues(a: Issue, b: Issue): number {
     "missing-key": 0,
     "duplicate-key": 1,
     "unused-key": 2,
+    "untranslated-text": 3,
   };
   return (
     order[a.type] - order[b.type] ||
@@ -334,17 +512,20 @@ function buildStats(issues: readonly Issue[]): IssueStats {
   let unusedKey = 0;
   let missingKey = 0;
   let duplicateKey = 0;
+  let untranslatedText = 0;
   for (const issue of issues) {
     bySeverity[issue.severity] = (bySeverity[issue.severity] ?? 0) + 1;
     if (issue.type === "unused-key") unusedKey += 1;
     if (issue.type === "missing-key") missingKey += 1;
     if (issue.type === "duplicate-key") duplicateKey += 1;
+    if (issue.type === "untranslated-text") untranslatedText += 1;
   }
   return {
     total: issues.length,
     unusedKey,
     missingKey,
     duplicateKey,
+    untranslatedText,
     bySeverity: orderSeverityCounts(bySeverity),
   };
 }

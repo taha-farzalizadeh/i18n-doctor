@@ -35,6 +35,7 @@ export function formatJsonReport(
       unusedKey: result.stats.unusedKey,
       missingKey: result.stats.missingKey,
       duplicateKey: result.stats.duplicateKey,
+      untranslatedText: result.stats.untranslatedText,
       bySeverity: stableSeverityMap(result.stats.bySeverity),
     },
     timings: {

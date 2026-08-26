@@ -4,6 +4,31 @@
 
 Configuration loading, ignore rules, and inline suppression engine.
 
+## Rules
+
+| RuleId | Default |
+| --- | --- |
+| `unused-key` | `warning` |
+| `missing-key` | `error` |
+| `duplicate-key` | `warning` |
+| `untranslated-text` | `info` |
+
+```json
+{
+  "rules": {
+    "untranslated-text": "warning",
+    "unused-key": "off"
+  }
+}
+```
+
+Inline suppressions:
+
+```ts
+// i18n-doctor-ignore untranslated-text
+<span>Hardcoded label</span>
+```
+
 This package is an internal engine module. Most users only need the CLI:
 
 ```bash

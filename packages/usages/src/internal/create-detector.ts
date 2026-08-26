@@ -82,7 +82,8 @@ class DefaultUsageDetector implements UsageDetector {
       }
 
       const analyzeStarted = performance.now();
-      const { usages, fileCount } = await collectUsages({
+      const { usages, dynamicUsages, untranslatedLiterals, fileCount } =
+        await collectUsages({
         root,
         snapshot,
         libraryHints,
@@ -100,19 +101,40 @@ class DefaultUsageDetector implements UsageDetector {
           a.location.column - b.location.column ||
           a.key.localeCompare(b.key),
       );
+      const sortedDynamic = [...dynamicUsages].sort(
+        (a, b) =>
+          a.relativePath.localeCompare(b.relativePath) ||
+          a.location.line - b.location.line ||
+          a.location.column - b.location.column,
+      );
+      const sortedUntranslated = [...untranslatedLiterals].sort(
+        (a, b) =>
+          a.relativePath.localeCompare(b.relativePath) ||
+          a.location.line - b.location.line ||
+          a.location.column - b.location.column ||
+          a.text.localeCompare(b.text),
+      );
 
-      return buildCatalog(root, sorted, warnings, fileCount, {
-        totalMs: performance.now() - started,
-        scanMs,
-        detectMs,
-        analyzeMs,
-      });
+      return buildCatalog(
+        root,
+        sorted,
+        sortedDynamic,
+        sortedUntranslated,
+        warnings,
+        fileCount,
+        {
+          totalMs: performance.now() - started,
+          scanMs,
+          detectMs,
+          analyzeMs,
+        },
+      );
     } catch (error) {
       warnings.push({
         code: "usage-detect-failed",
         message: `Usage detection failed: ${errorMessage(error)}`,
       });
-      return buildCatalog(root, [], warnings, 0, {
+      return buildCatalog(root, [], [], [], warnings, 0, {
         totalMs: performance.now() - started,
         scanMs,
         detectMs,
@@ -194,6 +216,8 @@ async function scanProject(
 function buildCatalog(
   root: string,
   usages: UsageCatalog["usages"][number][],
+  dynamicUsages: UsageCatalog["dynamicUsages"][number][],
+  untranslatedLiterals: UsageCatalog["untranslatedLiterals"][number][],
   warnings: UsageWarning[],
   fileCount: number,
   timings: UsageCatalog["timings"],
@@ -207,15 +231,25 @@ function buildCatalog(
     byContext[usage.context] = (byContext[usage.context] ?? 0) + 1;
     libraries.add(usage.library);
   }
+  for (const usage of dynamicUsages) {
+    libraries.add(usage.library);
+  }
+  for (const lit of untranslatedLiterals) {
+    libraries.add(lit.library);
+  }
 
   return {
     root,
     usages,
+    dynamicUsages,
+    untranslatedLiterals,
     libraries: [...libraries].sort(),
     warnings,
     stats: {
       fileCount,
       usageCount: usages.length,
+      dynamicUsageCount: dynamicUsages.length,
+      untranslatedCount: untranslatedLiterals.length,
       byLibrary,
       byContext,
     },

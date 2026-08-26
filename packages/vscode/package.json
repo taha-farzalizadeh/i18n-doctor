@@ -2,7 +2,7 @@
   "name": "i18n-doctor-vscode",
   "displayName": "i18n-doctor",
   "description": "Live i18n diagnostics — missing, unused, and duplicate translation keys underlined as you type, powered by the i18n-doctor language server",
-  "version": "0.9.2",
+  "version": "0.9.4",
   "private": true,
   "publisher": "i18n-doctor",
   "license": "MIT",

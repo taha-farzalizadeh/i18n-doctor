@@ -4,7 +4,11 @@
  */
 
 /** Known analysis rule identifiers (aligned with IssueType). */
-export type RuleId = "unused-key" | "missing-key" | "duplicate-key";
+export type RuleId =
+  | "unused-key"
+  | "missing-key"
+  | "duplicate-key"
+  | "untranslated-text";
 
 export type RuleSeverity = "off" | "info" | "warning" | "error";
 

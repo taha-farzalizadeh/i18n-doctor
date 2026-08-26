@@ -178,7 +178,7 @@ export function issueToDiagnostic(
       code,
       source: DIAGNOSTIC_SOURCE,
       message: issueMessage(issue, display),
-      ...(issue.type === "unused-key"
+      ...(issue.type === "unused-key" && issue.source.reason !== "dynamic-usage"
         ? { tags: [DiagnosticTag.Unnecessary] }
         : {}),
       ...(related.length > 0 ? { relatedInformation: related } : {}),
@@ -191,6 +191,7 @@ const ISSUE_TYPE_TO_CODE: Readonly<Record<Issue["type"], DiagnosticCode>> = {
   "unused-key": DIAGNOSTIC_CODES.unusedKey,
   "missing-key": DIAGNOSTIC_CODES.missingKey,
   "duplicate-key": DIAGNOSTIC_CODES.duplicateKey,
+  "untranslated-text": DIAGNOSTIC_CODES.untranslatedText,
 };
 
 function issueMessage(issue: Issue, display: string): string {
@@ -198,6 +199,13 @@ function issueMessage(issue: Issue, display: string): string {
     case "missing-key":
       return `Translation key "${display}" does not exist.`;
     case "unused-key":
+      if (issue.source.reason === "dynamic-usage") {
+        // Preserve analyzer wording (includes dynamic site path / fragment).
+        return issue.message.replace(
+          `"${issue.key}"`,
+          `"${display}"`,
+        );
+      }
       return `Unused translation key "${display}" — defined but never used.`;
     case "duplicate-key": {
       const count = issue.relatedLocations.length + 1;
@@ -206,6 +214,8 @@ function issueMessage(issue: Issue, display: string): string {
         : "";
       return `Duplicate translation key "${display}" defined ${count} times${locale}.`;
     }
+    case "untranslated-text":
+      return `This text has no translation: "${display}"`;
   }
 }
 
@@ -214,9 +224,13 @@ function relatedLabel(issue: Issue): string {
     case "missing-key":
       return "also used here";
     case "unused-key":
-      return "also defined here";
+      return issue.source.reason === "dynamic-usage"
+        ? "dynamic usage may cover this key"
+        : "also defined here";
     case "duplicate-key":
       return "duplicate definition";
+    case "untranslated-text":
+      return "also appears here";
   }
 }
 

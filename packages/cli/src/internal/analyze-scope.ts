@@ -18,6 +18,8 @@ import {
 import {
   createIssueEngine,
   definitionsFromCatalog,
+  dynamicUsagesFromCatalog,
+  untranslatedLiteralsFromCatalog,
   usagesFromCatalog,
   type AnalysisResult,
   type IssueSeverity,
@@ -31,6 +33,8 @@ import { createUsageDetector, type UsageCatalog } from "@i18n-doctor/usages";
 import {
   applyIssuePolicies,
   filterDefinitionFacts,
+  filterDynamicUsageFacts,
+  filterUntranslatedLiteralFacts,
   filterUsageFacts,
 } from "./filter.js";
 import { resolveScanLimits } from "./scan-limits.js";
@@ -156,6 +160,15 @@ export async function analyzeScope(
     ignore,
     factFilters,
   );
+  const dynamicUsages = filterDynamicUsageFacts(
+    dynamicUsagesFromCatalog(usageCatalog),
+    ignore,
+    factFilters,
+  );
+  const untranslatedLiterals = filterUntranslatedLiteralFacts(
+    untranslatedLiteralsFromCatalog(usageCatalog),
+    ignore,
+  );
 
   const severities = toEngineSeverities(input.scope);
   const context = createContextAnalyzer({
@@ -174,6 +187,8 @@ export async function analyzeScope(
     root,
     definitions,
     usages,
+    dynamicUsages,
+    untranslatedLiterals,
     options: {
       minConfidence: input.scope.minConfidence,
       ...(filters.locale !== undefined
@@ -222,10 +237,15 @@ function toEngineSeverities(config: EffectiveConfig):
       unusedKey?: IssueSeverity;
       missingKey?: IssueSeverity;
       duplicateKey?: IssueSeverity;
+      untranslatedText?: IssueSeverity;
     }
   | undefined {
   const mapOne = (
-    rule: "unused-key" | "missing-key" | "duplicate-key",
+    rule:
+      | "unused-key"
+      | "missing-key"
+      | "duplicate-key"
+      | "untranslated-text",
   ): IssueSeverity | undefined => {
     const s = config.rules.getSeverity(rule);
     if (s === "off") return undefined;
@@ -236,15 +256,18 @@ function toEngineSeverities(config: EffectiveConfig):
   const unusedKey = mapOne("unused-key");
   const missingKey = mapOne("missing-key");
   const duplicateKey = mapOne("duplicate-key");
+  const untranslatedText = mapOne("untranslated-text");
 
   const out: {
     unusedKey?: IssueSeverity;
     missingKey?: IssueSeverity;
     duplicateKey?: IssueSeverity;
+    untranslatedText?: IssueSeverity;
   } = {};
   if (unusedKey) out.unusedKey = unusedKey;
   if (missingKey) out.missingKey = missingKey;
   if (duplicateKey) out.duplicateKey = duplicateKey;
+  if (untranslatedText) out.untranslatedText = untranslatedText;
   return Object.keys(out).length > 0 ? out : undefined;
 }
 

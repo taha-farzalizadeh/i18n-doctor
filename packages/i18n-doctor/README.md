@@ -46,6 +46,10 @@ Then add to `package.json`:
 - **Missing keys** — used in code but not defined in any locale file
 - **Duplicate keys** — defined more than once in the same namespace
 - **Cross-locale gaps** — keys present in one locale but absent in others
+- **Soft unused** — unused keys that may still match a dynamic usage (info)
+- **Untranslated text** — hardcoded JSX / UI attribute strings not passed through a translator (info)
+
+Prop-passed `t` (e.g. `{ t }` / `props.t`) and statically concatenated keys are counted as usages.
 
 ---
 
@@ -92,7 +96,8 @@ Add an `i18n-doctor.config.json` at your project root:
   "rules": {
     "unused-key": "error",
     "missing-key": "error",
-    "duplicate-key": "warning"
+    "duplicate-key": "warning",
+    "untranslated-text": "info"
   },
   "ignore": [
     "legacy.*"
@@ -104,7 +109,8 @@ Add an `i18n-doctor.config.json` at your project root:
 
 ## Beta
 
-This is v0.9.2 — a beta release. Core analysis works on real projects but edge cases exist.  
+This is v0.9.2 — a beta release. Core analysis works on real projects but edge cases exist.
+Prop-passed `t`, static key concat, soft dynamic-unused hints, and untranslated UI text are supported.
 Bug reports and contributions are very welcome.
 
 - [GitHub](https://github.com/taha-farzalizadeh/i18n-doctor)

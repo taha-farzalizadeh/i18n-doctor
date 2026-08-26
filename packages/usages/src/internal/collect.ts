@@ -1,12 +1,16 @@
 import { createAstEngine, isSupportedSourceFileName } from "@i18n-doctor/ast";
 import type { LiteFileEntry, ProjectSnapshotView } from "@i18n-doctor/scanner";
 import type {
+  DynamicTranslationUsage,
   TemplateFrameworkId,
   TranslationUsage,
+  UntranslatedLiteral,
   UsageWarning,
 } from "../api/types.js";
 import { analyzeFileAliases } from "./alias-resolve.js";
 import { buildFileBindings } from "./bindings.js";
+import { collectDynamicUsages } from "./collect-dynamic.js";
+import { collectUntranslatedLiterals } from "./collect-untranslated.js";
 import { LIBRARY_USAGE_DETECTORS } from "./detectors/index.js";
 import { offsetUsages, resolveAbsolutePath } from "./location.js";
 import {
@@ -51,10 +55,17 @@ export async function collectUsages(input: {
   maxFiles: number;
   scanTemplates: boolean;
   warnings: UsageWarning[];
-}): Promise<{ usages: TranslationUsage[]; fileCount: number }> {
+}): Promise<{
+  usages: TranslationUsage[];
+  dynamicUsages: DynamicTranslationUsage[];
+  untranslatedLiterals: UntranslatedLiteral[];
+  fileCount: number;
+}> {
   const candidates = selectFiles(input.snapshot, input.maxFiles);
   const engine = createAstEngine({ cache: true, concurrency: 4 });
   const usages: TranslationUsage[] = [];
+  const dynamicUsages: DynamicTranslationUsage[] = [];
+  const untranslatedLiterals: UntranslatedLiteral[] = [];
   let fileCount = 0;
 
   await mapPool(candidates, ANALYZE_CONCURRENCY, async (file) => {
@@ -98,15 +109,16 @@ export async function collectUsages(input: {
         const framework = vueFrameworkFromHints(input.libraryHints);
         for (const script of extractVueScripts(sourceText)) {
           const fileName = `${relativePath}.${script.lang}`;
-          const scriptUsages = analyzeScript({
-            absolutePath,
-            relativePath,
-            sourceText: script.text,
-            fileName,
-            engine,
-            libraryHints: input.libraryHints,
-            minConfidence: input.minConfidence,
-          });
+          const { usages: scriptUsages, dynamicUsages: scriptDynamic, untranslatedLiterals: scriptUntranslated } =
+            analyzeScript({
+              absolutePath,
+              relativePath,
+              sourceText: script.text,
+              fileName,
+              engine,
+              libraryHints: input.libraryHints,
+              minConfidence: input.minConfidence,
+            });
           const shifted = offsetUsages(scriptUsages, sourceText, script.offset);
           usages.push(
             ...shifted.map((u) => ({
@@ -114,6 +126,12 @@ export async function collectUsages(input: {
               framework: u.framework ?? framework,
               detector: u.detector ?? "vue-i18n-detector",
             })),
+          );
+          dynamicUsages.push(
+            ...offsetDynamicUsages(scriptDynamic, sourceText, script.offset),
+          );
+          untranslatedLiterals.push(
+            ...offsetUntranslated(scriptUntranslated, sourceText, script.offset),
           );
         }
         return;
@@ -145,16 +163,22 @@ export async function collectUsages(input: {
         return;
       }
 
-      const scriptUsages = analyzeScript({
-        absolutePath,
-        relativePath,
-        sourceText,
-        fileName: relativePath,
-        engine,
-        libraryHints: input.libraryHints,
-        minConfidence: input.minConfidence,
-      });
+      const {
+        usages: scriptUsages,
+        dynamicUsages: scriptDynamic,
+        untranslatedLiterals: scriptUntranslated,
+      } = analyzeScript({
+          absolutePath,
+          relativePath,
+          sourceText,
+          fileName: relativePath,
+          engine,
+          libraryHints: input.libraryHints,
+          minConfidence: input.minConfidence,
+        });
       usages.push(...scriptUsages);
+      dynamicUsages.push(...scriptDynamic);
+      untranslatedLiterals.push(...scriptUntranslated);
     } catch (error) {
       input.warnings.push({
         code: "analyze-failed",
@@ -164,7 +188,7 @@ export async function collectUsages(input: {
     }
   });
 
-  return { usages, fileCount };
+  return { usages, dynamicUsages, untranslatedLiterals, fileCount };
 }
 
 function analyzeScript(input: {
@@ -175,7 +199,11 @@ function analyzeScript(input: {
   engine: ReturnType<typeof createAstEngine>;
   libraryHints: ReadonlySet<string>;
   minConfidence: number;
-}): TranslationUsage[] {
+}): {
+  usages: TranslationUsage[];
+  dynamicUsages: DynamicTranslationUsage[];
+  untranslatedLiterals: UntranslatedLiteral[];
+} {
   const parsed = input.engine.parse({
     fileName: input.fileName,
     sourceText: input.sourceText,
@@ -211,7 +239,80 @@ function analyzeScript(input: {
       found.push(usage);
     }
   }
-  return found;
+
+  const dynamicUsages = collectDynamicUsages({
+    absolutePath: input.absolutePath,
+    relativePath: input.relativePath,
+    sourceFile: parsed.sourceFile,
+    bindings,
+    aliasAnalysis,
+  });
+
+  const untranslatedLiterals = collectUntranslatedLiterals({
+    absolutePath: input.absolutePath,
+    relativePath: input.relativePath,
+    sourceFile: parsed.sourceFile,
+    bindings,
+    aliasAnalysis,
+    minConfidence: input.minConfidence,
+  });
+
+  return { usages: found, dynamicUsages, untranslatedLiterals };
+}
+
+function offsetDynamicUsages(
+  usages: readonly DynamicTranslationUsage[],
+  fullSource: string,
+  scriptOffset: number,
+): DynamicTranslationUsage[] {
+  if (scriptOffset === 0) {
+    return [...usages];
+  }
+  // Reuse TranslationUsage offset helper shape via a thin map.
+  const shifted = offsetUsages(
+    usages.map((u) => ({
+      key: "",
+      absolutePath: u.absolutePath,
+      relativePath: u.relativePath,
+      location: u.location,
+      library: u.library,
+      confidence: u.confidence,
+      context: u.context,
+    })),
+    fullSource,
+    scriptOffset,
+  );
+  return usages.map((u, i) => ({
+    ...u,
+    location: shifted[i]!.location,
+  }));
+}
+
+function offsetUntranslated(
+  literals: readonly UntranslatedLiteral[],
+  fullSource: string,
+  scriptOffset: number,
+): UntranslatedLiteral[] {
+  if (scriptOffset === 0) {
+    return [...literals];
+  }
+  const shifted = offsetUsages(
+    literals.map((u) => ({
+      key: u.text,
+      absolutePath: u.absolutePath,
+      relativePath: u.relativePath,
+      location: u.location,
+      library: u.library,
+      confidence: u.confidence,
+      context: "jsx-attribute" as const,
+    })),
+    fullSource,
+    scriptOffset,
+  );
+  return literals.map((u, i) => ({
+    ...u,
+    location: shifted[i]!.location,
+  }));
 }
 
 function selectFiles(

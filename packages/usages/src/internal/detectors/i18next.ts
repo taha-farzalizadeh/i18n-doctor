@@ -52,7 +52,7 @@ export const i18nextUsageDetector: LibraryUsageDetector = {
       }
 
       const keyNode = node.arguments[0];
-      const key = staticStringKey(keyNode);
+      const key = staticStringKey(keyNode, sourceFile);
       if (key === undefined || !keyNode) {
         return;
       }

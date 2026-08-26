@@ -253,6 +253,7 @@ export function createMarkdownReporter(
         `| Unused | ${stable.stats.unusedKey} |`,
         `| Missing | ${stable.stats.missingKey} |`,
         `| Duplicate | ${stable.stats.duplicateKey} |`,
+        `| Untranslated | ${stable.stats.untranslatedText} |`,
         `| Total | ${stable.stats.total} |`,
         "",
       ];
@@ -327,6 +328,7 @@ export function createHtmlReporter(context: CliReportContext = {}): CliReporter 
 <p>Unused: <strong>${stable.stats.unusedKey}</strong> &#183;
 Missing: <strong>${stable.stats.missingKey}</strong> &#183;
 Duplicate: <strong>${stable.stats.duplicateKey}</strong> &#183;
+Untranslated: <strong>${stable.stats.untranslatedText}</strong> &#183;
 Total: <strong>${stable.stats.total}</strong></p>
 <table>
 <thead><tr><th>Severity</th><th>Type</th><th>Key</th><th>Location</th><th>Message</th></tr></thead>

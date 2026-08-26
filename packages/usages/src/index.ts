@@ -8,12 +8,14 @@
 
 export type {
   Confidence,
+  DynamicTranslationUsage,
   FileBindingTable,
   LibraryDetectInput,
   LibraryUsageDetector,
   TFunctionBinding,
   TemplateFrameworkId,
   TranslationUsage,
+  UntranslatedLiteral,
   UsageCatalog,
   UsageContext,
   UsageDetector,

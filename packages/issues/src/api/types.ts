@@ -1,5 +1,9 @@
 /** Issue classification produced by the Issue Engine. */
-export type IssueType = "unused-key" | "missing-key" | "duplicate-key";
+export type IssueType =
+  | "unused-key"
+  | "missing-key"
+  | "duplicate-key"
+  | "untranslated-text";
 
 export type IssueSeverity = "warning" | "error" | "info";
 
@@ -24,11 +28,16 @@ export interface FileLocation {
 
 export interface IssueSourceInfo {
   /** Where the primary signal came from. */
-  readonly kind: "definition" | "usage" | "definition-collision";
+  readonly kind: "definition" | "usage" | "definition-collision" | "literal";
   readonly locale?: string;
   readonly namespace?: string;
   readonly library?: string;
   readonly confidence?: number;
+  /**
+   * Unused key may still be referenced via a dynamic key expression
+   * (e.g. `t("HELLO_" + suffix)`). Softened to info when present.
+   */
+  readonly reason?: "dynamic-usage";
 }
 
 export interface Issue {
@@ -46,6 +55,7 @@ export interface IssueStats {
   readonly unusedKey: number;
   readonly missingKey: number;
   readonly duplicateKey: number;
+  readonly untranslatedText: number;
   readonly bySeverity: Readonly<Partial<Record<IssueSeverity, number>>>;
 }
 
@@ -99,6 +109,45 @@ export interface UsageFact {
   readonly confidence?: number;
 }
 
+/**
+ * Partial key expression from a dynamic `t(...)` call.
+ * Used to soften unused-key findings when a catalog key matches a fragment.
+ */
+export interface DynamicUsageFact {
+  readonly absolutePath: string;
+  readonly relativePath: string;
+  readonly line: number;
+  readonly column: number;
+  readonly endLine?: number;
+  readonly endColumn?: number;
+  readonly start?: number;
+  readonly end?: number;
+  readonly namespace?: string;
+  readonly namespaces?: readonly string[];
+  readonly library?: string;
+  readonly confidence?: number;
+  readonly prefixes: readonly string[];
+  readonly suffixes: readonly string[];
+  readonly contains: readonly string[];
+}
+
+/** Hardcoded UI text that is not passed through a translation helper. */
+export interface UntranslatedLiteralFact {
+  readonly text: string;
+  readonly absolutePath: string;
+  readonly relativePath: string;
+  readonly line: number;
+  readonly column: number;
+  readonly endLine?: number;
+  readonly endColumn?: number;
+  readonly start?: number;
+  readonly end?: number;
+  readonly confidence?: number;
+  readonly library?: string;
+  readonly context?: string;
+  readonly attribute?: string;
+}
+
 export interface IssueEngineOptions {
   /**
    * When true, unused/missing matching is namespace-aware.
@@ -132,6 +181,7 @@ export interface IssueEngineOptions {
     readonly unusedKey?: IssueSeverity;
     readonly missingKey?: IssueSeverity;
     readonly duplicateKey?: IssueSeverity;
+    readonly untranslatedText?: IssueSeverity;
   };
   /**
    * Minimum definition/usage confidence to include in analysis.
@@ -144,6 +194,8 @@ export interface AnalyzeInput {
   readonly root: string;
   readonly definitions: readonly DefinitionFact[];
   readonly usages: readonly UsageFact[];
+  readonly dynamicUsages?: readonly DynamicUsageFact[];
+  readonly untranslatedLiterals?: readonly UntranslatedLiteralFact[];
   readonly options?: IssueEngineOptions;
 }
 

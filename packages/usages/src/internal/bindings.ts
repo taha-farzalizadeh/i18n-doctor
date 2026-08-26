@@ -251,6 +251,21 @@ export function buildFileBindings(
         }
       }
     }
+
+    // Translator received via props / function parameters:
+    //   function Child({ t }) { return t("key"); }
+    //   const Child = ({ t: translate }: Props) => translate("key");
+    //   function Child(props: { t: TFunction }) { return props.t("key"); }
+    if (ts.isParameter(node)) {
+      bindTranslatorParameter(
+        node,
+        sourceFile,
+        importSpecifiers,
+        tFunctions,
+        scoped,
+        translationObjects,
+      );
+    }
   });
 
   // Implicit bare `t` only when useTranslation is present AND react-i18next/i18next imported.
@@ -335,6 +350,220 @@ function bindDestructuredT(
       );
     }
   }
+}
+
+const TRANSLATOR_PROP_NAMES = new Set(["t", "tx", "translate"]);
+
+/**
+ * Treat destructured / typed translator props as file-local t-bindings.
+ * Covers receiving `t` from a parent without a local useTranslation() call.
+ */
+function bindTranslatorParameter(
+  param: ts.ParameterDeclaration,
+  sourceFile: ts.SourceFile,
+  importSpecifiers: ReadonlySet<string>,
+  tFunctions: Map<string, TFunctionBinding>,
+  scoped: ScopedTBinding[],
+  translationObjects: Map<string, TFunctionBinding>,
+): void {
+  const library = pickLibraryForProps(importSpecifiers);
+  const base: TFunctionBinding = {
+    library,
+    confidence: 0.7,
+    origin: "props",
+  };
+
+  if (ts.isObjectBindingPattern(param.name)) {
+    for (const element of param.name.elements) {
+      if (!ts.isBindingElement(element) || element.dotDotDotToken) {
+        continue;
+      }
+      const prop = element.propertyName
+        ? propertyNameText(element.propertyName)
+        : ts.isIdentifier(element.name)
+          ? element.name.text
+          : undefined;
+      const local = ts.isIdentifier(element.name) ? element.name.text : undefined;
+      if (!prop || !local || !TRANSLATOR_PROP_NAMES.has(prop)) {
+        continue;
+      }
+      if (!isLikelyTranslatorPropType(param.type, prop, sourceFile)) {
+        continue;
+      }
+      registerT(
+        local,
+        {
+          ...base,
+          confidence: typedTranslatorHint(param.type, sourceFile) ? 0.85 : 0.7,
+          origin: `props → { ${prop}${prop !== local ? `: ${local}` : ""} }`,
+        },
+        element,
+        tFunctions,
+        scoped,
+      );
+    }
+    return;
+  }
+
+  if (!ts.isIdentifier(param.name)) {
+    return;
+  }
+
+  const paramName = param.name.text;
+
+  // function Child(t: TFunction) { t("key") }
+  if (
+    TRANSLATOR_PROP_NAMES.has(paramName) &&
+    typedTranslatorHint(param.type, sourceFile)
+  ) {
+    registerT(
+      paramName,
+      {
+        ...base,
+        confidence: 0.85,
+        origin: `props → ${paramName}: TFunction-like`,
+      },
+      param,
+      tFunctions,
+      scoped,
+    );
+    return;
+  }
+
+  // function Child(props: { t: TFunction }) { props.t("key") }
+  if (param.type && typeHasTranslatorProp(param.type, sourceFile)) {
+    translationObjects.set(paramName, {
+      ...base,
+      confidence: 0.75,
+      origin: `props → ${paramName}.t`,
+    });
+  }
+}
+
+function typedTranslatorHint(
+  type: ts.TypeNode | undefined,
+  sourceFile: ts.SourceFile,
+): boolean {
+  if (!type) {
+    return false;
+  }
+  const text = type.getText(sourceFile);
+  return /TFunction|TranslateFunction|Translator|i18n\.TFunction/i.test(text);
+}
+
+/** Skip props clearly typed as plain data (e.g. `{ t: string }`). */
+function isLikelyTranslatorPropType(
+  type: ts.TypeNode | undefined,
+  propName: string,
+  sourceFile: ts.SourceFile,
+): boolean {
+  if (!type) {
+    return true;
+  }
+  if (ts.isTypeLiteralNode(type)) {
+    for (const member of type.members) {
+      if (!ts.isPropertySignature(member) || !member.name) {
+        continue;
+      }
+      const name =
+        ts.isIdentifier(member.name) || ts.isStringLiteral(member.name)
+          ? member.name.text
+          : undefined;
+      if (name !== propName) {
+        continue;
+      }
+      if (!member.type) {
+        return true;
+      }
+      const propType = member.type.getText(sourceFile).trim();
+      if (/^(string|number|boolean|bigint|symbol|null|undefined)(\s*\|\s*(string|number|boolean|bigint|symbol|null|undefined))*$/.test(propType)) {
+        return false;
+      }
+      return true;
+    }
+  }
+  return true;
+}
+
+function typeHasTranslatorProp(
+  type: ts.TypeNode,
+  sourceFile: ts.SourceFile,
+): boolean {
+  if (typedTranslatorHint(type, sourceFile) && /\bt\s*[?:]/.test(type.getText(sourceFile))) {
+    return true;
+  }
+  if (ts.isTypeLiteralNode(type)) {
+    for (const member of type.members) {
+      if (!ts.isPropertySignature(member) || !member.name) {
+        continue;
+      }
+      const name =
+        ts.isIdentifier(member.name) || ts.isStringLiteral(member.name)
+          ? member.name.text
+          : undefined;
+      if (name && TRANSLATOR_PROP_NAMES.has(name)) {
+        return true;
+      }
+    }
+    return false;
+  }
+  if (ts.isTypeReferenceNode(type) && ts.isIdentifier(type.typeName)) {
+    const resolved = findLocalTypeMembers(sourceFile, type.typeName.text);
+    if (resolved) {
+      return typeHasTranslatorProp(resolved, sourceFile);
+    }
+  }
+  // Imported / opaque Props types: look for `t:` in the written type text.
+  return /\bt\s*[?:]/.test(type.getText(sourceFile));
+}
+
+function findLocalTypeMembers(
+  sourceFile: ts.SourceFile,
+  name: string,
+): ts.TypeNode | undefined {
+  for (const stmt of sourceFile.statements) {
+    if (
+      ts.isTypeAliasDeclaration(stmt) &&
+      stmt.name.text === name
+    ) {
+      return stmt.type;
+    }
+    if (
+      ts.isInterfaceDeclaration(stmt) &&
+      stmt.name.text === name
+    ) {
+      // Reuse type-literal logic by synthesizing checks on members.
+      for (const member of stmt.members) {
+        if (!ts.isPropertySignature(member) || !member.name) {
+          continue;
+        }
+        const prop =
+          ts.isIdentifier(member.name) || ts.isStringLiteral(member.name)
+            ? member.name.text
+            : undefined;
+        if (prop && TRANSLATOR_PROP_NAMES.has(prop)) {
+          return ts.factory.createTypeLiteralNode(stmt.members);
+        }
+      }
+    }
+  }
+  return undefined;
+}
+
+function pickLibraryForProps(imports: ReadonlySet<string>): UsageLibraryId {
+  if ([...imports].some((s) => NEXT_INTL_MODULES.has(s) || s.startsWith("next-intl/"))) {
+    return "next-intl";
+  }
+  if ([...imports].some((s) => VUE_I18N_MODULES.has(s) || s.startsWith("vue-i18n/"))) {
+    return "vue-i18n";
+  }
+  if ([...imports].some((s) => LINGUI_MODULES.has(s))) {
+    return "lingui";
+  }
+  if ([...imports].some((s) => REACT_INTL_MODULES.has(s))) {
+    return "react-intl";
+  }
+  return pickI18nextLibrary(imports);
 }
 
 function bindFormatMessage(

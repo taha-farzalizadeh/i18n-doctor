@@ -61,6 +61,8 @@ export const DIAGNOSTIC_CODES = {
   missingKey: "missing-key",
   /** @i18n-doctor/issues — `duplicate-key` */
   duplicateKey: "duplicate-key",
+  /** @i18n-doctor/issues — `untranslated-text` */
+  untranslatedText: "untranslated-text",
   /** @i18n-doctor/coverage — `missing-translation` */
   missingTranslation: "missing-translation",
   /** @i18n-doctor/coverage — `extra-translation` */

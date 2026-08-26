@@ -243,6 +243,7 @@ describe("JSON reporter", () => {
       unusedKey: 0,
       missingKey: 0,
       duplicateKey: 0,
+      untranslatedText: 0,
     });
   });
 
