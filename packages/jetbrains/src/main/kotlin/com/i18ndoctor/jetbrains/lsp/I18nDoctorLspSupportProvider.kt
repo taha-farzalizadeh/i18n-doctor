@@ -3,17 +3,16 @@ package com.i18ndoctor.jetbrains.lsp
 import com.i18ndoctor.jetbrains.server.BundledServer
 import com.i18ndoctor.jetbrains.server.NodeLocator
 import com.i18ndoctor.jetbrains.server.NodeResolver
+import com.i18ndoctor.jetbrains.server.PluginPaths
 import com.i18ndoctor.jetbrains.server.ServerLocator
 import com.i18ndoctor.jetbrains.settings.I18nDoctorConfigurable
 import com.i18ndoctor.jetbrains.settings.I18nDoctorSettings
 import com.i18ndoctor.jetbrains.settings.SettingsMapper
 import com.intellij.execution.configurations.GeneralCommandLine
-import com.intellij.ide.plugins.PluginManagerCore
 import com.intellij.javascript.nodejs.NodeCommandLineUtil
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.diagnostic.Logger
-import com.intellij.openapi.extensions.PluginId
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.platform.lsp.api.LspServer
@@ -74,7 +73,7 @@ internal class I18nDoctorLspServerDescriptor(
 
   override fun createCommandLine(): GeneralCommandLine {
     val settings = I18nDoctorSettings.getInstance().snapshot()
-    val pluginRoot = resolvePluginRoot()
+    val pluginRoot = PluginPaths.resolvePluginRoot()
       ?: throw IllegalStateException("i18n-doctor plugin root could not be resolved.")
 
     val server = resolveServerModule(pluginRoot, settings.serverPath.ifBlank { null })
@@ -126,12 +125,6 @@ internal fun resolveServerModule(
   }
   val extracted = BundledServer.resolveOnDisk() ?: return null
   return ServerLocator.Result(extracted, ServerLocator.Kind.BUNDLED)
-}
-
-internal fun resolvePluginRoot(): Path? {
-  val plugin = PluginManagerCore.getPlugin(PluginId.getId("com.i18ndoctor.jetbrains"))
-    ?: return null
-  return plugin.pluginPath
 }
 
 internal fun notifyFailure(project: Project, message: String) {

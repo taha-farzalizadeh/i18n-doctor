@@ -1,9 +1,8 @@
 package com.i18ndoctor.jetbrains.server
 
-import com.intellij.ide.plugins.PluginManagerCore
 import com.intellij.openapi.application.PathManager
+import com.intellij.openapi.application.PluginPathManager
 import com.intellij.openapi.diagnostic.Logger
-import com.intellij.openapi.extensions.PluginId
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
@@ -12,24 +11,26 @@ private val LOG = Logger.getInstance(BundledServer::class.java)
 
 /**
  * Ensures `server.js` exists on disk so Node can execute it. Prefers an
- * already-unpacked copy next to the plugin; otherwise extracts the classpath
- * resource shipped inside the plugin jar into a writable location.
+ * already-unpacked copy in the plugin distribution; otherwise extracts the
+ * classpath resource shipped inside the plugin jar into a writable location.
+ *
+ * Uses only public Platform APIs (`PluginPathManager`, `PathManager.getTempPath`)
+ * — never `PluginManagerCore` / `getPluginTempPath`.
  */
 object BundledServer {
 
-  private const val PLUGIN_ID = "com.i18ndoctor.jetbrains"
   private const val RESOURCE = "/server/server.js"
   private const val RELATIVE = "server/server.js"
 
   fun resolveOnDisk(): Path? {
-    val pluginPath = PluginManagerCore.getPlugin(PluginId.getId(PLUGIN_ID))?.pluginPath
-    if (pluginPath != null) {
-      val besidePlugin = pluginPath.resolve(RELATIVE)
+    val besidePlugin = PluginPathManager.getPluginResource(BundledServer::class.java, RELATIVE)
+      ?.toPath()
+    if (besidePlugin != null) {
       if (isUsable(besidePlugin)) return besidePlugin
       extractTo(besidePlugin)?.let { return it }
     }
 
-    val temp = Path.of(PathManager.getPluginTempPath(), "i18n-doctor", RELATIVE)
+    val temp = Path.of(PathManager.getTempPath(), "i18n-doctor", RELATIVE)
     if (isUsable(temp)) return temp
     return extractTo(temp)
   }

@@ -101,7 +101,7 @@ Marketplace accepts HTML. Copy everything between the markers:
   <li>CLI: <code>npx i18n-doctor check</code></li>
 </ul>
 
-<p><i>Beta v0.9.2 — please report issues on GitHub.</i></p>
+<p><i>Beta v0.9.3 — please report issues on GitHub.</i></p>
 <!-- END MARKETPLACE DESCRIPTION -->
 ```
 
@@ -156,12 +156,23 @@ Capture from `npm run runIde -w i18n-doctor-jetbrains` + `examples/demo-project`
 - Use channel **default** for public releases.
 - Use channel **eap** only if you intentionally ship pre-releases.
 
+## Change notes (0.9.3)
+
+```html
+<h3>0.9.3</h3>
+<p>Fix Marketplace Plugin Verifier rejection: stop using internal Platform APIs.</p>
+<ul>
+  <li>Resolve plugin path via public PluginPathManager</li>
+  <li>Extract bundled server under PathManager.getTempPath()</li>
+</ul>
+```
+
 ## Change notes (0.9.2)
 
 Update this block every time you bump the version before publish:
 
 ```
-0.9.2 — JetBrains Marketplace release
+0.9.3 — Fix internal API usages for Marketplace approval
 • LSP client for the bundled i18n-doctor language server
 • Live diagnostics for missing / unused / duplicate / coverage keys
 • Self-contained server bundle (no project dependency required)
@@ -169,5 +180,5 @@ Update this block every time you bump the version before publish:
 • Plugin icons for light and dark themes
 ```
 
-**Before the next deploy**, change `0.9.2` → the new version (e.g. `0.9.3`) in
+**Before the next deploy**, change `0.9.3` → the new version (e.g. `0.9.4`) in
 `gradle.properties`, `package.json`, `plugin.xml`, and this section.

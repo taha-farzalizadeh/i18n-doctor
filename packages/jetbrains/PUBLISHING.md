@@ -3,16 +3,16 @@
 **Always bump the version before each deploy.** Marketplace rejects uploading
 the same version twice for plugin id `com.i18ndoctor.jetbrains`.
 
-Current release version: **0.9.2** (keep these in sync):
+Current release version: **0.9.3** (keep these in sync):
 
 | File | Field |
 | --- | --- |
-| `gradle.properties` | `pluginVersion=0.9.2` |
-| `package.json` | `"version": "0.9.2"` |
+| `gradle.properties` | `pluginVersion=0.9.3` |
+| `package.json` | `"version": "0.9.3"` |
 | `src/main/resources/META-INF/plugin.xml` | `<change-notes>` for that version |
-| Root / package READMEs | `Beta — v0.9.2` where shown |
+| Root / package READMEs | `Beta — v0.9.3` where shown |
 
-Next publish → **0.9.3** (or higher).
+Next publish → **0.9.4** (or higher).
 
 Listing text: **[MARKETPLACE.md](./MARKETPLACE.md)**
 
@@ -25,7 +25,7 @@ Official docs:
 
 ## Release checklist
 
-1. **Bump version** in `gradle.properties` + `package.json` (e.g. `0.9.2` → `0.9.3`)
+1. **Bump version** in `gradle.properties` + `package.json` (e.g. `0.9.3` → `0.9.4`)
 2. Update `plugin.xml` change-notes and README / MARKETPLACE version mentions
 3. `npm test -w i18n-doctor-jetbrains`
 4. `npm run package -w i18n-doctor-jetbrains`

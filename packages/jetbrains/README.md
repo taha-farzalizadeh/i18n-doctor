@@ -1,6 +1,6 @@
 # i18n-doctor for JetBrains (WebStorm)
 
-> **Beta — v0.9.2**
+> **Beta — v0.9.3**
 
 Live i18n diagnostics in WebStorm and other JetBrains IDEs that ship the
 platform LSP API. This plugin is a **thin LSP client**: it starts the bundled
@@ -91,7 +91,7 @@ npm run runIde -w i18n-doctor-jetbrains   # sandboxed WebStorm + demo project
 npm test -w i18n-doctor-jetbrains
 ```
 
-Current release version is **`0.9.2`** — bump it before every Marketplace
+Current release version is **`0.9.3`** — bump it before every Marketplace
 upload (next would be `0.9.3`; see [PUBLISHING.md](./PUBLISHING.md)). Listing
 copy: [MARKETPLACE.md](./MARKETPLACE.md).
 

@@ -34,6 +34,12 @@
   ]]></description>
 
   <change-notes><![CDATA[
+    <h3>0.9.3</h3>
+    <p>Fix Marketplace Plugin Verifier rejection: stop using internal Platform APIs.</p>
+    <ul>
+      <li>Resolve plugin path via public <code>PluginPathManager</code> (no <code>PluginManagerCore.getPlugin</code>)</li>
+      <li>Extract bundled server under <code>PathManager.getTempPath()</code> instead of scheduled-for-removal <code>getPluginTempPath</code></li>
+    </ul>
     <h3>0.9.2</h3>
     <p>JetBrains Marketplace release.</p>
     <ul>
