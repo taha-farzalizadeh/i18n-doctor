@@ -184,8 +184,12 @@ describe("deterministic output", () => {
     const b = formatCoverageJson(
       analyzer.analyze({ catalog: c, options: { baseLocale: "en" } }),
     );
-    expect(a).toBe(b);
-    const parsed = JSON.parse(a) as {
+    const parsedA = JSON.parse(a) as Record<string, unknown>;
+    const parsedB = JSON.parse(b) as Record<string, unknown>;
+    delete parsedA.timings;
+    delete parsedB.timings;
+    expect(JSON.stringify(parsedA)).toBe(JSON.stringify(parsedB));
+    const parsed = parsedA as {
       issues: Array<{ type: string; key: string; locale: string }>;
     };
     // Sorted: extra before missing by type? compareIssues sorts by type then ns then key
