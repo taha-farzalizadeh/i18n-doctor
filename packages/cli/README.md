@@ -22,6 +22,7 @@ i18n-doctor check
 i18n-doctor check [path] [options]
 
 Options:
+  --dir <path>    Analyze only files under this directory (relative to project root)
   --json          JSON report
   --sarif         SARIF 2.1.0 report
   --markdown      Markdown report
@@ -34,6 +35,22 @@ Options:
   --base-locale   Base locale for cross-locale coverage
   --no-coverage   Skip locale consistency analysis
 ```
+
+### Check one folder
+
+Pass a subdirectory as `[path]`, or use `--dir` from the project root:
+
+```bash
+# Only report issues in src/features/auth (still loads locale catalogs project-wide)
+i18n-doctor check src/features/auth
+
+i18n-doctor check --dir src/features/auth
+```
+
+Missing-key and untranslated findings are limited to code under that folder.
+Locale files outside the folder are still read so missing-key checks stay accurate.
+Unused-key and duplicate-key findings only appear when the catalog file is inside
+the scoped directory.
 
 ## Rules
 

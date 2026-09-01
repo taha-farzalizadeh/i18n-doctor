@@ -38,6 +38,11 @@ export interface CheckCliOptions {
   readonly locale?: string;
   /** Restrict analysis to this namespace. */
   readonly namespace?: string;
+  /**
+   * Limit usage analysis and reported issues to this directory (relative to
+   * the project root). Translation catalogs are still loaded from the whole project.
+   */
+  readonly dir?: string;
   /** Disable the duplicate-key rule. */
   readonly ignoreDuplicates?: boolean;
   /**

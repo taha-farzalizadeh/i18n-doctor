@@ -11,7 +11,7 @@ export function registerCheckCommand(program: Command): void {
   program
     .command("check", { isDefault: true })
     .description("Analyze a project for unused, missing, and duplicate keys")
-    .argument("[path]", "Project path (default: current directory)")
+    .argument("[path]", "Project or subdirectory path (default: current directory)")
     .option("-c, --config <path>", "Path to i18n-doctor config file")
     .option("--json", "Emit JSON report")
     .option("--sarif", "Emit SARIF 2.1.0 report")
@@ -21,6 +21,10 @@ export function registerCheckCommand(program: Command): void {
     .option("--silent", "No report output (exit code only)")
     .option("--verbose", "Verbose output including CLI timings")
     .option("--cwd <path>", "Working directory for path resolution")
+    .option(
+      "--dir <path>",
+      "Analyze only files under this directory (relative to project root)",
+    )
     .option("--no-color", "Disable ANSI colors and hyperlinks")
     .option("--framework <id>", "Framework / library hint override")
     .option("--locale <locale>", "Restrict analysis to a locale")
@@ -77,6 +81,8 @@ export function toCheckOptions(
     (out as { locale?: string }).locale = opts["locale"];
   if (typeof opts["namespace"] === "string")
     (out as { namespace?: string }).namespace = opts["namespace"];
+  if (typeof opts["dir"] === "string")
+    (out as { dir?: string }).dir = opts["dir"];
   if (opts["ignoreDuplicates"])
     (out as { ignoreDuplicates?: boolean }).ignoreDuplicates = true;
   if (typeof opts["baseLocale"] === "string")

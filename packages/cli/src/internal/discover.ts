@@ -6,7 +6,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { CliError, cliErrorFromErrno } from "./errors.js";
-import { normalizeAbsolute, pathsEqual } from "./paths.js";
+import { normalizeAbsolute, pathsEqual, relativePosix } from "./paths.js";
 
 export interface DiscoverFs {
   readonly existsSync: (p: string) => boolean;
@@ -30,6 +30,11 @@ export interface DiscoveredProject {
   readonly startPath: string;
   /** Whether root was found by walking up for package.json. */
   readonly walkedUp: boolean;
+  /**
+   * When the requested path is a subdirectory of {@link root}, POSIX-relative
+   * path from root to that directory (e.g. `src/auth`). Omitted for full-project scans.
+   */
+  readonly scanDir?: string;
 }
 
 const defaultFs: DiscoverFs = {
@@ -69,10 +74,12 @@ export function discoverProject(
     }
 
     const root = findPackageRoot(startDir, io);
+    const scanDir = computeScanDir(root, startDir);
     return {
       root,
       startPath: startDir,
       walkedUp: !pathsEqual(root, startDir),
+      ...(scanDir !== undefined ? { scanDir } : {}),
     };
   } catch (error) {
     if (error instanceof CliError) throw error;
@@ -92,6 +99,17 @@ function findPackageRoot(startDir: string, io: DiscoverFs): string {
     }
     current = parent;
   }
+}
+
+function computeScanDir(root: string, startDir: string): string | undefined {
+  if (pathsEqual(root, startDir)) {
+    return undefined;
+  }
+  const rel = relativePosix(root, startDir);
+  if (rel === ".." || rel.startsWith("../")) {
+    return undefined;
+  }
+  return rel.length > 0 ? rel : undefined;
 }
 
 /** Ensure an explicit --config path exists and is readable. */

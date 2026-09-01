@@ -21,6 +21,7 @@ import type {
   UntranslatedLiteralFact,
   UsageFact,
 } from "@i18n-doctor/issues";
+import { toPosixPath } from "./paths.js";
 
 export function filterDefinitionFacts(
   definitions: readonly DefinitionFact[],
@@ -267,4 +268,49 @@ export function computeStats(issues: readonly Issue[]): IssueStats {
     untranslatedText,
     bySeverity,
   };
+}
+
+/** Whether a workspace-relative path is inside a scan directory. */
+export function isUnderScanDir(
+  relativePath: string,
+  scanDir: string,
+): boolean {
+  const normalized = toPosixPath(relativePath);
+  const prefix = toPosixPath(scanDir).replace(/\/$/, "");
+  if (prefix.length === 0) {
+    return true;
+  }
+  return normalized === prefix || normalized.startsWith(`${prefix}/`);
+}
+
+export function filterIssuesByScanDir(
+  issues: readonly Issue[],
+  scanDir: string,
+): Issue[] {
+  return issues.filter((issue) => issueMatchesScanDir(issue, scanDir));
+}
+
+export function filterAnalysisByScanDir(
+  result: AnalysisResult,
+  scanDir: string,
+): AnalysisResult {
+  const issues = filterIssuesByScanDir(result.issues, scanDir);
+  return {
+    root: result.root,
+    issues,
+    stats: computeStats(issues),
+    timings: result.timings,
+  };
+}
+
+function issueMatchesScanDir(issue: Issue, scanDir: string): boolean {
+  if (isUnderScanDir(issue.location.relativePath, scanDir)) {
+    return true;
+  }
+  if (issue.type === "duplicate-key") {
+    return issue.relatedLocations.some((loc) =>
+      isUnderScanDir(loc.relativePath, scanDir),
+    );
+  }
+  return false;
 }

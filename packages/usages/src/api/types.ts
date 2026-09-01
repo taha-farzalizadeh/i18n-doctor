@@ -158,6 +158,11 @@ export interface UsageDetectorOptions {
    */
   readonly maxFiles?: number;
   /**
+   * Limit scanning to these package roots relative to {@link root}
+   * (e.g. `["src/auth"]`). When omitted, the whole workspace is scanned.
+   */
+  readonly packages?: readonly string[];
+  /**
    * Include lightweight Vue/Angular template scans.
    * @default true
    */

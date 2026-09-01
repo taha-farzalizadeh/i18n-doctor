@@ -4,6 +4,7 @@
  */
 
 import path from "node:path";
+import { normalizeAbsolute, relativePosix } from "./paths.js";
 import {
   createEffectiveConfigResolver,
   type UserConfig,
@@ -82,6 +83,7 @@ export async function runCheck(
     ...(options.path !== undefined ? { pathArg: options.path } : {}),
     ...(options.cwd !== undefined ? { cwd: options.cwd } : {}),
   });
+  const scanDir = resolveScanDir(project, options.dir);
   discoverMs = now() - t0;
 
   // 2. Configuration loading
@@ -157,14 +159,16 @@ export async function runCheck(
   let filterAcc = 0;
 
   for (const scope of scopes) {
-    const label =
-      scopes.length > 1
+    const label = scanDir
+      ? `Analyzing ${scanDir}…`
+      : scopes.length > 1
         ? `Analyzing ${path.relative(project.root, scope.packageRoot ?? scope.root) || "."}…`
         : "Collecting sources & usages…";
     progress.step(label);
 
     const part = await analyzeScope({
       scope,
+      ...(scanDir ? { scanDir } : {}),
       filters: {
         ...(options.locale !== undefined ? { locale: options.locale } : {}),
         ...(options.namespace !== undefined
@@ -296,6 +300,29 @@ export async function runCheck(
     return { ...result, frameworkOverride: options.framework };
   }
   return result;
+}
+
+function resolveScanDir(
+  project: ReturnType<typeof discoverProject>,
+  dirOption?: string,
+): string | undefined {
+  if (dirOption !== undefined) {
+    const absolute = path.isAbsolute(dirOption)
+      ? normalizeAbsolute(dirOption)
+      : normalizeAbsolute(path.resolve(project.root, dirOption));
+    const rel = relativePosix(project.root, absolute);
+    if (rel === ".." || rel.startsWith("../")) {
+      throw new CliError(
+        "CONFIG",
+        `Directory is outside the project root: ${dirOption}`,
+        {
+          hint: "Pass a path relative to the project root, such as `src/auth`.",
+        },
+      );
+    }
+    return rel.length > 0 ? rel : undefined;
+  }
+  return project.scanDir;
 }
 
 function now(): number {

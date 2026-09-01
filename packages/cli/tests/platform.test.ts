@@ -39,6 +39,7 @@ describe("Linux / macOS / Windows path discovery", () => {
     const found = discoverProject({ pathArg: nested, cwd: root });
     expect(found.root).toBe(root);
     expect(found.walkedUp).toBe(true);
+    expect(found.scanDir).toBe("src/nested");
   });
 
   it("accepts absolute project path", () => {

@@ -32,6 +32,7 @@ import {
 import { createUsageDetector, type UsageCatalog } from "@i18n-doctor/usages";
 import {
   applyIssuePolicies,
+  filterAnalysisByScanDir,
   filterDefinitionFacts,
   filterDynamicUsageFacts,
   filterUntranslatedLiteralFacts,
@@ -70,6 +71,12 @@ export interface AnalyzeScopeInput {
   /** Effective config for this scope (workspace root or monorepo package). */
   readonly scope: EffectiveConfig;
   readonly filters?: ScopeAnalysisFilters;
+  /**
+   * Limit usage collection and reported issues to this POSIX path relative to
+   * the project root (e.g. `src/auth`). Locale sources are still discovered
+   * project-wide so missing-key checks stay accurate.
+   */
+  readonly scanDir?: string;
   readonly libraryHints?: readonly string[];
   readonly limits?: {
     readonly maxCandidates: number;
@@ -134,6 +141,7 @@ export async function analyzeScope(
         ...(input.libraryHints ? { libraryHints: input.libraryHints } : {}),
         minConfidence: input.scope.minConfidence,
         maxFiles: limits.maxFiles,
+        ...(input.scanDir ? { packages: [input.scanDir] } : {}),
         ...(io.fs ? { fs: io.fs } : {}),
       }),
   ]);
@@ -206,13 +214,16 @@ export async function analyzeScope(
   const analyzeMs = now() - t0;
 
   t0 = now();
-  const analysis = applyIssuePolicies(
+  const filtered = applyIssuePolicies(
     raw,
     input.scope,
     createSuppressionEngine(),
     io.readFile,
     ignore,
   );
+  const analysis = input.scanDir
+    ? filterAnalysisByScanDir(filtered, input.scanDir)
+    : filtered;
   const filterMs = now() - t0;
 
   return {

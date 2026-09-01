@@ -41,6 +41,7 @@ class DefaultUsageDetector implements UsageDetector {
       DEFAULTS.minConfidence;
     const maxFiles =
       options.maxFiles ?? this.defaults.maxFiles ?? DEFAULTS.maxFiles;
+    const packages = options.packages ?? this.defaults.packages;
     const scanTemplates =
       options.scanTemplates ??
       this.defaults.scanTemplates ??
@@ -59,7 +60,7 @@ class DefaultUsageDetector implements UsageDetector {
 
     try {
       const scanStarted = performance.now();
-      const snapshot = await scanProject(root, warnings, fsPort);
+      const snapshot = await scanProject(root, warnings, fsPort, packages);
       scanMs = performance.now() - scanStarted;
 
       if (useDetection) {
@@ -165,12 +166,15 @@ async function scanProject(
   root: string,
   warnings: UsageWarning[],
   fsPort?: FileSystemPort,
+  packages?: readonly string[],
 ): Promise<ProjectSnapshotView> {
+  const packageRoots = packages && packages.length > 0 ? packages : undefined;
   try {
     const scanner = createScanner({
       ...(fsPort ? { fs: fsPort } : {}),
       config: {
         root,
+        ...(packageRoots ? { packages: packageRoots } : {}),
         ignoreDefaults: true,
         useGitIgnore: true,
         hash: "never",
@@ -180,6 +184,7 @@ async function scanProject(
     });
     const plan = await scanner.buildPlan({
       root,
+      ...(packageRoots ? { packages: packageRoots } : {}),
       ignoreDefaults: true,
       useGitIgnore: true,
       hash: "never",
