@@ -1,6 +1,6 @@
 {
   "name": "@i18n-doctor/scanner",
-  "version": "0.9.3",
+  "version": "0.10.0",
   "description": "Project scanner: discover files, normalize paths, and produce immutable project snapshots",
   "type": "module",
   "exports": {

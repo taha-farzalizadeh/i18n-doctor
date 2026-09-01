@@ -1,6 +1,6 @@
 {
   "name": "@i18n-doctor/sources",
-  "version": "0.9.3",
+  "version": "0.10.0",
   "description": "Translation source detection and key catalog extraction",
   "type": "module",
   "exports": {
@@ -20,10 +20,10 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@i18n-doctor/ast": "0.9.3",
-    "@i18n-doctor/detect": "0.9.3",
-    "@i18n-doctor/imports": "0.9.3",
-    "@i18n-doctor/scanner": "0.9.3",
+    "@i18n-doctor/ast": "0.10.0",
+    "@i18n-doctor/detect": "0.10.0",
+    "@i18n-doctor/imports": "0.10.0",
+    "@i18n-doctor/scanner": "0.10.0",
     "jsonc-parser": "^3.3.1",
     "yaml": "^2.7.0"
   },

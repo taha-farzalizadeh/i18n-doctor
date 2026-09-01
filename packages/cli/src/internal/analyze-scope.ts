@@ -211,6 +211,7 @@ export async function analyzeScope(
     input.scope,
     createSuppressionEngine(),
     io.readFile,
+    ignore,
   );
   const filterMs = now() - t0;
 

@@ -106,7 +106,7 @@ Marketplace accepts HTML. Copy everything between the markers:
   <li>CLI: <code>npx i18n-doctor check</code></li>
 </ul>
 
-<p><i>Beta v0.9.5 — please report issues on GitHub.</i></p>
+<p><i>Beta v0.10.0 — please report issues on GitHub.</i></p>
 <!-- END MARKETPLACE DESCRIPTION -->
 ```
 
@@ -161,6 +161,21 @@ Capture from `npm run runIde -w i18n-doctor-jetbrains` + `examples/demo-project`
 - Use channel **default** for public releases.
 - Use channel **eap** only if you intentionally ship pre-releases.
 
+## Change notes (0.10.0)
+
+```html
+<h3>0.10.0</h3>
+<p>Unified configuration — one <code>i18n-doctor.config.ts</code> for CLI, ESLint, and IDE.</p>
+<ul>
+  <li>The language server now loads the same <code>i18n-doctor.config.ts</code> from the workspace root</li>
+  <li>New <code>ignoreKeys</code> option (glob patterns) to suppress <code>unused</code> findings for backend-provided or dynamically referenced keys</li>
+  <li><code>ignoreKeys</code> affects only <code>unused</code> — missing-key, duplicate-key, locale-consistency, and hardcoded-text detection stay active</li>
+  <li>TypeScript configs are parsed statically and never executed — no build step needed</li>
+  <li>Clear errors naming the file for invalid configs</li>
+  <li>Rebundled language server with the above</li>
+</ul>
+```
+
 ## Change notes (0.9.5)
 
 ```html
@@ -200,7 +215,8 @@ Capture from `npm run runIde -w i18n-doctor-jetbrains` + `examples/demo-project`
 Update this block every time you bump the version before publish:
 
 ```
-0.9.5 — Untranslated hardcoded UI text (info)
+0.10.0 — Unified config: ignoreKeys (unused-only) + i18n-doctor.config.ts everywhere
+• Untranslated hardcoded UI text (info) (0.9.5)
 • Prop-passed t + static key concat + dynamic unused softening (0.9.4)
 • LSP client for the bundled i18n-doctor language server
 • Live diagnostics for missing / unused / duplicate / coverage / untranslated text
@@ -209,5 +225,5 @@ Update this block every time you bump the version before publish:
 • Plugin icons for light and dark themes
 ```
 
-**Before the next deploy**, change `0.9.5` → the new version (e.g. `0.9.6`) in
+**Before the next deploy**, change `0.10.0` → the new version (e.g. `0.10.1`) in
 `gradle.properties`, `package.json`, `plugin.xml`, and this section.

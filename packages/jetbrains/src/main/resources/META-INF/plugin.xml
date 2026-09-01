@@ -34,6 +34,16 @@
   ]]></description>
 
   <change-notes><![CDATA[
+    <h3>0.10.0</h3>
+    <p>Unified configuration — one <code>i18n-doctor.config.ts</code> for CLI, ESLint, and IDE.</p>
+    <ul>
+      <li>The language server now loads the same <code>i18n-doctor.config.ts</code> from the workspace root</li>
+      <li>New <code>ignoreKeys</code> option (glob patterns) to suppress <code>unused</code> findings for backend-provided or dynamically referenced keys</li>
+      <li><code>ignoreKeys</code> affects only <code>unused</code> — missing-key, duplicate-key, locale-consistency, and hardcoded-text detection stay active</li>
+      <li>TypeScript configs are parsed statically and never executed — no build step needed</li>
+      <li>Clear errors naming the file for invalid configs</li>
+      <li>Rebundled language server with the above</li>
+    </ul>
     <h3>0.9.5</h3>
     <p>Detect hardcoded UI text that is not passed through translation helpers.</p>
     <ul>

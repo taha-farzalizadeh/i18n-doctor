@@ -1,6 +1,6 @@
 {
   "name": "@i18n-doctor/eslint-plugin",
-  "version": "0.9.3",
+  "version": "0.10.0",
   "description": "ESLint plugin for i18n-doctor — reuse the existing analyzer for live lint diagnostics",
   "type": "module",
   "exports": {
@@ -20,10 +20,10 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@i18n-doctor/cli": "0.9.3",
-    "@i18n-doctor/config": "0.9.3",
-    "@i18n-doctor/coverage": "0.9.3",
-    "@i18n-doctor/issues": "0.9.3",
+    "@i18n-doctor/cli": "0.10.0",
+    "@i18n-doctor/config": "0.10.0",
+    "@i18n-doctor/coverage": "0.10.0",
+    "@i18n-doctor/issues": "0.10.0",
     "@eslint/json": "^0.13.2"
   },
   "peerDependencies": {

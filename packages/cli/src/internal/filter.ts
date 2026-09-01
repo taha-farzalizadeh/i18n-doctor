@@ -27,9 +27,11 @@ export function filterDefinitionFacts(
   ignore: IgnoreEngine,
   filters: { readonly locale?: string; readonly namespace?: string },
 ): DefinitionFact[] {
+  // NOTE: keys are deliberately NOT filtered here. `ignoreKeys` must only
+  // suppress `unused-key` diagnostics (see applyIssuePolicies) — dropping
+  // definitions here would also disable duplicate-key detection.
   return definitions.filter((d) => {
     if (ignore.shouldAnalyzeFile(d.relativePath).ignored) return false;
-    if (ignore.isKeyIgnored(d.key).ignored) return false;
     if (d.locale !== undefined && ignore.isLocaleIgnored(d.locale).ignored) {
       return false;
     }
@@ -59,9 +61,11 @@ export function filterUsageFacts(
   filters: { readonly locale?: string; readonly namespace?: string },
 ): UsageFact[] {
   void filters.locale; // usages typically lack locale; namespace filter applies
+  // NOTE: keys are deliberately NOT filtered here. `ignoreKeys` must only
+  // suppress `unused-key` diagnostics (see applyIssuePolicies) — dropping
+  // usages here would also disable missing-key detection.
   return usages.filter((u) => {
     if (ignore.shouldAnalyzeFile(u.relativePath).ignored) return false;
-    if (ignore.isKeyIgnored(u.key).ignored) return false;
     if (
       u.namespace !== undefined &&
       ignore.isNamespaceIgnored(u.namespace).ignored
@@ -108,9 +112,11 @@ export function filterUntranslatedLiteralFacts(
   literals: readonly UntranslatedLiteralFact[],
   ignore: IgnoreEngine,
 ): UntranslatedLiteralFact[] {
+  // NOTE: literal *text* is not a translation key — `ignoreKeys` must not
+  // suppress hardcoded-text diagnostics (see applyIssuePolicies for the
+  // single place where ignoreKeys applies).
   return literals.filter((lit) => {
     if (ignore.shouldAnalyzeFile(lit.relativePath).ignored) return false;
-    if (ignore.isKeyIgnored(lit.text).ignored) return false;
     return true;
   });
 }
@@ -120,6 +126,7 @@ export function applyIssuePolicies(
   config: EffectiveConfig,
   suppress: SuppressionEngine,
   readFile: ReadFile = readFileFromDisk,
+  ignore?: IgnoreEngine,
 ): AnalysisResult {
   const cache = new Map<
     string,
@@ -130,6 +137,18 @@ export function applyIssuePolicies(
   for (const issue of result.issues) {
     const rule = issue.type as RuleId;
     if (!config.rules.isEnabled(rule)) continue;
+
+    // `ignoreKeys` suppresses ONLY `unused-key` diagnostics for matching
+    // keys. Missing-key, duplicate-key, locale consistency, and hardcoded
+    // text detection stay fully active (single shared matcher — the same
+    // IgnoreEngine the fact filters use).
+    if (
+      rule === "unused-key" &&
+      ignore !== undefined &&
+      ignore.isKeyIgnored(issue.key).ignored
+    ) {
+      continue;
+    }
 
     const severity = mapRuleSeverity(config.rules.getSeverity(rule));
     if (severity === undefined) continue;

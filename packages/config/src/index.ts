@@ -38,6 +38,12 @@ export type {
 
 export type { ConfigLoaderFactory } from "./api/loader.js";
 export type {
+  LoadConfigOptions,
+  LoadConfigResult,
+} from "./api/define-config.js";
+export { defineConfig, loadConfig } from "./api/define-config.js";
+
+export type {
   EffectiveConfigResolverFactory,
   IgnoreEngineFactory,
   SuppressionEngineFactory,

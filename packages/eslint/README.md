@@ -65,9 +65,12 @@ rules: {
 | `no-duplicate-key` | error | `duplicate-key` |
 | `locale-consistency` | warn | `@i18n-doctor/coverage` |
 
-Configuration, ignore patterns, inline suppressions (`// i18n-doctor-ignore …`), and
+Configuration, `ignoreKeys`, inline suppressions (`// i18n-doctor-ignore …`), and
 namespace/locale behavior come from your existing **`i18n-doctor.config.*`** — there is
-no separate ESLint-specific config format.
+no separate ESLint-specific config format, and you do **not** need to duplicate
+`ignoreKeys` in `eslint.config.js`. The config is resolved relative to the linted
+project (the same loader the CLI and language server use), so glob patterns apply
+identically everywhere.
 
 ## How it works
 

@@ -27,7 +27,7 @@ export const recommendedRules = {
 const plugin: ESLint.Plugin = {
   meta: {
     name: "@i18n-doctor/eslint-plugin",
-    version: "0.9.3",
+    version: "0.10.0",
   },
   rules,
 };

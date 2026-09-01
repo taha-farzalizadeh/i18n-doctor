@@ -1,17 +1,26 @@
 {
   "name": "i18n-doctor",
-  "version": "0.9.3",
+  "version": "0.10.0",
   "description": "Find unused, missing, and duplicate i18n translation keys in your JavaScript and TypeScript project",
   "type": "module",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./index.js"
+    }
+  },
   "bin": {
     "i18n-doctor": "./bin.js"
   },
   "files": [
     "bin.js",
+    "index.js",
+    "index.d.ts",
     "README.md"
   ],
   "dependencies": {
-    "@i18n-doctor/cli": "0.9.3"
+    "@i18n-doctor/cli": "0.10.0",
+    "@i18n-doctor/config": "0.10.0"
   },
   "keywords": [
     "i18n",

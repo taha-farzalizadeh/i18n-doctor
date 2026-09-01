@@ -324,7 +324,6 @@ function analyzeCoverage(
       catalog,
       options: {
         ...(defaultLocale !== undefined ? { baseLocale: defaultLocale } : {}),
-        ...(scope.ignoreKeys.length > 0 ? { ignoreKeys: scope.ignoreKeys } : {}),
         minConfidence: scope.minConfidence,
       },
     });

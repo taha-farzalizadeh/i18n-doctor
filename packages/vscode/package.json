@@ -2,7 +2,7 @@
   "name": "i18n-doctor-vscode",
   "displayName": "i18n-doctor",
   "description": "Live i18n diagnostics — missing, unused, and duplicate translation keys underlined as you type, powered by the i18n-doctor language server",
-  "version": "0.9.4",
+  "version": "0.10.0",
   "private": true,
   "publisher": "i18n-doctor",
   "license": "MIT",
@@ -110,7 +110,7 @@
     "package": "npm run build && vsce package --no-dependencies -o dist/i18n-doctor.vsix"
   },
   "dependencies": {
-    "@i18n-doctor/language-server": "0.9.4",
+    "@i18n-doctor/language-server": "0.10.0",
     "vscode-languageclient": "^9.0.1"
   },
   "devDependencies": {

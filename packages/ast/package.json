@@ -1,6 +1,6 @@
 {
   "name": "@i18n-doctor/ast",
-  "version": "0.9.3",
+  "version": "0.10.0",
   "description": "AST engine: TypeScript Compiler API parsing, traversal, and node queries",
   "type": "module",
   "exports": {

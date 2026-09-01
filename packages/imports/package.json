@@ -1,6 +1,6 @@
 {
   "name": "@i18n-doctor/imports",
-  "version": "0.9.3",
+  "version": "0.10.0",
   "description": "Cross-file import/export resolution and module graph for static analysis",
   "type": "module",
   "exports": {
@@ -20,7 +20,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@i18n-doctor/ast": "0.9.3"
+    "@i18n-doctor/ast": "0.10.0"
   },
   "devDependencies": {
     "@types/node": "^22.13.10",

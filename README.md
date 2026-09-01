@@ -1,6 +1,6 @@
 # i18n-doctor
 
-> **Beta — v0.9.3**
+> **Beta — v0.10.0**
 > This is an early release. APIs may change, edge cases exist, and your feedback matters. See [Contributing](#contributing) to help shape the project.
 
 Static localization analysis for JavaScript and TypeScript projects. Finds unused, missing, and duplicate translation keys — and hardcoded UI text that never goes through translation — without executing your code.
@@ -163,24 +163,64 @@ Also available: `--sarif` (SARIF 2.1.0), `--markdown`, `--html`.
 
 ## Configuration
 
-Place an `i18n-doctor.config.json` (or `.js` / `.ts`) at your project root. The CLI will pick it up automatically, or you can point to it with `--config`.
+i18n-doctor uses a single `i18n-doctor.config.ts` (or `.js` / `.mjs` / `.cjs` / `.json`) at your project root as the source of truth. The CLI picks it up automatically — no extra flags required:
 
-```json
-{
-  "localesDir": "public/locales",
-  "baseLocale": "en",
-  "rules": {
-    "unused-key": "error",
-    "missing-key": "error",
-    "duplicate-key": "warning",
-    "untranslated-text": "info"
-  },
-  "ignore": [
-    "legacy.*",
-    "vendor.*"
-  ]
-}
+```ts
+import { defineConfig } from "i18n-doctor";
+
+export default defineConfig({
+  ignoreKeys: [
+    "SERVER_*",
+    "BACKEND_*",
+  ],
+});
 ```
+
+`defineConfig` is a typed identity helper — it gives you autocompletion and type checking in the config file. TypeScript configs are parsed statically and never executed, so they work directly with `npx i18n-doctor check` (no build step or extra loader needed).
+
+### File resolution
+
+The nearest config is resolved starting from the project/workspace root (or the directory you point the tool at):
+
+1. `i18n-doctor.config.ts`
+2. `i18n-doctor.config.js`
+3. `i18n-doctor.config.mjs`
+4. `i18n-doctor.config.cjs`
+5. `i18n-doctor.config.json`
+6. an `"i18n-doctor"` field in `package.json`
+
+You can also point at an explicit file with `--config <path>`. If no config file exists, defaults are used — adding a config is never required, and an empty config behaves exactly like no config.
+
+### `ignoreKeys`
+
+`ignoreKeys` takes glob-style patterns (`*`, `?`, `**`) for translation keys that should not be reported as **unused**:
+
+```text
+SERVER_USER_CREATED       ignored (matches SERVER_*)
+SERVER_USER_DELETED       ignored (matches SERVER_*)
+BACKEND_ERROR             ignored (matches BACKEND_*)
+common.title              normal analysis
+```
+
+This is useful for keys that static analysis cannot reliably detect as used:
+
+- backend-provided translation keys (e.g. `t(apiResponse.messageKey)`)
+- dynamically generated / composed translation keys
+- runtime translation catalogs
+
+**`ignoreKeys` only suppresses `unused-key` diagnostics.** Missing-key, duplicate-key, locale-consistency, and hardcoded-text detection stay fully active — even for the very same keys.
+
+### One config everywhere
+
+The same `i18n-doctor.config.ts` is consumed automatically by:
+
+- the **CLI** (`npx i18n-doctor check`) — resolved from the project root / current directory
+- the **ESLint plugin** (`@i18n-doctor/eslint-plugin`) — resolved relative to the linted project; you do **not** need to duplicate `ignoreKeys` in `eslint.config.js`
+- **IDE integrations** (VS Code, JetBrains, and any LSP client via `@i18n-doctor/language-server`) — resolved from the opened workspace root
+
+All three share one config loader and one pattern matcher, so `ignoreKeys` behaves identically everywhere.
+
+### Rules
 
 | Rule | Default | Meaning |
 | --- | --- | --- |
@@ -190,6 +230,12 @@ Place an `i18n-doctor.config.json` (or `.js` / `.ts`) at your project root. The 
 | `untranslated-text` | `info` | Hardcoded UI text not passed through a translator |
 
 Set any rule to `"off"` to disable it. Inline suppressions work too, e.g. `// i18n-doctor-ignore untranslated-text`.
+
+### Invalid configs
+
+A config file with invalid syntax or invalid values produces a clear error that names the file and explains the problem — it is never silently ignored.
+
+For the full option list see [`packages/config`](./packages/config); for programmatic use, `loadConfig({ cwd })` is exported from `i18n-doctor` and `@i18n-doctor/config`.
 
 ---
 
@@ -245,6 +291,25 @@ Editor-only options live under `languageServer` in the same config file:
 See [`packages/language-server`](./packages/language-server) for the full option
 list and custom client notes.
 
+### ESLint
+
+```bash
+npm install -D @i18n-doctor/eslint-plugin eslint
+```
+
+```javascript
+import i18nDoctor from "@i18n-doctor/eslint-plugin";
+
+export default [
+  i18nDoctor.configs.recommended,
+];
+```
+
+The plugin reuses the same analyzer and the same `i18n-doctor.config.ts` as the
+CLI — config is resolved relative to the linted project, so `ignoreKeys` and
+rule severities apply identically without duplicating anything in
+`eslint.config.js`. See [`packages/eslint`](./packages/eslint).
+
 ---
 
 ## Packages
@@ -253,7 +318,9 @@ This repo is a monorepo. Each package is independently publishable.
 
 | Package | Description |
 |---|---|
+| `i18n-doctor` | CLI binary + typed `defineConfig` / `loadConfig` API |
 | `@i18n-doctor/cli` | CLI entry point and orchestration |
+| `@i18n-doctor/eslint-plugin` | ESLint rules backed by the same analyzer |
 | `@i18n-doctor/language-server` | LSP server exposing the analysis as live editor diagnostics |
 | `i18n-doctor-vscode` | VS Code extension (LSP client; ships the bundled server) |
 | `i18n-doctor-jetbrains` | JetBrains / WebStorm plugin (LSP client; ships the bundled server) |
@@ -313,7 +380,7 @@ Requires Node.js ≥ 18.
 
 ## Beta status
 
-v0.9.3 is a beta release. That means:
+v0.10.0 is a beta release. That means:
 
 - Core analysis works and is usable on real projects
 - Prop-passed `t`, static key concat, soft dynamic-unused hints, and untranslated UI text are supported
@@ -326,6 +393,15 @@ If something doesn't work on your project, please open an issue. That's exactly 
 ---
 
 ## Changelog (recent)
+
+### Unified configuration (2026-09)
+
+- **`i18n-doctor.config.ts` is now the single source of truth** — the same file is consumed automatically by the **CLI**, the **ESLint plugin** (resolved relative to the linted project), and **IDE integrations** (resolved from the workspace root). No duplicated `ignoreKeys` in `eslint.config.js`, no second IDE config format.
+- **Typed `defineConfig()` helper** — `import { defineConfig } from "i18n-doctor"` in your config file for type checking and completions. Programmatic `loadConfig({ cwd })` is exported too.
+- **`ignoreKeys`** — glob-style patterns (`SERVER_*`, `BACKEND_*`, `errors.*`) for translation keys that must not be reported as **unused** (backend-provided keys, dynamically referenced keys, runtime catalogs). TypeScript configs are parsed statically and never executed — no build step needed.
+- **Behavior change: `ignoreKeys` now affects only `unused-key`** — missing-key, duplicate-key, locale-consistency, and hardcoded-text detection stay fully active for the same keys (previously ignored keys were dropped from those checks too). Existing configs without `ignoreKeys` behave exactly as before.
+- **Invalid configs fail loudly** — errors name the config file and explain the problem instead of being silently ignored.
+- **0.10.0** across npm packages; **JetBrains 0.10.0** / **VS Code 0.10.0** — rebundled language server with the above.
 
 ### Analyzer / IDE (2026-08)
 
