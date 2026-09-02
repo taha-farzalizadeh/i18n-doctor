@@ -1,10 +1,17 @@
 package com.i18ndoctor.jetbrains.settings
 
+import com.i18ndoctor.jetbrains.lsp.I18nDoctorLspSupportProvider
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.options.BoundConfigurable
+import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.ui.DialogPanel
+import com.intellij.platform.lsp.api.LspServerManager
 import com.intellij.ui.dsl.builder.bindSelected
 import com.intellij.ui.dsl.builder.bindText
 import com.intellij.ui.dsl.builder.panel
+
+private val LOG = Logger.getInstance(I18nDoctorConfigurable::class.java)
 
 /** Settings UI under Languages & Frameworks → i18n-doctor. */
 class I18nDoctorConfigurable : BoundConfigurable("i18n-doctor") {
@@ -39,7 +46,9 @@ class I18nDoctorConfigurable : BoundConfigurable("i18n-doctor") {
         row {
           comment(
             "Only filled values are sent to the server. Empty fields keep the " +
-              "project's i18n-doctor config as the source of truth.",
+              "project's i18n-doctor config as the source of truth. " +
+              "Applying changes restarts the language server so log level / " +
+              "debounce take effect immediately.",
           )
         }
         row("Debounce (ms):") {
@@ -57,6 +66,26 @@ class I18nDoctorConfigurable : BoundConfigurable("i18n-doctor") {
           textField()
             .bindText(state::coverage)
             .comment("true | false | empty (unset)")
+        }
+      }
+    }
+  }
+
+  override fun apply() {
+    super.apply()
+    restartLanguageServers()
+  }
+
+  private fun restartLanguageServers() {
+    ApplicationManager.getApplication().invokeLater {
+      for (project in ProjectManager.getInstance().openProjects) {
+        if (project.isDisposed) continue
+        try {
+          LspServerManager.getInstance(project)
+            .stopAndRestartIfNeeded(I18nDoctorLspSupportProvider::class.java)
+          LOG.info("Restarted i18n-doctor language server after settings change (${project.name})")
+        } catch (error: Throwable) {
+          LOG.warn("Failed to restart i18n-doctor language server for ${project.name}", error)
         }
       }
     }

@@ -71,4 +71,25 @@ export default defineConfig({
     expect(unused.some((k) => /BACKEND_ERROR/.test(k))).toBe(true);
     expect(unused.some((k) => /farewell/.test(k))).toBe(true);
   }, 60_000);
+
+  it("loads plain JSON / JS config without defineConfig import", async () => {
+    const root = writeFixture(
+      ignoreKeysFixture({
+        "i18n-doctor.config.json": JSON.stringify(
+          { ignoreKeys: ["SERVER_*", "BACKEND_*"] },
+          null,
+          2,
+        ),
+      }),
+    );
+    const messages = await lintProject(root);
+    const unused = messages
+      .map(unusedKeyOf)
+      .filter((k): k is string => k !== undefined)
+      .map(bareKey);
+
+    expect(unused.some((k) => /SERVER_USER_CREATED/.test(k))).toBe(false);
+    expect(unused.some((k) => /BACKEND_ERROR/.test(k))).toBe(false);
+    expect(unused.some((k) => /farewell/.test(k))).toBe(true);
+  }, 60_000);
 });

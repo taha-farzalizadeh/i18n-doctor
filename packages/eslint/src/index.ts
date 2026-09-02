@@ -27,7 +27,7 @@ export const recommendedRules = {
 const plugin: ESLint.Plugin = {
   meta: {
     name: "@i18n-doctor/eslint-plugin",
-    version: "0.10.0",
+    version: "0.10.2",
   },
   rules,
 };
@@ -78,3 +78,10 @@ export {
 export { issueToEslintDiagnostic } from "./internal/diagnostic-adapter.js";
 export { issueLocationToEslint, toEslintLocation } from "./internal/locations.js";
 export { RULE_MESSAGES } from "./internal/messages.js";
+
+/**
+ * Typed config helper — re-exported so ESLint users do not need a separate
+ * `i18n-doctor` install for `i18n-doctor.config.ts`. Plain JSON / object
+ * configs need no import at all.
+ */
+export { defineConfig } from "@i18n-doctor/config";

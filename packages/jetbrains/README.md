@@ -1,12 +1,25 @@
 # i18n-doctor for JetBrains (WebStorm)
 
-> **Beta — v0.10.0**
+> **Beta — v0.10.2**
 
 Live i18n diagnostics in WebStorm and other JetBrains IDEs that ship the
 platform LSP API. This plugin is a **thin LSP client**: it starts the bundled
 [`@i18n-doctor/language-server`](../language-server) over stdio and lets the IDE
 render `publishDiagnostics`. It does **not** parse source, extract keys, or
 decide what is unused.
+
+## Bug fixes (0.10.2 / 0.10.1)
+
+- **Settings apply immediately** — changing log level, debounce, coverage, or
+  Node/server path and clicking Apply restarts the language server so the new
+  values take effect (0.10.0 only read them at cold start).
+- **`ignoreKeys` leaf / namespace matching** — `SERVER_*` also suppresses
+  `common:SERVER_USER` and `errors.SERVER_TIMEOUT`, not only exact `SERVER_USER`.
+- **Config without installing `i18n-doctor`** — IDE-only users can use
+  `i18n-doctor.config.json` or a plain `export default { ignoreKeys: […] }` in
+  `.js` / `.ts`. No `defineConfig` import required.
+- **ESLint session cache** — editing `i18n-doctor.config.*` invalidates the
+  analysis cache without restarting the ESLint process.
 
 ```
 WebStorm → this plugin → LSP (stdio)
@@ -57,11 +70,25 @@ plugin only contributes process / IDE overrides.
 | Enable | Start the language server at all |
 | Node.js path | Absolute `node` binary (optional; otherwise JavaScript Runtime / PATH) |
 | Server module path | Dev override for an alternate `server.js` / `bin.js` |
-| Debounce / log level / max diagnostics / coverage | Forwarded only when set; empty keeps project config |
+| Debounce / log level / max diagnostics / coverage | Forwarded only when set; empty keeps project config. **Apply restarts the server** so changes take effect. |
+
+## Project config (no CLI install needed)
+
+Put `i18n-doctor.config.json` at the project root:
+
+```json
+{
+  "ignoreKeys": ["SERVER_*", "BACKEND_*"]
+}
+```
+
+`ignoreKeys` only suppresses **unused-key** diagnostics. JSON / plain JS object
+configs need no `import` and no `i18n-doctor` npm package.
 
 ## Commands
 
 - **Tools → Restart Language Server** — restarts the i18n-doctor LSP process
+  (also runs automatically when you Apply i18n-doctor settings)
 
 ## Activation
 

@@ -13,6 +13,8 @@ export { runProjectAnalysis } from "./run-project-analysis.js";
 
 interface SessionEntry {
   readonly snapshot: AnalysisSessionSnapshot;
+  /** Fingerprint of config / locale inputs so edits invalidate the cache. */
+  readonly fingerprint: string;
 }
 
 /** Per-process cache keyed by discovered project root. */
@@ -20,6 +22,15 @@ const sessions = new Map<string, SessionEntry>();
 
 /** Test hook — number of worker invocations in this process. */
 let workerInvocations = 0;
+
+const CONFIG_CANDIDATES = [
+  "i18n-doctor.config.ts",
+  "i18n-doctor.config.js",
+  "i18n-doctor.config.mjs",
+  "i18n-doctor.config.cjs",
+  "i18n-doctor.config.json",
+  "package.json",
+] as const;
 
 function resolveWorkerScript(): string {
   const here = path.dirname(fileURLToPath(import.meta.url));
@@ -49,9 +60,12 @@ export function getAnalysisSession(
     pathArg: options.filename,
   });
   const key = project.root;
+  const fingerprint = projectFingerprint(project.root);
 
   const existing = sessions.get(key);
-  if (existing) return existing.snapshot;
+  if (existing && existing.fingerprint === fingerprint) {
+    return existing.snapshot;
+  }
 
   workerInvocations += 1;
   ensureWorkerBuilt();
@@ -76,8 +90,27 @@ export function getAnalysisSession(
   }
 
   const snapshot = JSON.parse(result.stdout) as AnalysisSessionSnapshot;
-  sessions.set(key, { snapshot });
+  sessions.set(key, { snapshot, fingerprint });
   return snapshot;
+}
+
+/**
+ * Cheap invalidation signal for the ESLint process-lifetime cache.
+ * Config file edits (and package.json `"i18n-doctor"` field) change mtime
+ * so the next lint run rebuilds the snapshot without requiring a process restart.
+ */
+function projectFingerprint(root: string): string {
+  const parts: string[] = [];
+  for (const name of CONFIG_CANDIDATES) {
+    const absolute = path.join(root, name);
+    try {
+      const stat = fs.statSync(absolute);
+      parts.push(`${name}:${stat.mtimeMs}:${stat.size}`);
+    } catch {
+      parts.push(`${name}:missing`);
+    }
+  }
+  return parts.join("|");
 }
 
 export function fileMatchesIssuePath(

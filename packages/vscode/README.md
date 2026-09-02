@@ -1,11 +1,17 @@
 # i18n-doctor for VS Code
 
-> **Beta — v0.9.4**
+> **Beta — v0.10.2**
 
 Live i18n diagnostics in VS Code. This extension is an LSP client: it starts the
 bundled [`@i18n-doctor/language-server`](../language-server) over stdio and lets
 VS Code render the diagnostics the server publishes. It does not parse source,
 extract keys, or decide what is unused.
+
+## What's new in 0.10.2
+
+- Rebundled language server with unified `i18n-doctor.config.*` support
+- **`ignoreKeys`** (unused-key only) with leaf / namespace matching — no CLI package required; use JSON or a plain object export
+- Settings / config parity with CLI and ESLint plugin
 
 ```
 VS Code → this extension → LanguageClient (stdio)

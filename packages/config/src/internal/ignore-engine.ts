@@ -26,10 +26,16 @@ export function createIgnoreEngine(config: {
 
   return {
     isKeyIgnored(key) {
-      const hit = matchesAny(key, ignoreKeys);
-      return hit
-        ? { ignored: true, pattern: hit.pattern, kind: "ignoreKeys" }
-        : { ignored: false };
+      // Match the full key (`auth.login`, `SERVER_USER`) and common variants:
+      // leaf after `.` / after `:` so patterns like `SERVER_*` also catch
+      // `common:SERVER_USER` and `errors.SERVER_USER`.
+      for (const candidate of keyIgnoreCandidates(key)) {
+        const hit = matchesAny(candidate, ignoreKeys);
+        if (hit) {
+          return { ignored: true, pattern: hit.pattern, kind: "ignoreKeys" };
+        }
+      }
+      return { ignored: false };
     },
     isFileIgnored(relativePath) {
       const path = toPosixRelative(relativePath);
@@ -99,6 +105,24 @@ function compileAll(
 ): CompiledGlob[] {
   if (!patterns || patterns.length === 0) return [];
   return patterns.map((p) => compileGlob(p, { basenameFallback }));
+}
+
+/** Unique key shapes to test against ignoreKeys patterns. */
+export function keyIgnoreCandidates(key: string): readonly string[] {
+  const out: string[] = [];
+  const push = (value: string) => {
+    if (value.length > 0 && !out.includes(value)) out.push(value);
+  };
+  push(key);
+  const afterColon = key.includes(":")
+    ? key.slice(key.lastIndexOf(":") + 1)
+    : undefined;
+  if (afterColon !== undefined) push(afterColon);
+  const dotted = afterColon ?? key;
+  if (dotted.includes(".")) {
+    push(dotted.slice(dotted.lastIndexOf(".") + 1));
+  }
+  return out;
 }
 
 export const ignoreEngineFactory: IgnoreEngineFactory = {

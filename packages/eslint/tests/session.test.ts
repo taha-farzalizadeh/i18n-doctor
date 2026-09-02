@@ -68,4 +68,43 @@ export function B() { const { t } = useTranslation(); return t("missing"); }`,
       }).analyzeScopeCalls,
     ).toBe(1);
   });
+
+  it("rebuilds when i18n-doctor.config changes without process reset", async () => {
+    resetAnalysisSessions();
+    ensureWorkerBuilt();
+    const fs = await import("node:fs");
+    const root = writeFixture({
+      "package.json": jsonString({
+        name: "session-config-invalidate",
+        dependencies: { i18next: "^23.0.0", "react-i18next": "^14.0.0" },
+      }),
+      "locales/en.json": jsonString({
+        SERVER_USER: "User",
+        farewell: "Bye",
+      }),
+      "src/App.tsx": `import { useTranslation } from "react-i18next";
+export function App() { const { t } = useTranslation(); return t("used"); }`,
+    });
+
+    const first = getAnalysisSession({
+      cwd: root,
+      filename: path.join(root, "src/App.tsx"),
+    });
+    expect(first.issues.some((i) => i.key === "SERVER_USER")).toBe(true);
+
+    // Ensure mtime advances on fast filesystems.
+    await new Promise((r) => setTimeout(r, 20));
+    fs.writeFileSync(
+      path.join(root, "i18n-doctor.config.json"),
+      jsonString({ ignoreKeys: ["SERVER_*"] }),
+    );
+
+    const second = getAnalysisSession({
+      cwd: root,
+      filename: path.join(root, "src/App.tsx"),
+    });
+    expect(second).not.toBe(first);
+    expect(second.issues.some((i) => i.key === "SERVER_USER")).toBe(false);
+    expect(second.issues.some((i) => i.key === "farewell")).toBe(true);
+  });
 });

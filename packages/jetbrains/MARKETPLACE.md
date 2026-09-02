@@ -106,7 +106,7 @@ Marketplace accepts HTML. Copy everything between the markers:
   <li>CLI: <code>npx i18n-doctor check</code></li>
 </ul>
 
-<p><i>Beta v0.10.0 — please report issues on GitHub.</i></p>
+<p><i>Beta v0.10.2 — please report issues on GitHub.</i></p>
 <!-- END MARKETPLACE DESCRIPTION -->
 ```
 
@@ -160,6 +160,32 @@ Capture from `npm run runIde -w i18n-doctor-jetbrains` + `examples/demo-project`
 
 - Use channel **default** for public releases.
 - Use channel **eap** only if you intentionally ship pre-releases.
+
+## Change notes (0.10.2)
+
+```html
+<h3>0.10.2</h3>
+<p>Monorepo release with settings, <code>ignoreKeys</code>, and ESLint cache fixes.</p>
+<ul>
+  <li><b>Log level / debounce apply immediately</b> — saving Settings → i18n-doctor restarts the language server</li>
+  <li><b><code>ignoreKeys</code> matching</b> — <code>SERVER_*</code> also matches namespaced / nested keys</li>
+  <li><b>Config without <code>i18n-doctor</code> package</b> — plain JSON / object configs work for IDE-only users</li>
+  <li>Rebundled language server @ 0.10.2</li>
+</ul>
+```
+
+## Change notes (0.10.1)
+
+```html
+<h3>0.10.1</h3>
+<p>Bug fixes for settings, <code>ignoreKeys</code>, and config without a CLI install.</p>
+<ul>
+  <li><b>Log level / debounce apply immediately</b> — saving Settings → i18n-doctor now restarts the language server so overrides take effect (previously only applied on cold start)</li>
+  <li><b><code>ignoreKeys</code> matching</b> — patterns like <code>SERVER_*</code> also match namespaced / nested keys (<code>common:SERVER_USER</code>, <code>errors.SERVER_TIMEOUT</code>)</li>
+  <li><b>Config without <code>i18n-doctor</code> package</b> — use plain <code>i18n-doctor.config.json</code> or <code>export default { ignoreKeys: […] }</code>; no import required for IDE-only users</li>
+  <li>Rebundled language server with the above fixes</li>
+</ul>
+```
 
 ## Change notes (0.10.0)
 

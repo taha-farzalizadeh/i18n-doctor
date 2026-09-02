@@ -72,6 +72,45 @@ no separate ESLint-specific config format, and you do **not** need to duplicate
 project (the same loader the CLI and language server use), so glob patterns apply
 identically everywhere.
 
+### Config without installing `i18n-doctor`
+
+Prefer JSON or a plain object — no import required:
+
+```json
+{ "ignoreKeys": ["SERVER_*", "BACKEND_*"] }
+```
+
+```js
+// i18n-doctor.config.js
+export default { ignoreKeys: ["SERVER_*", "BACKEND_*"] };
+```
+
+For typed TS configs, import `defineConfig` from this package (already a dependency):
+
+```ts
+import { defineConfig } from "@i18n-doctor/eslint-plugin";
+
+export default defineConfig({ ignoreKeys: ["SERVER_*"] });
+```
+
+### Overriding rule severity
+
+`...i18nDoctor.configs.recommended` must be a **sibling** config entry (not spread into your object). Put severity overrides in a later block:
+
+```js
+export default [
+  ...i18nDoctor.configs.recommended,
+  {
+    rules: {
+      "i18n-doctor/no-missing-key": "warn",
+    },
+  },
+];
+```
+
+Note: catalog findings (`no-unused-key`, etc.) are configured for `**/*.json` by the
+recommended-locales block — override that file glob separately if needed.
+
 ## How it works
 
 ```

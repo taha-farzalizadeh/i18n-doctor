@@ -34,6 +34,22 @@
   ]]></description>
 
   <change-notes><![CDATA[
+    <h3>0.10.2</h3>
+    <p>Monorepo release with settings, <code>ignoreKeys</code>, and ESLint cache fixes.</p>
+    <ul>
+      <li><b>Log level / debounce apply immediately</b> — saving Settings → i18n-doctor restarts the language server</li>
+      <li><b><code>ignoreKeys</code> matching</b> — <code>SERVER_*</code> also matches namespaced / nested keys</li>
+      <li><b>Config without <code>i18n-doctor</code> package</b> — plain JSON / object configs work for IDE-only users</li>
+      <li>Rebundled language server @ 0.10.2</li>
+    </ul>
+    <h3>0.10.1</h3>
+    <p>Bug fixes for settings, <code>ignoreKeys</code>, and config without a CLI install.</p>
+    <ul>
+      <li><b>Log level / debounce apply immediately</b> — saving Settings → i18n-doctor now restarts the language server so overrides take effect (previously only applied on cold start)</li>
+      <li><b><code>ignoreKeys</code> matching</b> — patterns like <code>SERVER_*</code> also match namespaced / nested keys (<code>common:SERVER_USER</code>, <code>errors.SERVER_TIMEOUT</code>)</li>
+      <li><b>Config without <code>i18n-doctor</code> package</b> — use plain <code>i18n-doctor.config.json</code> or <code>export default { ignoreKeys: […] }</code>; no import required for IDE-only users</li>
+      <li>Rebundled language server with the above fixes</li>
+    </ul>
     <h3>0.10.0</h3>
     <p>Unified configuration — one <code>i18n-doctor.config.ts</code> for CLI, ESLint, and IDE.</p>
     <ul>

@@ -45,6 +45,9 @@ export type {
 } from "./protocol.js";
 export type { LogLevel, LogSink } from "./logger.js";
 
+/** Typed config helper for IDE-only users — no separate `i18n-doctor` install. */
+export { defineConfig } from "@i18n-doctor/config";
+
 /** Files whose changes can affect i18n diagnostics. */
 const WATCHED_GLOBS = [
   "**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts,vue,svelte,astro,html,htm}",

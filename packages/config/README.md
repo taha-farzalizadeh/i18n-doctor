@@ -15,7 +15,15 @@ The loader discovers, validates, and normalizes the nearest config starting from
 5. `i18n-doctor.config.json`
 6. an `"i18n-doctor"` field in `package.json`
 
-TypeScript/JS configs are parsed statically — the file is **never executed**, so `export default defineConfig({ … })` works without a build step. Dynamic expressions are reported as diagnostics instead of being evaluated. Invalid configs produce `ConfigDiagnostic` entries with the file path and a description; they are never silently ignored.
+TypeScript/JS configs are parsed statically — the file is **never executed**, so
+`export default { … }` and `export default defineConfig({ … })` work without a build
+step and **without installing `i18n-doctor`**. Prefer JSON for the simplest setup:
+
+```json
+{ "ignoreKeys": ["SERVER_*", "BACKEND_*"] }
+```
+
+Dynamic expressions are reported as diagnostics instead of being evaluated. Invalid configs produce `ConfigDiagnostic` entries with the file path and a description; they are never silently ignored.
 
 ## `defineConfig` / `loadConfig`
 
@@ -36,7 +44,18 @@ const result = await loadConfig({ cwd: projectRoot });
 
 ## `ignoreKeys`
 
-Glob-style patterns (`*`, `?`, `**`) matched against the full translation key. Matching keys are **excluded from `unused-key` diagnostics only** — missing-key, duplicate-key, locale-consistency, and hardcoded-text detection remain active. The same matcher backs `ignoreFiles`, `ignoreLocales`, `ignoreNamespaces`, and `include`/`exclude`.
+Glob-style patterns (`*`, `?`, `**`) matched against the translation key. Matching
+keys are **excluded from `unused-key` diagnostics only** — missing-key, duplicate-key,
+locale-consistency, and hardcoded-text detection remain active.
+
+Each pattern is tested against:
+
+1. the full key (`SERVER_USER`, `auth.login`)
+2. the segment after `:` when namespaced (`common:SERVER_USER` → `SERVER_USER`)
+3. the leaf after `.` (`errors.SERVER_TIMEOUT` → `SERVER_TIMEOUT`)
+
+So `ignoreKeys: ["SERVER_*"]` covers all of those shapes. The same matcher backs
+`ignoreFiles`, `ignoreLocales`, `ignoreNamespaces`, and `include`/`exclude`.
 
 ## Rules
 

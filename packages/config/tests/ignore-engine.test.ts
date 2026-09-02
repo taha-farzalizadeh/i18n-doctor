@@ -19,6 +19,17 @@ describe("IgnoreEngine", () => {
     expect(engine.isKeyIgnored("x/debug.foo").ignored).toBe(false);
   });
 
+  it("matches leaf / namespaced variants of ignoreKeys", () => {
+    const leaf = createIgnoreEngine({
+      ignoreKeys: ["SERVER_*", "BACKEND_*"],
+    });
+    expect(leaf.isKeyIgnored("SERVER_USER_CREATED").ignored).toBe(true);
+    expect(leaf.isKeyIgnored("common:SERVER_USER_CREATED").ignored).toBe(true);
+    expect(leaf.isKeyIgnored("errors.SERVER_TIMEOUT").ignored).toBe(true);
+    expect(leaf.isKeyIgnored("BACKEND_ERROR").ignored).toBe(true);
+    expect(leaf.isKeyIgnored("farewell").ignored).toBe(false);
+  });
+
   it("matches ignoreFiles and exclude", () => {
     expect(engine.isFileIgnored("src/generated/a.ts").ignored).toBe(true);
     expect(engine.isFileIgnored("Button.stories.tsx").ignored).toBe(true);
