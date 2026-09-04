@@ -72,3 +72,56 @@ export function namespacedProject(
     ...overrides,
   };
 }
+
+/**
+ * Santez-style co-located catalogs via addResourceBundle.
+ */
+export function santezProject(
+  overrides: Record<string, string> = {},
+): Record<string, string> {
+  return {
+    "package.json": PKG_REACT_I18NEXT,
+    "src/app/pages/home/i18n/en.ts": `export default { SAVE: "Save home", TITLE: "Home" };\n`,
+    "src/app/pages/settings/i18n/en.ts": `export default { SAVE: "Save settings" };\n`,
+    "src/i18n.ts": `
+import i18next from "i18next";
+import home from "./app/pages/home/i18n/en";
+import settings from "./app/pages/settings/i18n/en";
+i18next.addResourceBundle("en", "home", home);
+i18next.addResourceBundle("en", "settings", settings);
+`,
+    "src/App.tsx": `
+import { useTranslation } from "react-i18next";
+export function App() {
+  const { t } = useTranslation("home");
+  return <button>{t("SAVE")}</button>;
+}
+`,
+    ...overrides,
+  };
+}
+
+export const ALIAS_TSX = `import { useTranslation } from "react-i18next";
+
+export function AliasDemo() {
+  const { t } = useTranslation();
+  const tx = t;
+  return <span>{tx("auth.login")}</span>;
+}
+`;
+
+export const DYNAMIC_TSX = `import { useTranslation } from "react-i18next";
+
+export function DynamicDemo({ suffix }: { suffix: string }) {
+  const { t } = useTranslation();
+  return <span>{t("auth." + suffix)}</span>;
+}
+`;
+
+export const COMPLETION_TSX = `import { useTranslation } from "react-i18next";
+
+export function CompletionDemo() {
+  const { t } = useTranslation();
+  return <span>{t("auth.")}</span>;
+}
+`;

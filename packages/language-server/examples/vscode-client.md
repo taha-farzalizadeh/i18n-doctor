@@ -66,3 +66,5 @@ export async function deactivate(): Promise<void> {
   `languageServer` from the project's i18n-doctor config.
 - Diagnostics carry `source: "i18n-doctor"` and a `code` such as `missing-key`,
   which is what `workspace.getConfiguration` based filtering keys off.
+- Definition, hover, and completion are advertised by the server; the default
+  LanguageClient wires them without extra middleware.

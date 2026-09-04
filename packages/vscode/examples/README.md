@@ -2,7 +2,7 @@
 
 ## demo-project
 
-Minimal app used for the Phase 17 acceptance check.
+Minimal app used for IDE acceptance (diagnostics + Phase 20 intelligence).
 
 1. From the monorepo root, build the extension:
 
@@ -25,13 +25,24 @@ Minimal app used for the Phase 17 acceptance check.
      `Translation key "auth.nonexistent" does not exist.` with
      `source: i18n-doctor`
 
-5. Add `"nonexistent": "…"` under `auth` in `locales/en.json` (and ideally
+5. **Go to Translation** — Cmd/Ctrl+Click (or F12) on `"auth.login"` → jumps to
+   `locales/en.json` on the `login` property.
+
+6. **Hover** — hover `"auth.login"` → English / Persian values, source path.
+
+7. **Completion** — type `t("auth.")` → suggestions include `auth.login`,
+   `auth.logout` with translated detail.
+
+8. Add `"nonexistent": "…"` under `auth` in `locales/en.json` (and ideally
    `fa.json`). The underline disappears without reloading.
 
-6. Remove the key. The underline returns.
+9. Remove the key. The underline returns.
 
 The demo has **no** dependency on `i18n-doctor` or the language server — the
 extension carries the server.
+
+> ESLint provides diagnostics only. Go to Translation, Hover, and Completion
+> come from the Language Server via this extension.
 
 ## launch.json
 

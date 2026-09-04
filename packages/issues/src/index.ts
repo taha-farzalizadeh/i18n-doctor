@@ -47,9 +47,11 @@ export {
   definitionMatchesUsage,
   duplicateIdentity,
   logicalDefinitionKey,
+  logicalKey,
   logicalUsageKey,
   matchContextFromOptions,
   resolveUsageNamespaces,
+  type MatchContext,
 } from "./internal/identity.js";
 
 export {

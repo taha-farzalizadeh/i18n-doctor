@@ -1,22 +1,28 @@
 # i18n-doctor for VS Code
 
-> **Beta — v0.10.2**
+> **Beta — v0.11.0**
 
-Live i18n diagnostics in VS Code. This extension is an LSP client: it starts the
-bundled [`@i18n-doctor/language-server`](../language-server) over stdio and lets
-VS Code render the diagnostics the server publishes. It does not parse source,
-extract keys, or decide what is unused.
+Live i18n diagnostics, **Go to Translation**, **Hover**, and **Completion** in
+VS Code. This extension is an LSP client: it starts the bundled
+[`@i18n-doctor/language-server`](../language-server) over stdio and lets VS Code
+render what the server publishes. It does not parse source, extract keys, or
+decide what is unused.
 
-## What's new in 0.10.2
+## What's new in 0.11.0 (Phase 20)
 
-- Rebundled language server with unified `i18n-doctor.config.*` support
-- **`ignoreKeys`** (unused-key only) with leaf / namespace matching — no CLI package required; use JSON or a plain object export
-- Settings / config parity with CLI and ESLint plugin
+- **Go to Translation** — F12 / Cmd+Click on `t("home.title")` jumps to the catalog entry
+- **Translation Hover** — shows key, locale values, namespace, and source location
+- **Translation Completion** — suggests keys inside `t("...")` with translated detail
+- Powered by a shared `@i18n-doctor/translation-index` (same catalog model as ESLint)
+
+> **ESLint provides diagnostics.** Go to Translation, Hover, and Completion are
+> provided by the i18n-doctor Language Server and consumed by this extension
+> (and the JetBrains plugin).
 
 ```
 VS Code → this extension → LanguageClient (stdio)
-        → @i18n-doctor/language-server → analyzer → publishDiagnostics
-        → underlines + Problems panel
+        → @i18n-doctor/language-server → analyzer + translation index
+        → diagnostics / definition / hover / completion
 ```
 
 ## Install
@@ -33,11 +39,14 @@ server is bundled with the extension.
 | Situation | Result |
 | --- | --- |
 | `t("auth.nonexistent")` | Error underline exactly over `"auth.nonexistent"` |
+| F12 / Cmd+Click on `t("auth.login")` | Opens `locales/en.json` on the `login` entry |
+| Hover `auth.login` | Shows English / Persian values, namespace, source |
+| Type inside `t("auth.")` | Completes `auth.login`, `auth.logout`, … |
 | Unused catalog entry | Warning on the locale file |
 | Key may be covered only by dynamic usage | Info: “may be unused” with related dynamic call site |
 | Hardcoded JSX / UI attribute text | Info: `untranslated-text` |
 | Key missing from another locale | Warning on the base catalog entry |
-| Edit the source or the locale | Diagnostics update after the server's debounce |
+| Edit the source or the locale | Features update after the server's debounce |
 
 Severities, ignore patterns, and analyzer behavior still come from the project's
 `i18n-doctor` config. This extension only contributes editor-side overrides.
@@ -111,8 +120,9 @@ So a published extension is self-contained.
 
 ### Changelog (recent)
 
+- **0.11.0** — Go to Translation, Hover, Completion (Phase 20)
+- **0.10.2** — Bundled LS with unified config / `ignoreKeys`
 - **0.9.4** — Bundled analyzer: prop-passed `t`, static key concat, soft unused for dynamic keys, `untranslated-text` (info)
-- Earlier — LSP client, self-contained server bundle, marketplace icon
 
 ### Extension icon
 
@@ -131,6 +141,5 @@ JetBrains / WebStorm plugin (same language server):
 
 ## Scope
 
-Diagnostics only. Completion, hover, code actions, and auto-fix are out of
-scope for this phase — they belong in later IDE work on top of the same
-language server.
+Diagnostics, Go to Translation, Hover, and Completion come from the language
+server. Code actions / auto-fix remain out of scope for this phase.

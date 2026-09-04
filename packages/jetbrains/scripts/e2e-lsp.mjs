@@ -134,6 +134,18 @@ async function main() {
       initializationOptions: { languageServer: { debounce: 50 } },
     });
     assert(init?.capabilities, "initialize must return capabilities");
+    assert(
+      init.capabilities.definitionProvider === true,
+      "must advertise definitionProvider",
+    );
+    assert(
+      init.capabilities.hoverProvider === true,
+      "must advertise hoverProvider",
+    );
+    assert(
+      init.capabilities.completionProvider?.triggerCharacters?.includes("."),
+      "must advertise completionProvider",
+    );
     connection.sendNotification("initialized", {});
 
     connection.sendNotification("textDocument/didOpen", {
@@ -156,6 +168,25 @@ async function main() {
     assert(
       underlined === '"auth.nonexistent"',
       `range must underline the key literal, got ${JSON.stringify(underlined)}`,
+    );
+
+    // Go to Translation on auth.login
+    const loginKey = "auth.login";
+    const keyIndex = loginText.indexOf(loginKey);
+    assert(keyIndex >= 0, "demo Login.tsx must contain auth.login");
+    const before = loginText.slice(0, keyIndex);
+    const keyLines = before.split(/\n/);
+    const def = await connection.sendRequest("textDocument/definition", {
+      textDocument: { uri: loginUri },
+      position: {
+        line: keyLines.length - 1,
+        character: (keyLines[keyLines.length - 1] ?? "").length + 2,
+      },
+    });
+    assert(Array.isArray(def) && def.length > 0, "definition must return locations");
+    assert(
+      String(def[0].uri).includes("locales/en.json"),
+      `definition should target en.json, got ${def[0].uri}`,
     );
 
     // Unsaved locale buffer with the key present → diagnostic clears.

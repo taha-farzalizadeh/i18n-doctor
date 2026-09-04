@@ -161,6 +161,30 @@ Capture from `npm run runIde -w i18n-doctor-jetbrains` + `examples/demo-project`
 - Use channel **default** for public releases.
 - Use channel **eap** only if you intentionally ship pre-releases.
 
+## Change notes (0.11.0)
+
+```html
+<h3>0.11.0</h3>
+<p>Phase 20 — Translation Intelligence (Go to Translation, Hover, Completion).</p>
+<ul>
+  <li><b>Go to Translation</b> — navigate from <code>t("key")</code> to the catalog entry</li>
+  <li><b>Hover</b> — show locale values, namespace, and source location</li>
+  <li><b>Completion</b> — suggest translation keys inside supported calls</li>
+  <li>Shared translation index with ESLint / analyzer (no second parser)</li>
+</ul>
+```
+
+## Change notes (0.10.3)
+
+```html
+<h3>0.10.3</h3>
+<p>Marketplace integrity fix: do not disturb the IDE Trial widget.</p>
+<ul>
+  <li>Start the language server only in i18n-relevant projects (config, i18n deps, or locales)</li>
+  <li>Skip automatic start when Node.js / server binary is unavailable — log instead of throwing</li>
+</ul>
+```
+
 ## Change notes (0.10.2)
 
 ```html

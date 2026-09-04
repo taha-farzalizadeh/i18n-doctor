@@ -7,6 +7,12 @@ No second parser, locale extractor, or project scanner lives in this package —
 call the existing `@i18n-doctor/cli` pipeline once per ESLint run and map diagnostics
 to `context.report()`.
 
+> **ESLint provides diagnostics only.** Go to Translation, Hover, and Completion
+> are provided by `@i18n-doctor/language-server` (via the VS Code and JetBrains
+> extensions). Key existence uses the same catalog + `definitionMatchesUsage`
+> rules as `@i18n-doctor/translation-index`, so `no-missing-key` and the Language
+> Server agree.
+
 ## Install
 
 ```bash

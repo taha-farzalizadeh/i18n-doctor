@@ -1,12 +1,17 @@
 # @i18n-doctor/language-server
 
-Live i18n diagnostics in any LSP-compatible editor. The server is an adapter: it
-translates i18n-doctor analysis into LSP diagnostics and does no analysis of its
+Live i18n diagnostics plus **Go to Translation**, **Hover**, and **Completion**
+in any LSP-compatible editor. The server is an adapter: it translates
+i18n-doctor analysis into LSP features and does no independent parsing of its
 own.
 
 ```
-IDE → LSP → language-server → i18n-doctor analyzer → issues → diagnostics → underline
+IDE → LSP → language-server → analyzer + translation-index → diagnostics / definition / hover / completion
 ```
+
+> **ESLint provides diagnostics.** Go to Translation, Hover, and Completion are
+> provided by this Language Server and consumed by the VS Code and JetBrains
+> extensions.
 
 ## Install
 
@@ -42,6 +47,19 @@ startLanguageServer();
 const server = createLanguageServer({ connection, logLevel: "debug" });
 server.listen();
 ```
+
+## Features
+
+| LSP method | Behavior |
+| --- | --- |
+| `textDocument/publishDiagnostics` | Missing / unused / duplicate / coverage / untranslated |
+| `textDocument/definition` | Go to Translation — exact catalog range for the key under the cursor |
+| `textDocument/hover` | Key, locale values, namespace, source location (or missing warning) |
+| `textDocument/completion` | Namespace-aware key suggestions inside `t("...")` / aliases |
+
+The translation index is built from the existing `TranslationCatalog` and
+cached per scope. Hover / completion / definition do **not** rebuild the whole
+project on every keystroke.
 
 ## Diagnostics
 
@@ -129,5 +147,5 @@ attached.
 
 ## Scope
 
-This package publishes diagnostics only. Completion, hover, code actions, and
-fixes are deliberately out of scope.
+Diagnostics, Go to Translation, Hover, and Completion are in scope (Phase 20).
+Code actions and auto-fixes remain out of scope for this package.

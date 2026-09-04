@@ -7,7 +7,7 @@ import { createServerCore, TextDocumentSyncKind } from "../src/server.js";
 import { discoverWorkspace, pathToUri } from "../src/workspace.js";
 
 describe("initialization", () => {
-  it("advertises incremental document sync and no other capabilities", async () => {
+  it("advertises incremental sync plus definition, hover, and completion", async () => {
     const root = await fixture(flatProject());
     const h = harness(root);
 
@@ -20,10 +20,20 @@ describe("initialization", () => {
       openClose: true,
       change: TextDocumentSyncKind.Incremental,
     });
+    expect(result.capabilities.definitionProvider).toBe(true);
+    expect(result.capabilities.hoverProvider).toBe(true);
+    expect(result.capabilities.completionProvider.triggerCharacters).toEqual([
+      '"',
+      "'",
+      ".",
+      ":",
+    ]);
     expect(result.capabilities.workspace.workspaceFolders.supported).toBe(true);
     expect(result.serverInfo.name).toBe("i18n-doctor-language-server");
-    // Phase 16 is diagnostics-only.
-    expect(Object.keys(result.capabilities)).toEqual([
+    expect(Object.keys(result.capabilities).sort()).toEqual([
+      "completionProvider",
+      "definitionProvider",
+      "hoverProvider",
       "textDocumentSync",
       "workspace",
     ]);

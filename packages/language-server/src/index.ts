@@ -2,11 +2,9 @@
  * @i18n-doctor/language-server
  *
  * IDE-agnostic Language Server that turns i18n-doctor analysis into live LSP
- * diagnostics. Analysis is delegated entirely to
- * @i18n-doctor/{cli,config,context,coverage,detect,issues,sources,usages}.
- *
- * This phase publishes diagnostics only — no completion, hover, code actions,
- * or fixes.
+ * diagnostics plus Go to Translation, Hover, and Completion.
+ * Analysis and the translation index are delegated to
+ * @i18n-doctor/{cli,config,context,coverage,detect,issues,sources,translation-index,usages}.
  */
 
 import {
@@ -155,6 +153,11 @@ export function createLanguageServer(
           openClose: true,
           change: TextDocumentSyncKind.Incremental,
         },
+        definitionProvider: true,
+        hoverProvider: true,
+        completionProvider: {
+          triggerCharacters: ['"', "'", ".", ":"],
+        },
         workspace: {
           workspaceFolders: { supported: true, changeNotifications: true },
         },
@@ -174,6 +177,21 @@ export function createLanguageServer(
   connection.onDidChangeWatchedFiles((params) =>
     core.didChangeWatchedFiles(params),
   );
+  connection.onDefinition((params) => core.definition(params));
+  connection.onHover((params) => core.hover(params));
+  connection.onCompletion(async (params) => {
+    const result = await core.completion(params);
+    return result.items.map((item) => ({
+      label: item.label,
+      kind: item.kind as 1 | 21,
+      ...(item.detail !== undefined ? { detail: item.detail } : {}),
+      ...(item.documentation !== undefined
+        ? { documentation: item.documentation }
+        : {}),
+      ...(item.insertText !== undefined ? { insertText: item.insertText } : {}),
+      ...(item.filterText !== undefined ? { filterText: item.filterText } : {}),
+    }));
+  });
   // Subscribed as a raw notification: `connection.workspace.onDidChange…`
   // throws when the client did not advertise workspace-folder support.
   connection.onNotification(

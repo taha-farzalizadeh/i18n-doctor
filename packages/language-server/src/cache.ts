@@ -9,8 +9,9 @@
 
 import path from "node:path";
 import type { CoverageResult } from "@i18n-doctor/coverage";
-import type { AnalysisResult } from "@i18n-doctor/issues";
+import type { AnalysisResult, MatchContext } from "@i18n-doctor/issues";
 import type { TranslationCatalog } from "@i18n-doctor/sources";
+import type { TranslationIndex } from "@i18n-doctor/translation-index";
 import type { UsageCatalog } from "@i18n-doctor/usages";
 import { isConfigPath, isWithin, pathKey, type PlatformId } from "./workspace.js";
 
@@ -53,6 +54,10 @@ export interface ScopeCacheEntry {
   usageCatalog?: UsageCatalog;
   analysis?: AnalysisResult;
   coverage?: CoverageResult;
+  /** Derived from sourceCatalog; rebuilt when sources refresh. */
+  translationIndex?: TranslationIndex;
+  matchContext?: MatchContext;
+  preferredLocales?: readonly string[];
   /** Set when the last analysis attempt failed; kept for logging only. */
   lastError?: string;
   dirty: Invalidation;
@@ -133,6 +138,10 @@ export function createAnalysisCache(options?: {
       usages: target.dirty.usages || next.usages,
       config: target.dirty.config || next.config,
     };
+    // Index is derived from the source catalog — drop it when sources go dirty.
+    if (next.sources || next.config) {
+      delete target.translationIndex;
+    }
   };
 
   return {

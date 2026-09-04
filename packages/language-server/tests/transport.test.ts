@@ -138,9 +138,14 @@ describe("stdio transport", () => {
     expect(result.capabilities.workspace?.workspaceFolders?.supported).toBe(
       true,
     );
-    // Diagnostics only: nothing else is advertised in this phase.
-    expect(result.capabilities.completionProvider).toBeUndefined();
-    expect(result.capabilities.hoverProvider).toBeUndefined();
+    expect(result.capabilities.definitionProvider).toBe(true);
+    expect(result.capabilities.hoverProvider).toBe(true);
+    expect(result.capabilities.completionProvider?.triggerCharacters).toEqual([
+      '"',
+      "'",
+      ".",
+      ":",
+    ]);
     expect(result.capabilities.codeActionProvider).toBeUndefined();
   });
 

@@ -7,11 +7,15 @@
     <h2>Live i18n diagnostics for JavaScript &amp; TypeScript</h2>
     <p>
       Underlines <b>missing</b>, <b>unused</b>, and <b>duplicate</b> translation keys
-      as you type. Powered by the bundled <code>i18n-doctor</code> language server
+      as you type. Also provides <b>Go to Translation</b>, <b>Hover</b>, and
+      <b>Completion</b> via the bundled <code>i18n-doctor</code> language server
       over LSP — this plugin does not re-implement analysis.
     </p>
     <ul>
       <li><code>t("auth.nonexistent")</code> — underlines exactly <code>"auth.nonexistent"</code></li>
+      <li>Cmd/Ctrl+Click a key — jump to its catalog entry</li>
+      <li>Hover a key — see locale values, namespace, and source</li>
+      <li>Type inside <code>t("…")</code> — complete translation keys</li>
       <li>Unused catalog keys — highlighted on the property name in every locale file</li>
       <li>Live updates for unsaved buffers — no IDE restart</li>
       <li>No project dependency — the language server is shipped inside the plugin</li>
@@ -34,6 +38,20 @@
   ]]></description>
 
   <change-notes><![CDATA[
+    <h3>0.11.0</h3>
+    <p>Phase 20 — Translation Intelligence (Go to Translation, Hover, Completion).</p>
+    <ul>
+      <li><b>Go to Translation</b> — navigate from <code>t("key")</code> to the catalog entry</li>
+      <li><b>Hover</b> — show locale values, namespace, and source location</li>
+      <li><b>Completion</b> — suggest translation keys inside supported calls</li>
+      <li>Shared translation index with ESLint / analyzer (no second parser)</li>
+    </ul>
+    <h3>0.10.3</h3>
+    <p>Marketplace integrity fix: do not disturb the IDE Trial widget.</p>
+    <ul>
+      <li>Start the language server only in i18n-relevant projects (config, i18n deps, or locales)</li>
+      <li>Skip automatic start when Node.js / server binary is unavailable — log instead of throwing</li>
+    </ul>
     <h3>0.10.2</h3>
     <p>Monorepo release with settings, <code>ignoreKeys</code>, and ESLint cache fixes.</p>
     <ul>

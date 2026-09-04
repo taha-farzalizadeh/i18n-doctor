@@ -35,6 +35,16 @@ import { createProject, type Project } from "./project.js";
 import type { PublishDiagnosticsParams } from "./protocol.js";
 import { createScheduler, type Scheduler, type TimerApi } from "./scheduler.js";
 import {
+  resolveCompletion,
+  resolveDefinition,
+  resolveHover,
+} from "./intelligence/handlers.js";
+import type {
+  ProtocolCompletionItem,
+  ProtocolHover,
+  ProtocolLocation,
+} from "./intelligence/format.js";
+import {
   currentPlatform,
   isWithin,
   normalizePath,
@@ -70,6 +80,11 @@ export interface InitializeResultLike {
     readonly textDocumentSync: {
       readonly openClose: true;
       readonly change: typeof TextDocumentSyncKind.Incremental;
+    };
+    readonly definitionProvider: true;
+    readonly hoverProvider: true;
+    readonly completionProvider: {
+      readonly triggerCharacters: readonly string[];
     };
     readonly workspace: {
       readonly workspaceFolders: {
@@ -138,6 +153,18 @@ export interface ServerCore {
       readonly removed?: readonly { readonly uri: string }[];
     };
   }): void;
+  definition(params: {
+    readonly textDocument: { readonly uri: string };
+    readonly position: { readonly line: number; readonly character: number };
+  }): Promise<ProtocolLocation[]>;
+  hover(params: {
+    readonly textDocument: { readonly uri: string };
+    readonly position: { readonly line: number; readonly character: number };
+  }): Promise<ProtocolHover | null>;
+  completion(params: {
+    readonly textDocument: { readonly uri: string };
+    readonly position: { readonly line: number; readonly character: number };
+  }): Promise<{ readonly items: readonly ProtocolCompletionItem[]; readonly isIncomplete: false }>;
   shutdown(): Promise<void>;
   exit(): void;
   /** Resolves when all scheduled analysis has settled. */
@@ -153,7 +180,7 @@ export interface ServerCore {
 }
 
 export const SERVER_NAME = "i18n-doctor-language-server";
-export const SERVER_VERSION = "0.9.1";
+export const SERVER_VERSION = "0.11.0";
 
 export function createServerCore(options: ServerCoreOptions): ServerCore {
   const platform = options.platform ?? currentPlatform();
@@ -310,6 +337,25 @@ export function createServerCore(options: ServerCoreOptions): ServerCore {
     return created;
   }
 
+  async function ensureIntelligenceFor(absolutePath: string) {
+    const matching = projects.filter((project) =>
+      isWithin(project.root, absolutePath, platform),
+    );
+    const targets = matching.length > 0 ? matching : projects;
+    for (const project of targets) {
+      try {
+        const intelligence = await project.ensureIntelligence(absolutePath);
+        if (intelligence) return intelligence;
+      } catch (error) {
+        logger.exception(
+          `intelligence failed for ${absolutePath}`,
+          error,
+        );
+      }
+    }
+    return undefined;
+  }
+
   function applyOverrides(next: LanguageServerConfig): void {
     overrides = next;
     for (const project of projects) project.setOverrides(next);
@@ -354,6 +400,11 @@ export function createServerCore(options: ServerCoreOptions): ServerCore {
           textDocumentSync: {
             openClose: true,
             change: TextDocumentSyncKind.Incremental,
+          },
+          definitionProvider: true,
+          hoverProvider: true,
+          completionProvider: {
+            triggerCharacters: ['"', "'", ".", ":"],
           },
           workspace: {
             workspaceFolders: {
@@ -478,6 +529,62 @@ export function createServerCore(options: ServerCoreOptions): ServerCore {
       // Ownership is recomputed from scratch for the new folder set.
       publish(index.releaseAll());
       scheduler.schedule("didChangeWorkspaceFolders");
+    },
+
+    async definition(params) {
+      const filePath = pathOf(params.textDocument.uri);
+      if (filePath === undefined || state !== "initialized") return [];
+      const intelligence = await ensureIntelligenceFor(filePath);
+      if (!intelligence) return [];
+      return resolveDefinition(
+        intelligence,
+        {
+          uri: params.textDocument.uri,
+          absolutePath: filePath,
+          position: params.position,
+          ...(documents.get(params.textDocument.uri)
+            ? { documentText: documents.get(params.textDocument.uri)!.text }
+            : {}),
+        },
+        platform,
+      );
+    },
+
+    async hover(params) {
+      const filePath = pathOf(params.textDocument.uri);
+      if (filePath === undefined || state !== "initialized") return null;
+      const intelligence = await ensureIntelligenceFor(filePath);
+      if (!intelligence) return null;
+      return resolveHover(
+        intelligence,
+        {
+          uri: params.textDocument.uri,
+          absolutePath: filePath,
+          position: params.position,
+        },
+        platform,
+      );
+    },
+
+    async completion(params) {
+      const filePath = pathOf(params.textDocument.uri);
+      if (filePath === undefined || state !== "initialized") {
+        return { items: [], isIncomplete: false };
+      }
+      const intelligence = await ensureIntelligenceFor(filePath);
+      if (!intelligence) return { items: [], isIncomplete: false };
+      const doc = documents.get(params.textDocument.uri);
+      const items = resolveCompletion(
+        intelligence,
+        {
+          uri: params.textDocument.uri,
+          absolutePath: filePath,
+          position: params.position,
+          ...(doc ? { documentText: doc.text } : {}),
+        },
+        platform,
+      );
+      return { items, isIncomplete: false };
     },
 
     async shutdown() {

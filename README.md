@@ -1,9 +1,13 @@
 # i18n-doctor
 
-> **Beta — v0.10.0**
+> **Beta — v0.11.0**
 > This is an early release. APIs may change, edge cases exist, and your feedback matters. See [Contributing](#contributing) to help shape the project.
 
 Static localization analysis for JavaScript and TypeScript projects. Finds unused, missing, and duplicate translation keys — and hardcoded UI text that never goes through translation — without executing your code.
+
+**Phase 20 — Translation Intelligence:** VS Code and JetBrains extensions now
+support Go to Translation, Hover, and Completion via the Language Server.
+ESLint continues to provide diagnostics only (same analyzer / key matching).
 
 ---
 

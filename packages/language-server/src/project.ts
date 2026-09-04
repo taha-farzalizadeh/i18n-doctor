@@ -22,8 +22,17 @@ import {
   createDetector,
   type ProjectDetectionResult,
 } from "@i18n-doctor/detect";
+import {
+  matchContextFromOptions,
+  type MatchContext,
+} from "@i18n-doctor/issues";
 import type { FileSystemPort } from "@i18n-doctor/scanner";
-import { createAnalysisCache, type AnalysisCache } from "./cache.js";
+import {
+  buildTranslationIndex,
+  type TranslationIndex,
+} from "@i18n-doctor/translation-index";
+import type { UsageCatalog } from "@i18n-doctor/usages";
+import { createAnalysisCache, type AnalysisCache, type ScopeCacheEntry } from "./cache.js";
 import {
   coverageToDiagnostics,
   issueToDiagnostic,
@@ -31,8 +40,12 @@ import {
   type LocatedDiagnostic,
 } from "./diagnostics.js";
 import { describeError, type Logger } from "./logger.js";
-import type { PlatformId } from "./workspace.js";
-import { discoverWorkspace, type DiscoveredWorkspace } from "./workspace.js";
+import {
+  discoverWorkspace,
+  isWithin,
+  type DiscoveredWorkspace,
+  type PlatformId,
+} from "./workspace.js";
 
 export interface ProjectIo {
   readonly fs?: FileSystemPort;
@@ -73,11 +86,28 @@ export interface Project {
   /** Records a changed file so the next analysis reruns only what it affects. */
   invalidateFile(absolutePath: string): void;
   analyze(options?: { readonly signal?: AbortSignal }): Promise<ProjectAnalysis>;
+  /**
+   * Ensures the translation index (and usage catalog) for the scope that owns
+   * `absolutePath` is ready. Rebuilds only dirty halves — never a full rescan
+   * when caches are warm.
+   */
+  ensureIntelligence(
+    absolutePath: string,
+    options?: { readonly signal?: AbortSignal },
+  ): Promise<ScopeIntelligence | undefined>;
   /** Effective language-server settings, including caller overrides. */
   settings(): Required<LanguageServerConfig>;
   setOverrides(overrides: LanguageServerConfig): void;
   scopeRoots(): readonly string[];
   workspace(): DiscoveredWorkspace;
+}
+
+export interface ScopeIntelligence {
+  readonly scopeRoot: string;
+  readonly index: TranslationIndex;
+  readonly usageCatalog: UsageCatalog | undefined;
+  readonly matchContext: MatchContext;
+  readonly preferredLocales: readonly string[];
 }
 
 export function createProject(options: ProjectOptions): Project {
@@ -140,6 +170,21 @@ export function createProject(options: ProjectOptions): Project {
     return detection;
   };
 
+  const scopeForPath = (absolutePath: string): EffectiveConfig | undefined => {
+    const platform = options.platform;
+    let best: EffectiveConfig | undefined;
+    let bestLen = -1;
+    for (const scope of workspace.scopes) {
+      const root = scopeRootOf(scope);
+      if (!isWithin(root, absolutePath, platform)) continue;
+      if (root.length > bestLen) {
+        best = scope;
+        bestLen = root.length;
+      }
+    }
+    return best ?? workspace.scopes[0];
+  };
+
   return {
     get root() {
       return workspace.root;
@@ -190,6 +235,12 @@ export function createProject(options: ProjectOptions): Project {
 
         if (!isDirty && entry.analysis) {
           cachedScopes += 1;
+          if (!entry.translationIndex && entry.sourceCatalog) {
+            entry.translationIndex = buildTranslationIndex(entry.sourceCatalog, {
+              matchContext: entry.matchContext ?? matchContextFromOptions({}),
+              preferredLocales: entry.preferredLocales ?? [],
+            });
+          }
         } else {
           try {
             const result = await analyzeScope({
@@ -217,6 +268,28 @@ export function createProject(options: ProjectOptions): Project {
             entry.usageCatalog = result.usageCatalog;
             entry.analysis = result.analysis;
             delete entry.lastError;
+
+            const preferredLocales = result.context.effective.defaultLocale
+              ? [result.context.effective.defaultLocale]
+              : [];
+            const matchContext = matchContextFromOptions({
+              matchNamespace: true,
+              ...(result.context.effective.defaultNS !== undefined
+                ? { defaultNS: result.context.effective.defaultNS }
+                : {}),
+              ...(result.context.effective.fallbackNS !== undefined
+                ? { fallbackNS: result.context.effective.fallbackNS }
+                : {}),
+            });
+            entry.matchContext = matchContext;
+            entry.preferredLocales = preferredLocales;
+            entry.translationIndex = buildTranslationIndex(
+              result.sourceCatalog,
+              {
+                matchContext,
+                preferredLocales,
+              },
+            );
 
             const coverage = config.coverage
               ? analyzeCoverage(
@@ -262,6 +335,114 @@ export function createProject(options: ProjectOptions): Project {
         cachedScopes,
       };
     },
+
+    async ensureIntelligence(absolutePath, ensureOptions) {
+      const signal = ensureOptions?.signal;
+      if (configDirty) {
+        applyRefresh();
+      }
+      cache.retainScopes(workspace.scopes.map(scopeRootOf));
+
+      const scope = scopeForPath(absolutePath);
+      if (!scope) return undefined;
+      const scopeRoot = scopeRootOf(scope);
+      const entry = cache.entry(scopeRoot);
+
+      // Rebuild only when the source half (or config) is dirty / catalog missing.
+      const needsSources =
+        entry.dirty.sources || entry.dirty.config || !entry.sourceCatalog;
+      const needsUsages = entry.dirty.usages || !entry.usageCatalog;
+
+      if (needsSources || needsUsages) {
+        const detected = await ensureDetection();
+        throwIfCancelled(signal);
+        const libraryHints = resolveLibraryHints(detected);
+        try {
+          const result = await analyzeScope({
+            scope,
+            ...(libraryHints ? { libraryHints } : {}),
+            limits,
+            useDetection: true,
+            io: {
+              ...(io.fs ? { fs: io.fs } : {}),
+              ...(io.fileExists ? { fileExists: io.fileExists } : {}),
+              ...(io.readFile ? { readFile: io.readFile } : {}),
+              ...(io.readDir ? { readDir: io.readDir } : {}),
+            },
+            ...(!needsSources && entry.sourceCatalog
+              ? { sourceCatalog: entry.sourceCatalog }
+              : {}),
+            ...(!needsUsages && entry.usageCatalog
+              ? { usageCatalog: entry.usageCatalog }
+              : {}),
+            ...(signal ? { signal } : {}),
+          });
+
+          if (needsSources || !entry.sourceCatalog) {
+            entry.sourceCatalog = result.sourceCatalog;
+            const preferredLocales = result.context.effective.defaultLocale
+              ? [result.context.effective.defaultLocale]
+              : [];
+            const matchContext = matchContextFromOptions({
+              matchNamespace: true,
+              ...(result.context.effective.defaultNS !== undefined
+                ? { defaultNS: result.context.effective.defaultNS }
+                : {}),
+              ...(result.context.effective.fallbackNS !== undefined
+                ? { fallbackNS: result.context.effective.fallbackNS }
+                : {}),
+            });
+            entry.matchContext = matchContext;
+            entry.preferredLocales = preferredLocales;
+            entry.translationIndex = buildTranslationIndex(
+              result.sourceCatalog,
+              { matchContext, preferredLocales },
+            );
+          }
+          if (needsUsages || !entry.usageCatalog) {
+            entry.usageCatalog = result.usageCatalog;
+          }
+          entry.dirty = {
+            sources: false,
+            usages: false,
+            config: false,
+          };
+          if (!entry.analysis) {
+            entry.analysis = result.analysis;
+          }
+        } catch (error) {
+          if (error instanceof AnalysisCancelledError) throw error;
+          logger.exception(
+            `intelligence refresh failed for ${scopeRoot}`,
+            error,
+          );
+          return intelligenceFromEntry(entry, scopeRoot);
+        }
+      }
+
+      if (!entry.translationIndex && entry.sourceCatalog) {
+        entry.translationIndex = buildTranslationIndex(entry.sourceCatalog, {
+          matchContext: entry.matchContext ?? matchContextFromOptions({}),
+          preferredLocales: entry.preferredLocales ?? [],
+        });
+      }
+
+      return intelligenceFromEntry(entry, scopeRoot);
+    },
+  };
+}
+
+function intelligenceFromEntry(
+  entry: ScopeCacheEntry,
+  scopeRoot: string,
+): ScopeIntelligence | undefined {
+  if (!entry.translationIndex) return undefined;
+  return {
+    scopeRoot,
+    index: entry.translationIndex,
+    usageCatalog: entry.usageCatalog,
+    matchContext: entry.matchContext ?? matchContextFromOptions({}),
+    preferredLocales: entry.preferredLocales ?? [],
   };
 }
 

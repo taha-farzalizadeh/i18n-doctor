@@ -23,9 +23,15 @@ namespaces are not flattened.
 
 1. Open `src/Login.tsx`. `t("nonexistent")` is underlined with
    `Translation key "auth:nonexistent" does not exist.`
-2. Add `"nonexistent": "Reset"` to `public/locales/en/auth.json`. The underline
+2. **Go to Translation** — Cmd/Ctrl+Click / F12 on a known key → catalog entry.
+3. **Hover** a key → locale values, namespace, source.
+4. **Completion** — type inside `t("…")` → key suggestions with detail.
+5. Add `"nonexistent": "Reset"` to `public/locales/en/auth.json`. The underline
    disappears within one debounce window, without saving `Login.tsx`.
-3. Remove the key again. The underline comes back.
+6. Remove the key again. The underline comes back.
+
+> ESLint provides diagnostics only. Go to Translation, Hover, and Completion
+> come from this Language Server.
 
 ## Running the server directly
 

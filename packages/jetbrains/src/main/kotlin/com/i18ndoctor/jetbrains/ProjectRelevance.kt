@@ -29,7 +29,7 @@ object ProjectRelevance {
     "@i18n-doctor/language-server",
   )
 
-  private val CONFIG_NAMES = setOf(
+  val CONFIG_FILE_NAMES: Set<String> = setOf(
     "i18n-doctor.config.ts",
     "i18n-doctor.config.js",
     "i18n-doctor.config.mjs",
@@ -47,7 +47,7 @@ object ProjectRelevance {
     return false
   }
 
-  fun isConfigFileName(name: String): Boolean = name in CONFIG_NAMES
+  fun isConfigFileName(name: String): Boolean = name in CONFIG_FILE_NAMES
 
   fun looksRelevant(
     hasConfigFile: Boolean,

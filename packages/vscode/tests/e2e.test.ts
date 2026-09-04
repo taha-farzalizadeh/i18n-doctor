@@ -349,4 +349,49 @@ describe("bundled server end-to-end", () => {
     expect(await client.exitCode()).toBe(0);
     expect(client.stderr()).toBe("");
   }, 60_000);
+
+  it("advertises definition, hover, and completion (Phase 20)", async () => {
+    const project = makeProject("intel-caps", flatFiles());
+    const client = connect();
+    const result = (await initialize(client, [project.root])) as {
+      capabilities?: {
+        definitionProvider?: boolean;
+        hoverProvider?: boolean;
+        completionProvider?: { triggerCharacters?: string[] };
+      };
+    };
+
+    expect(result.capabilities?.definitionProvider).toBe(true);
+    expect(result.capabilities?.hoverProvider).toBe(true);
+    expect(result.capabilities?.completionProvider?.triggerCharacters).toEqual(
+      expect.arrayContaining(['"', "'", "."]),
+    );
+  }, 60_000);
+
+  it("resolves Go to Translation for a known key", async () => {
+    const project = makeProject("intel-def", flatFiles());
+    const uri = project.uri("src/Login.tsx");
+    const client = connect();
+
+    await initialize(client, [project.root]);
+    await open(client, uri, LOGIN_TSX);
+    await client.waitFor(hasCode(uri, "missing-key"), "ready");
+
+    const needle = "auth.login";
+    const index = LOGIN_TSX.indexOf(needle);
+    const before = LOGIN_TSX.slice(0, index);
+    const lines = before.split("\n");
+    const position = {
+      line: lines.length - 1,
+      character: (lines[lines.length - 1] ?? "").length + 2,
+    };
+
+    const locations = (await client.connection.sendRequest(
+      "textDocument/definition",
+      { textDocument: { uri }, position },
+    )) as { uri: string; range: unknown }[] | null;
+
+    expect(Array.isArray(locations) && locations.length > 0).toBe(true);
+    expect(locations![0]!.uri).toContain("locales/en.json");
+  }, 60_000);
 });
