@@ -161,6 +161,18 @@ Capture from `npm run runIde -w i18n-doctor-jetbrains` + `examples/demo-project`
 - Use channel **default** for public releases.
 - Use channel **eap** only if you intentionally ship pre-releases.
 
+## Change notes (0.11.3)
+
+```html
+<h3>0.11.3</h3>
+<p>Static ternary keys count as used (no false unused warnings).</p>
+<ul>
+  <li><code>t(cond ? "A" : "B")</code> — both branches are usages</li>
+  <li><code>const k = cond ? "A" : "B"; t(k)</code> — same-file const ternaries resolve</li>
+  <li>Rebundled language server @ 0.11.2</li>
+</ul>
+```
+
 ## Change notes (0.11.2)
 
 ```html

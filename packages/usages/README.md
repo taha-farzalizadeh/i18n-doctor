@@ -7,6 +7,7 @@ helpers used by the issue engine:
 
 - Prop-passed translators (`{ t }` / `props.t`)
 - Static key composition (`"a" + "b"`, static templates, same-file `const`)
+- Static ternaries (`t(cond ? "A" : "B")`, `const k = cond ? "A" : "B"; t(k)`)
 - Dynamic key fragments (for soft unused hints)
 - Untranslated UI literals (JSX text / common attributes)
 

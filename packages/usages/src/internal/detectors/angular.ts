@@ -1,7 +1,7 @@
 import { traversalApi } from "@i18n-doctor/ast";
 import ts from "typescript";
 import type { LibraryUsageDetector, TranslationUsage } from "../../api/types.js";
-import { staticStringKey } from "../ast-helpers.js";
+import { staticStringKeys } from "../ast-helpers.js";
 import {
   fileImportsLibrary,
   NGX_MODULES,
@@ -60,23 +60,25 @@ export const angularUsageDetector: LibraryUsageDetector = {
       }
 
       const keyNode = node.arguments[0];
-      const key = staticStringKey(keyNode, sourceFile);
-      if (key === undefined || !keyNode) {
+      const keys = staticStringKeys(keyNode, sourceFile);
+      if (keys.length === 0 || !keyNode) {
         return;
       }
 
-      usages.push(
-        buildUsage({
-          key,
-          absolutePath,
-          relativePath,
-          location: locationOf(sourceFile, keyNode),
-          library: transloco && !ngx ? "transloco" : "ngx-translate",
-          confidence: 0.88,
-          context: "method-call",
-          evidence: `angular-detector: ${objectName}.${method}(...)`,
-        }),
-      );
+      for (const key of keys) {
+        usages.push(
+          buildUsage({
+            key,
+            absolutePath,
+            relativePath,
+            location: locationOf(sourceFile, keyNode),
+            library: transloco && !ngx ? "transloco" : "ngx-translate",
+            confidence: 0.88,
+            context: "method-call",
+            evidence: `angular-detector: ${objectName}.${method}(...)`,
+          }),
+        );
+      }
     });
 
     return usages;

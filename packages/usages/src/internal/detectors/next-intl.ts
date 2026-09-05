@@ -2,7 +2,7 @@ import { traversalApi } from "@i18n-doctor/ast";
 import ts from "typescript";
 import type { LibraryUsageDetector, TranslationUsage } from "../../api/types.js";
 import { resolveCalleeForUsage } from "../alias-resolve.js";
-import { calleeIdentifier, staticStringKey } from "../ast-helpers.js";
+import { calleeIdentifier, staticStringKeys } from "../ast-helpers.js";
 import {
   fileImportsLibrary,
   NEXT_INTL_MODULES,
@@ -38,8 +38,8 @@ export const nextIntlUsageDetector: LibraryUsageDetector = {
         return;
       }
       const keyNode = node.arguments[0];
-      const key = staticStringKey(keyNode, sourceFile);
-      if (key === undefined || !keyNode) {
+      const keys = staticStringKeys(keyNode, sourceFile);
+      if (keys.length === 0 || !keyNode) {
         return;
       }
       const pos = keyNode.getStart(sourceFile);
@@ -53,30 +53,32 @@ export const nextIntlUsageDetector: LibraryUsageDetector = {
       if (!binding || binding.library !== "next-intl") {
         return;
       }
-      const resolvedKey = binding.keyPrefix
-        ? `${binding.keyPrefix}.${key}`
-        : key;
-      usages.push(
-        buildUsage({
-          key: resolvedKey,
-          absolutePath,
-          relativePath,
-          location: locationOf(sourceFile, keyNode),
-          library: "next-intl",
-          ...(binding.namespace !== undefined
-            ? { namespace: binding.namespace }
-            : {}),
-          namespaceResolved: binding.namespace !== undefined,
-          confidence: Math.min(
-            binding.confidence,
-            alias.resolution.confidence,
-          ),
-          context: "function-call",
-          evidence: `next-intl-detector: ${binding.origin}${
-            alias.aliasEvidence ? ` (${alias.aliasEvidence})` : ""
-          }${binding.keyPrefix ? ` keyPrefix=${binding.keyPrefix}` : ""}`,
-        }),
-      );
+      for (const key of keys) {
+        const resolvedKey = binding.keyPrefix
+          ? `${binding.keyPrefix}.${key}`
+          : key;
+        usages.push(
+          buildUsage({
+            key: resolvedKey,
+            absolutePath,
+            relativePath,
+            location: locationOf(sourceFile, keyNode),
+            library: "next-intl",
+            ...(binding.namespace !== undefined
+              ? { namespace: binding.namespace }
+              : {}),
+            namespaceResolved: binding.namespace !== undefined,
+            confidence: Math.min(
+              binding.confidence,
+              alias.resolution.confidence,
+            ),
+            context: "function-call",
+            evidence: `next-intl-detector: ${binding.origin}${
+              alias.aliasEvidence ? ` (${alias.aliasEvidence})` : ""
+            }${binding.keyPrefix ? ` keyPrefix=${binding.keyPrefix}` : ""}`,
+          }),
+        );
+      }
     });
 
     return usages;

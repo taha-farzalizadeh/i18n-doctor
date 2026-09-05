@@ -7,7 +7,7 @@ import {
   jsxAttributeValue,
   jsxTagName,
   memberAccess,
-  staticStringKey,
+  staticStringKeys,
 } from "../ast-helpers.js";
 import {
   fileImportsLibrary,
@@ -68,20 +68,22 @@ export const reactIntlUsageDetector: LibraryUsageDetector = {
             return;
           }
           const keyNode = node.arguments[0];
-          const key = staticStringKey(keyNode, sourceFile);
-          if (key !== undefined && keyNode) {
-            usages.push(
-              buildUsage({
-                key,
-                absolutePath,
-                relativePath,
-                location: locationOf(sourceFile, keyNode),
-                library: "react-intl",
-                confidence: 0.7,
-                context: "function-call",
-                evidence: "react-intl-detector: formatMessage(string)",
-              }),
-            );
+          const keys = staticStringKeys(keyNode, sourceFile);
+          if (keys.length > 0 && keyNode) {
+            for (const key of keys) {
+              usages.push(
+                buildUsage({
+                  key,
+                  absolutePath,
+                  relativePath,
+                  location: locationOf(sourceFile, keyNode),
+                  library: "react-intl",
+                  confidence: 0.7,
+                  context: "function-call",
+                  evidence: "react-intl-detector: formatMessage(string)",
+                }),
+              );
+            }
           }
         }
       }

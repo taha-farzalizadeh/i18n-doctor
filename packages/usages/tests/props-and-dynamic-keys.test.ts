@@ -188,4 +188,51 @@ export function E({ t }) {
     });
     expect(catalog.usages.map((u) => u.key)).toContain("HELLO_AGAIN");
   });
+
+  it("resolves t(cond ? \"A\" : \"B\") to both static branches", async () => {
+    const root = await fixture({
+      "package.json": JSON.stringify({
+        dependencies: { "react-i18next": "14.0.0" },
+      }),
+      "src/Ternary.tsx": `
+import { useTranslation } from 'react-i18next';
+export function Ternary(isMultiSelect: boolean) {
+  const { t } = useTranslation();
+  return t(isMultiSelect ? "SELECT_DATASET" : "SELECT_DATASET_ITEM");
+}
+`,
+    });
+    const catalog = await createUsageDetector().detect({
+      root,
+      useDetection: false,
+    });
+    const keys = catalog.usages.map((u) => u.key);
+    expect(keys).toContain("SELECT_DATASET");
+    expect(keys).toContain("SELECT_DATASET_ITEM");
+    expect(catalog.dynamicUsages).toEqual([]);
+  });
+
+  it("resolves t(fallbackKey) when fallbackKey is a same-file ternary const", async () => {
+    const root = await fixture({
+      "package.json": JSON.stringify({
+        dependencies: { "react-i18next": "14.0.0" },
+      }),
+      "src/Fallback.tsx": `
+import { useTranslation } from 'react-i18next';
+export function Fallback(isMultiSelect: boolean, selectedName?: string) {
+  const { t } = useTranslation();
+  const fallbackKey = isMultiSelect ? "SELECT_DATASET" : "SELECT_DATASET_ITEM";
+  return selectedName ?? t(fallbackKey);
+}
+`,
+    });
+    const catalog = await createUsageDetector().detect({
+      root,
+      useDetection: false,
+    });
+    const keys = catalog.usages.map((u) => u.key);
+    expect(keys).toContain("SELECT_DATASET");
+    expect(keys).toContain("SELECT_DATASET_ITEM");
+    expect(catalog.dynamicUsages).toEqual([]);
+  });
 });

@@ -135,6 +135,9 @@ Project-wide rules such as **unused keys** report on locale catalog files when t
 files are included in your ESLint run. The analyzer is **not** re-executed for every
 source file or rule.
 
+Static ternaries (`t(cond ? "A" : "B")` and same-file `const k = …; t(k)`) count as
+usages — same behavior as the CLI and language server.
+
 ## Supported files
 
 - Source: `.js`, `.jsx`, `.ts`, `.tsx` (and anything the core analyzer already scans)

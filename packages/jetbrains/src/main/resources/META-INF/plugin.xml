@@ -38,6 +38,13 @@
   ]]></description>
 
   <change-notes><![CDATA[
+    <h3>0.11.3</h3>
+    <p>Static ternary keys count as used (no false unused warnings).</p>
+    <ul>
+      <li><code>t(cond ? "A" : "B")</code> — both branches are usages</li>
+      <li><code>const k = cond ? "A" : "B"; t(k)</code> — same-file const ternaries resolve</li>
+      <li>Rebundled language server @ 0.11.2</li>
+    </ul>
     <h3>0.11.2</h3>
     <p>Faster locale coverage warnings + <code>ignoreKeys</code> / coverage hardener.</p>
     <ul>

@@ -1,6 +1,6 @@
 # i18n-doctor for JetBrains (WebStorm)
 
-> **Beta — v0.11.2**
+> **Beta — v0.11.3**
 
 Live i18n diagnostics, **Go to Translation**, **Hover**, and **Completion** in
 WebStorm and other JetBrains IDEs that ship the platform LSP API. This plugin is
@@ -8,6 +8,12 @@ a **thin LSP client**: it starts the bundled
 [`@i18n-doctor/language-server`](../language-server) over stdio and lets the IDE
 render LSP results. It does **not** parse source, extract keys, or decide what
 is unused.
+
+## What's new in 0.11.3
+
+- **Static ternaries** — `t(cond ? "A" : "B")` and same-file
+  `const k = cond ? "A" : "B"; t(k)` both count as usages
+- Bundled language server @ 0.11.2
 
 ## What's new in 0.11.2
 

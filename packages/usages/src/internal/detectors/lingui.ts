@@ -2,7 +2,7 @@ import { traversalApi } from "@i18n-doctor/ast";
 import ts from "typescript";
 import type { LibraryUsageDetector, TranslationUsage } from "../../api/types.js";
 import { resolveCalleeForUsage } from "../alias-resolve.js";
-import { calleeIdentifier, staticStringKey } from "../ast-helpers.js";
+import { calleeIdentifier, staticStringKeys } from "../ast-helpers.js";
 import {
   fileImportsLibrary,
   LINGUI_MODULES,
@@ -36,8 +36,8 @@ export const linguiUsageDetector: LibraryUsageDetector = {
           return;
         }
         const keyNode = node.arguments[0];
-        const key = staticStringKey(keyNode, sourceFile);
-        if (key === undefined || !keyNode) {
+        const keys = staticStringKeys(keyNode, sourceFile);
+        if (keys.length === 0 || !keyNode) {
           return;
         }
         const pos = keyNode.getStart(sourceFile);
@@ -60,23 +60,25 @@ export const linguiUsageDetector: LibraryUsageDetector = {
         ) {
           return;
         }
-        usages.push(
-          buildUsage({
-            key,
-            absolutePath,
-            relativePath,
-            location: locationOf(sourceFile, keyNode),
-            library: "lingui",
-            confidence: Math.min(
-              binding?.confidence ?? 0.85,
-              alias.resolution.confidence,
-            ),
-            context: "function-call",
-            evidence: `lingui-detector: ${binding?.origin ?? `${ident}(...)`}${
-              alias.aliasEvidence ? ` (${alias.aliasEvidence})` : ""
-            }`,
-          }),
-        );
+        for (const key of keys) {
+          usages.push(
+            buildUsage({
+              key,
+              absolutePath,
+              relativePath,
+              location: locationOf(sourceFile, keyNode),
+              library: "lingui",
+              confidence: Math.min(
+                binding?.confidence ?? 0.85,
+                alias.resolution.confidence,
+              ),
+              context: "function-call",
+              evidence: `lingui-detector: ${binding?.origin ?? `${ident}(...)`}${
+                alias.aliasEvidence ? ` (${alias.aliasEvidence})` : ""
+              }`,
+            }),
+          );
+        }
       }
 
       if (ts.isTaggedTemplateExpression(node)) {

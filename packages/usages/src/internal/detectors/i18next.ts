@@ -9,7 +9,7 @@ import {
   calleeIdentifier,
   endsWithProperty,
   rootIdentifier,
-  staticStringKey,
+  staticStringKeys,
 } from "../ast-helpers.js";
 import { resolveCalleeForUsage } from "../alias-resolve.js";
 import {
@@ -52,8 +52,8 @@ export const i18nextUsageDetector: LibraryUsageDetector = {
       }
 
       const keyNode = node.arguments[0];
-      const key = staticStringKey(keyNode, sourceFile);
-      if (key === undefined || !keyNode) {
+      const keys = staticStringKeys(keyNode, sourceFile);
+      if (keys.length === 0 || !keyNode) {
         return;
       }
 
@@ -83,53 +83,57 @@ export const i18nextUsageDetector: LibraryUsageDetector = {
           const objectBinding = bindings.translationObjects.get(
             alias.member.object,
           );
-          const nsFields = resolveUsageNamespaces(
-            key,
-            optionsNs,
-            objectBinding,
-          );
-          usages.push(
-            buildUsage({
-              key: nsFields.key,
-              absolutePath,
-              relativePath,
-              location: locationOf(sourceFile, keyNode),
-              library,
-              ...nsFields.fields,
-              confidence: Math.min(
-                objectBinding?.confidence ?? 0.88,
-                alias.resolution.confidence,
-                nsFields.namespaceResolved ? 0.92 : 0.4,
-              ),
-              context: "function-call",
-              evidence: `i18next-detector: ${alias.aliasEvidence ?? `${alias.member.object}.t`}${nsFields.evidenceSuffix}`,
-            }),
-          );
+          for (const key of keys) {
+            const nsFields = resolveUsageNamespaces(
+              key,
+              optionsNs,
+              objectBinding,
+            );
+            usages.push(
+              buildUsage({
+                key: nsFields.key,
+                absolutePath,
+                relativePath,
+                location: locationOf(sourceFile, keyNode),
+                library,
+                ...nsFields.fields,
+                confidence: Math.min(
+                  objectBinding?.confidence ?? 0.88,
+                  alias.resolution.confidence,
+                  nsFields.namespaceResolved ? 0.92 : 0.4,
+                ),
+                context: "function-call",
+                evidence: `i18next-detector: ${alias.aliasEvidence ?? `${alias.member.object}.t`}${nsFields.evidenceSuffix}`,
+              }),
+            );
+          }
           return;
         }
 
         const binding = alias.binding;
         if (binding && isI18nextFamily(binding.library)) {
-          const nsFields = resolveUsageNamespaces(key, optionsNs, binding);
-          usages.push(
-            buildUsage({
-              key: nsFields.key,
-              absolutePath,
-              relativePath,
-              location: locationOf(sourceFile, keyNode),
-              library: binding.library,
-              ...nsFields.fields,
-              confidence: Math.min(
-                binding.confidence,
-                alias.resolution.confidence,
-                nsFields.namespaceResolved ? 1 : 0.4,
-              ),
-              context: "function-call",
-              evidence: `i18next-detector: ${binding.origin}${
-                alias.aliasEvidence ? ` (${alias.aliasEvidence})` : ""
-              }${nsFields.evidenceSuffix}`,
-            }),
-          );
+          for (const key of keys) {
+            const nsFields = resolveUsageNamespaces(key, optionsNs, binding);
+            usages.push(
+              buildUsage({
+                key: nsFields.key,
+                absolutePath,
+                relativePath,
+                location: locationOf(sourceFile, keyNode),
+                library: binding.library,
+                ...nsFields.fields,
+                confidence: Math.min(
+                  binding.confidence,
+                  alias.resolution.confidence,
+                  nsFields.namespaceResolved ? 1 : 0.4,
+                ),
+                context: "function-call",
+                evidence: `i18next-detector: ${binding.origin}${
+                  alias.aliasEvidence ? ` (${alias.aliasEvidence})` : ""
+                }${nsFields.evidenceSuffix}`,
+              }),
+            );
+          }
           return;
         }
       }
@@ -142,27 +146,29 @@ export const i18nextUsageDetector: LibraryUsageDetector = {
             bindings.translationObjects.has(root))
         ) {
           const objectBinding = bindings.translationObjects.get(root);
-          const nsFields = resolveUsageNamespaces(
-            key,
-            optionsNs,
-            objectBinding,
-          );
-          usages.push(
-            buildUsage({
-              key: nsFields.key,
-              absolutePath,
-              relativePath,
-              location: locationOf(sourceFile, keyNode),
-              library,
-              ...nsFields.fields,
-              confidence: Math.min(
-                0.88,
-                nsFields.namespaceResolved ? 0.88 : 0.4,
-              ),
-              context: "member-call",
-              evidence: `i18next-detector: ${root}.….t(...)${nsFields.evidenceSuffix}`,
-            }),
-          );
+          for (const key of keys) {
+            const nsFields = resolveUsageNamespaces(
+              key,
+              optionsNs,
+              objectBinding,
+            );
+            usages.push(
+              buildUsage({
+                key: nsFields.key,
+                absolutePath,
+                relativePath,
+                location: locationOf(sourceFile, keyNode),
+                library,
+                ...nsFields.fields,
+                confidence: Math.min(
+                  0.88,
+                  nsFields.namespaceResolved ? 0.88 : 0.4,
+                ),
+                context: "member-call",
+                evidence: `i18next-detector: ${root}.….t(...)${nsFields.evidenceSuffix}`,
+              }),
+            );
+          }
         }
       }
     });

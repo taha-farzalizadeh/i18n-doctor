@@ -24,6 +24,7 @@ Also understands common usage patterns that static tools often miss:
 - Prop-passed translators (`function Child({ t }) { return t("key") }`)
 - Static key composition (`t("HELLO_" + "AGAIN")`, same-file `const` keys)
 - Soft unused hints when a key may still be covered by dynamic usage (`t("HELLO_" + suffix)`)
+- Static ternaries count as usages (`t(cond ? "A" : "B")`, same-file `const` holding a ternary)
 
 Analysis is purely static. No runtime, no bundler, no side effects.
 
@@ -398,6 +399,14 @@ If something doesn't work on your project, please open an issue. That's exactly 
 
 ## Changelog (recent)
 
+### Static ternaries (2026-09)
+
+- **`t(cond ? "A" : "B")` and `const k = cond ? "A" : "B"; t(k)`** — both static
+  branches count as usages (no longer false unused warnings)
+- **npm** `i18n-doctor` / `@i18n-doctor/cli` / `@i18n-doctor/usages` **0.10.3**,
+  `@i18n-doctor/eslint-plugin` **0.10.4**, `@i18n-doctor/language-server` **0.11.2**
+- **JetBrains 0.11.3** / **VS Code 0.11.2** — rebundled language server
+
 ### Unified configuration (2026-09)
 
 - **`i18n-doctor.config.ts` is now the single source of truth** — the same file is consumed automatically by the **CLI**, the **ESLint plugin** (resolved relative to the linted project), and **IDE integrations** (resolved from the workspace root). No duplicated `ignoreKeys` in `eslint.config.js`, no second IDE config format.
@@ -411,7 +420,7 @@ If something doesn't work on your project, please open an issue. That's exactly 
 
 - **Untranslated text** — flag hardcoded JSX/UI strings not passed through translators (`untranslated-text`, default `info`)
 - **Prop-passed `t`** — detect usages when `t` is received via props
-- **Static key composition** — resolve `t("a" + "b")`, static templates, same-file `const` keys
+- **Static key composition** — resolve `t("a" + "b")`, static templates, same-file `const` keys, and static ternaries (`t(cond ? "A" : "B")`)
 - **Dynamic unused softening** — when `t("HELLO_" + suffix)` exists, matching catalog keys get an info “may be unused” hint instead of a hard unused warning
 - **JetBrains 0.9.5** / **VS Code 0.9.4** — rebundled language server with the above
 

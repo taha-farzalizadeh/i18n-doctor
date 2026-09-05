@@ -1,63 +1,99 @@
 import ts from "typescript";
 
 /**
- * Statically resolve a translation-key expression.
- * Supports:
- * - string / no-substitution templates
- * - `"a" + "b"` / nested concat (all parts static)
- * - `` `a${"b"}c` `` when every hole is static
- * - parentheses / `as` / satisfies wrappers
- * - same-file `const` string bindings (when `sourceFile` is provided)
+ * Statically resolve every translation key an expression can evaluate to.
+ * Supports everything {@link staticStringKey} does, plus:
+ * - `cond ? "A" : "B"` → both keys when each branch is static
+ * - same-file `const k = cond ? "A" : "B"` followed by `t(k)`
  *
- * Returns undefined for anything dynamic (e.g. `"HELLO_" + suffix`).
+ * Returns an empty array for anything partially dynamic
+ * (e.g. `"HELLO_" + suffix`, or a ternary with a dynamic branch).
+ */
+export function staticStringKeys(
+  node: ts.Expression | undefined,
+  sourceFile?: ts.SourceFile,
+  seen: Set<ts.Node> = new Set(),
+): readonly string[] {
+  if (!node) {
+    return [];
+  }
+  if (seen.has(node)) {
+    return [];
+  }
+  seen.add(node);
+
+  if (
+    ts.isAsExpression(node) ||
+    ts.isSatisfiesExpression(node) ||
+    ts.isParenthesizedExpression(node)
+  ) {
+    return staticStringKeys(node.expression, sourceFile, seen);
+  }
+
+  if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
+    return [node.text];
+  }
+
+  if (
+    ts.isBinaryExpression(node) &&
+    node.operatorToken.kind === ts.SyntaxKind.PlusToken
+  ) {
+    const left = staticStringKeys(node.left, sourceFile, seen);
+    const right = staticStringKeys(node.right, sourceFile, seen);
+    if (left.length === 1 && right.length === 1) {
+      return [left[0]! + right[0]!];
+    }
+    return [];
+  }
+
+  if (ts.isTemplateExpression(node)) {
+    let out = node.head.text;
+    for (const span of node.templateSpans) {
+      const part = staticStringKeys(span.expression, sourceFile, seen);
+      if (part.length !== 1) {
+        return [];
+      }
+      out += part[0]! + span.literal.text;
+    }
+    return [out];
+  }
+
+  if (ts.isConditionalExpression(node)) {
+    const whenTrue = staticStringKeys(
+      node.whenTrue,
+      sourceFile,
+      new Set(seen),
+    );
+    const whenFalse = staticStringKeys(
+      node.whenFalse,
+      sourceFile,
+      new Set(seen),
+    );
+    if (whenTrue.length === 0 || whenFalse.length === 0) {
+      return [];
+    }
+    return uniqueStrings([...whenTrue, ...whenFalse]);
+  }
+
+  if (ts.isIdentifier(node) && sourceFile) {
+    return resolveConstStringBindings(node, sourceFile, seen);
+  }
+
+  return [];
+}
+
+/**
+ * Statically resolve a single translation-key expression.
+ * Returns undefined when the expression is dynamic or expands to multiple keys
+ * (e.g. a ternary with two static branches — use {@link staticStringKeys}).
  */
 export function staticStringKey(
   node: ts.Expression | undefined,
   sourceFile?: ts.SourceFile,
   seen: Set<ts.Node> = new Set(),
 ): string | undefined {
-  if (!node) {
-    return undefined;
-  }
-  if (seen.has(node)) {
-    return undefined;
-  }
-  seen.add(node);
-
-  if (ts.isAsExpression(node) || ts.isSatisfiesExpression(node) || ts.isParenthesizedExpression(node)) {
-    return staticStringKey(node.expression, sourceFile, seen);
-  }
-
-  if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
-    return node.text;
-  }
-
-  if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.PlusToken) {
-    const left = staticStringKey(node.left, sourceFile, seen);
-    const right = staticStringKey(node.right, sourceFile, seen);
-    if (left === undefined || right === undefined) {
-      return undefined;
-    }
-    return left + right;
-  }
-
-  if (ts.isTemplateExpression(node)) {
-    let out = node.head.text;
-    for (const span of node.templateSpans) {
-      const part = staticStringKey(span.expression, sourceFile, seen);
-      if (part === undefined) {
-        return undefined;
-      }
-      out += part + span.literal.text;
-    }
-    return out;
-  }
-
-  if (ts.isIdentifier(node) && sourceFile) {
-    return resolveConstStringBinding(node, sourceFile, seen);
-  }
-
-  return undefined;
+  const keys = staticStringKeys(node, sourceFile, seen);
+  return keys.length === 1 ? keys[0] : undefined;
 }
 
 export interface StaticKeyFragments {
@@ -101,9 +137,17 @@ export function staticKeyFragments(
       return;
     }
 
-    const fully = staticStringKey(expr, sourceFile, new Set(seen));
-    if (fully !== undefined) {
-      add(contains, fully);
+    const fully = staticStringKeys(expr, sourceFile, new Set(seen));
+    if (fully.length > 0) {
+      for (const key of fully) add(contains, key);
+      return;
+    }
+
+    if (ts.isIdentifier(expr) && sourceFile) {
+      const initializer = findConstInitializer(expr, sourceFile);
+      if (initializer) {
+        walk(initializer);
+      }
       return;
     }
 
@@ -163,16 +207,16 @@ export function staticKeyFragments(
 
 /**
  * Resolve `const name = <static string expr>` declared before `id` in the same file.
- * Innermost / latest declaration before the use site wins.
+ * Supports multi-key initializers (ternaries). Innermost / latest declaration wins.
  */
-function resolveConstStringBinding(
+function resolveConstStringBindings(
   id: ts.Identifier,
   sourceFile: ts.SourceFile,
   seen: Set<ts.Node>,
-): string | undefined {
+): readonly string[] {
   const name = id.text;
   const usePos = id.getStart(sourceFile);
-  let best: { declPos: number; value: string } | undefined;
+  let best: { declPos: number; values: readonly string[] } | undefined;
 
   const visit = (node: ts.Node): void => {
     if (
@@ -193,11 +237,15 @@ function resolveConstStringBinding(
         ts.isVariableStatement(stmt) &&
         node.name.getStart(sourceFile) < usePos
       ) {
-        const value = staticStringKey(node.initializer, sourceFile, new Set(seen));
-        if (value !== undefined) {
+        const values = staticStringKeys(
+          node.initializer,
+          sourceFile,
+          new Set(seen),
+        );
+        if (values.length > 0) {
           const declPos = node.name.getStart(sourceFile);
           if (!best || declPos >= best.declPos) {
-            best = { declPos, value };
+            best = { declPos, values };
           }
         }
       }
@@ -205,7 +253,55 @@ function resolveConstStringBinding(
     ts.forEachChild(node, visit);
   };
   visit(sourceFile);
-  return best?.value;
+  return best?.values ?? [];
+}
+
+/** Same-file `const` initializer for an identifier, if any. */
+function findConstInitializer(
+  id: ts.Identifier,
+  sourceFile: ts.SourceFile,
+): ts.Expression | undefined {
+  const name = id.text;
+  const usePos = id.getStart(sourceFile);
+  let best: { declPos: number; initializer: ts.Expression } | undefined;
+
+  const visit = (node: ts.Node): void => {
+    if (
+      ts.isVariableDeclaration(node) &&
+      ts.isIdentifier(node.name) &&
+      node.name.text === name &&
+      node.initializer
+    ) {
+      const list = node.parent;
+      const stmt = list?.parent;
+      const isConst =
+        list &&
+        ts.isVariableDeclarationList(list) &&
+        (list.flags & ts.NodeFlags.Const) !== 0;
+      if (
+        isConst &&
+        stmt &&
+        ts.isVariableStatement(stmt) &&
+        node.name.getStart(sourceFile) < usePos
+      ) {
+        const declPos = node.name.getStart(sourceFile);
+        if (!best || declPos >= best.declPos) {
+          best = { declPos, initializer: node.initializer };
+        }
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return best?.initializer;
+}
+
+function uniqueStrings(values: readonly string[]): readonly string[] {
+  const out: string[] = [];
+  for (const value of values) {
+    if (!out.includes(value)) out.push(value);
+  }
+  return out;
 }
 
 export function calleeIdentifier(expr: ts.Expression): string | undefined {

@@ -5,7 +5,7 @@ import {
   calleeIdentifier,
   endsWithProperty,
   rootIdentifier,
-  staticStringKey,
+  staticStringKeys,
 } from "../ast-helpers.js";
 import { resolveCalleeForUsage } from "../alias-resolve.js";
 import {
@@ -36,10 +36,26 @@ export const vueI18nUsageDetector: LibraryUsageDetector = {
         return;
       }
       const keyNode = node.arguments[0];
-      const key = staticStringKey(keyNode, sourceFile);
-      if (key === undefined || !keyNode) {
+      const keys = staticStringKeys(keyNode, sourceFile);
+      if (keys.length === 0 || !keyNode) {
         return;
       }
+
+      const pushKeys = (
+        fields: Omit<Parameters<typeof buildUsage>[0], "key" | "absolutePath" | "relativePath" | "location">,
+      ): void => {
+        for (const key of keys) {
+          usages.push(
+            buildUsage({
+              key,
+              absolutePath,
+              relativePath,
+              location: locationOf(sourceFile, keyNode),
+              ...fields,
+            }),
+          );
+        }
+      };
 
       const ident = calleeIdentifier(node.expression);
       if (ident) {
@@ -52,23 +68,17 @@ export const vueI18nUsageDetector: LibraryUsageDetector = {
         );
         const binding = alias.binding;
         if (binding?.library === "vue-i18n") {
-          usages.push(
-            buildUsage({
-              key,
-              absolutePath,
-              relativePath,
-              location: locationOf(sourceFile, keyNode),
-              library: "vue-i18n",
-              confidence: Math.min(
-                binding.confidence,
-                alias.resolution.confidence,
-              ),
-              context: "function-call",
-              evidence: `vue-i18n-detector: ${binding.origin}${
-                alias.aliasEvidence ? ` (${alias.aliasEvidence})` : ""
-              }`,
-            }),
-          );
+          pushKeys({
+            library: "vue-i18n",
+            confidence: Math.min(
+              binding.confidence,
+              alias.resolution.confidence,
+            ),
+            context: "function-call",
+            evidence: `vue-i18n-detector: ${binding.origin}${
+              alias.aliasEvidence ? ` (${alias.aliasEvidence})` : ""
+            }`,
+          });
           return;
         }
         // Nuxt auto-imports `t` / `$t` without a local binding.
@@ -76,37 +86,25 @@ export const vueI18nUsageDetector: LibraryUsageDetector = {
           (ident === "t" || ident === "$t") &&
           hasNuxtI18nHint(input.libraryHints)
         ) {
-          usages.push(
-            buildUsage({
-              key,
-              absolutePath,
-              relativePath,
-              location: locationOf(sourceFile, keyNode),
-              library: "vue-i18n",
-              confidence: 0.72,
-              context: "function-call",
-              evidence: `vue-i18n-detector: nuxt auto-import ${ident}(...)`,
-              framework: "nuxt",
-              detector: "vue-i18n-detector",
-            }),
-          );
+          pushKeys({
+            library: "vue-i18n",
+            confidence: 0.72,
+            context: "function-call",
+            evidence: `vue-i18n-detector: nuxt auto-import ${ident}(...)`,
+            framework: "nuxt",
+            detector: "vue-i18n-detector",
+          });
           return;
         }
       }
 
       if (endsWithProperty(node.expression, "$t")) {
-        usages.push(
-          buildUsage({
-            key,
-            absolutePath,
-            relativePath,
-            location: locationOf(sourceFile, keyNode),
-            library: "vue-i18n",
-            confidence: relevant ? 0.85 : 0.75,
-            context: "member-call",
-            evidence: "vue-i18n-detector: $t(...)",
-          }),
-        );
+        pushKeys({
+          library: "vue-i18n",
+          confidence: relevant ? 0.85 : 0.75,
+          context: "member-call",
+          evidence: "vue-i18n-detector: $t(...)",
+        });
         return;
       }
 
@@ -119,18 +117,12 @@ export const vueI18nUsageDetector: LibraryUsageDetector = {
           (fileImportsLibrary(bindings, VUE_I18N_MODULES) ||
             !fileImportsLibrary(bindings, new Set(["i18next", "react-i18next"])))
         ) {
-          usages.push(
-            buildUsage({
-              key,
-              absolutePath,
-              relativePath,
-              location: locationOf(sourceFile, keyNode),
-              library: "vue-i18n",
-              confidence: 0.88,
-              context: "member-call",
-              evidence: `vue-i18n-detector: ${root}.….t(...)`,
-            }),
-          );
+          pushKeys({
+            library: "vue-i18n",
+            confidence: 0.88,
+            context: "member-call",
+            evidence: `vue-i18n-detector: ${root}.….t(...)`,
+          });
         }
       }
     });

@@ -12,7 +12,7 @@ import {
   endsWithProperty,
   rootIdentifier,
   staticKeyFragments,
-  staticStringKey,
+  staticStringKeys,
 } from "./ast-helpers.js";
 import { isI18nextFamily, isIntlObject } from "./bindings.js";
 import { locationOf } from "./location.js";
@@ -36,7 +36,8 @@ export function collectDynamicUsages(input: {
       return;
     }
     const keyNode = node.arguments[0];
-    if (!keyNode || staticStringKey(keyNode, input.sourceFile) !== undefined) {
+    // Fully resolved keys (including multi-branch ternaries) are static usages.
+    if (!keyNode || staticStringKeys(keyNode, input.sourceFile).length > 0) {
       return;
     }
 

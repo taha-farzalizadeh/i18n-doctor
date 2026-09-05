@@ -1,12 +1,18 @@
 # i18n-doctor for VS Code
 
-> **Beta — v0.11.1**
+> **Beta — v0.11.2**
 
 Live i18n diagnostics, **Go to Translation**, **Hover**, and **Completion** in
 VS Code. This extension is an LSP client: it starts the bundled
 [`@i18n-doctor/language-server`](../language-server) over stdio and lets VS Code
 render what the server publishes. It does not parse source, extract keys, or
 decide what is unused.
+
+## What's new in 0.11.2
+
+- **Static ternaries** — `t(cond ? "A" : "B")` and same-file
+  `const k = cond ? "A" : "B"; t(k)` both count as usages
+- Bundled language server @ 0.11.2
 
 ## What's new in 0.11.1
 
@@ -125,6 +131,7 @@ So a published extension is self-contained.
 
 ### Changelog (recent)
 
+- **0.11.2** — Static ternaries count as usages (`t(cond ? "A" : "B")`)
 - **0.11.1** — Faster coverage warnings; `ignoreKeys` unused-only (locale gaps stay)
 - **0.11.0** — Go to Translation, Hover, Completion (Phase 20)
 - **0.10.2** — Bundled LS with unified config / `ignoreKeys`

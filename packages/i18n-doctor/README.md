@@ -1,6 +1,6 @@
 # i18n-doctor
 
-> **Beta — v0.10.2**
+> **Beta — v0.10.3**
 
 Static localization analysis for JavaScript and TypeScript projects.  
 Finds **unused**, **missing**, and **duplicate** translation keys — without executing your code.
@@ -49,7 +49,9 @@ Then add to `package.json`:
 - **Soft unused** — unused keys that may still match a dynamic usage (info)
 - **Untranslated text** — hardcoded JSX / UI attribute strings not passed through a translator (info)
 
-Prop-passed `t` (e.g. `{ t }` / `props.t`) and statically concatenated keys are counted as usages.
+Prop-passed `t` (e.g. `{ t }` / `props.t`), statically concatenated keys, and
+static ternaries (`t(cond ? "A" : "B")` or `const k = cond ? "A" : "B"; t(k)`)
+are counted as usages.
 
 ---
 
@@ -276,8 +278,8 @@ Package: [@i18n-doctor/eslint-plugin](https://www.npmjs.com/package/@i18n-doctor
 
 ## Beta
 
-This is v0.10.2 — a beta release. Core analysis works on real projects but edge cases exist.
-Prop-passed `t`, static key concat, soft dynamic-unused hints, and untranslated UI text are supported.
+This is v0.10.3 — a beta release. Core analysis works on real projects but edge cases exist.
+Prop-passed `t`, static key concat, static ternaries, soft dynamic-unused hints, and untranslated UI text are supported.
 Bug reports and contributions are very welcome.
 
 - [GitHub](https://github.com/taha-farzalizadeh/i18n-doctor)
