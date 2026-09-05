@@ -37,19 +37,18 @@ describe("mergeLocaleCatalogs", () => {
     expect(model.locales).toEqual(["en", "fa"]);
   });
 
-  it("applies ignoreKeys and minConfidence", () => {
+  it("applies minConfidence", () => {
     const c = catalog("/proj", [
       keyDef("keep", "en.json", "en"),
       keyDef("debug.x", "en.json", "en"),
       keyDef("low", "en.json", "en", { confidence: 0.1 }),
     ]);
     const model = mergeLocaleCatalogs([c], {
-      ignoreKeys: ["debug.*"],
       minConfidence: 0.5,
     });
     const entries = model.byNamespace.get("*")?.entries;
     expect(entries?.has("keep")).toBe(true);
-    expect(entries?.has("debug.x")).toBe(false);
+    expect(entries?.has("debug.x")).toBe(true);
     expect(entries?.has("low")).toBe(false);
   });
 });

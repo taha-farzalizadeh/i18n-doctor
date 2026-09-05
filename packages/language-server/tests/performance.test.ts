@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { flatProject, LOGIN_TSX, LOGIN_TSX_FIXED } from "./fixtures.js";
+import { flatProject, LOGIN_TSX, LOGIN_TSX_FIXED, PKG_REACT_I18NEXT } from "./fixtures.js";
 import { find, fixture, harness } from "./helpers.js";
 
 const wait = (ms: number): Promise<void> =>
@@ -153,6 +153,53 @@ describe("bounded work", () => {
     expect(h.diagnosticsFor("src/All.ts")[0]?.range.start.line).toBe(2);
   });
 
+  it("publishes locale coverage without waiting the full debounce window", async () => {
+    const root = await fixture({
+      "package.json": PKG_REACT_I18NEXT,
+      "i18n-doctor.config.json": JSON.stringify({ ignoreKeys: ["SERVER_*"] }),
+      "locales/en.json": JSON.stringify({
+        title: "Title",
+        SERVER_X: "Only EN",
+      }),
+      "locales/fr.json": JSON.stringify({
+        title: "Titre",
+      }),
+      "src/App.tsx": `import { useTranslation } from "react-i18next";
+export function App() {
+  const { t } = useTranslation();
+  return <span>{t("title")}</span>;
+}
+`,
+    });
+
+    const h = harness(root, { debounce: 500 });
+    await h.start();
+    await h.open(
+      "locales/en.json",
+      JSON.stringify({ title: "Title", SERVER_X: "Only EN" }, null, 2),
+    );
+
+    expect(
+      find(h.diagnosticsFor("locales/en.json"), "missing-translation", "SERVER_X"),
+    ).toBeDefined();
+
+    h.reset();
+    // Add another en-only key — translation edits must not wait 500ms.
+    h.changeNoWait(
+      "locales/en.json",
+      JSON.stringify(
+        { title: "Title", SERVER_X: "Only EN", SERVER_Y: "Also only EN" },
+        null,
+        2,
+      ),
+      2,
+    );
+
+    await wait(80);
+    const en = h.diagnosticsFor("locales/en.json");
+    expect(find(en, "missing-translation", "SERVER_Y")).toBeDefined();
+  }, 60_000);
+
   it("runs one analysis for many documents opened together", async () => {
     const root = await fixture(flatProject());
     const h = harness(root, { debounce: 50 });
@@ -177,8 +224,8 @@ describe("bounded work", () => {
     });
     await h.settle();
 
-    expect(h.publishCountFor("src/Login.tsx")).toBeLessThanOrEqual(1);
-    expect(h.publishCountFor("locales/en.json")).toBeLessThanOrEqual(1);
+    expect(h.publishCountFor("src/Login.tsx")).toBeLessThanOrEqual(2);
+    expect(h.publishCountFor("locales/en.json")).toBeLessThanOrEqual(2);
   });
 
   it("reuses the translation catalog when only source files change", async () => {

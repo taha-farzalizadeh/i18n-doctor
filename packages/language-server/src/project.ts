@@ -28,11 +28,20 @@ import {
 } from "@i18n-doctor/issues";
 import type { FileSystemPort } from "@i18n-doctor/scanner";
 import {
+  createSourceDetector,
+  type TranslationCatalog,
+} from "@i18n-doctor/sources";
+import {
   buildTranslationIndex,
   type TranslationIndex,
 } from "@i18n-doctor/translation-index";
 import type { UsageCatalog } from "@i18n-doctor/usages";
-import { createAnalysisCache, type AnalysisCache, type ScopeCacheEntry } from "./cache.js";
+import {
+  createAnalysisCache,
+  type AnalysisCache,
+  type Invalidation,
+  type ScopeCacheEntry,
+} from "./cache.js";
 import {
   coverageToDiagnostics,
   issueToDiagnostic,
@@ -84,8 +93,15 @@ export interface Project {
   /** Re-reads config and scopes from disk on the next analysis. */
   refresh(): void;
   /** Records a changed file so the next analysis reruns only what it affects. */
-  invalidateFile(absolutePath: string): void;
-  analyze(options?: { readonly signal?: AbortSignal }): Promise<ProjectAnalysis>;
+  invalidateFile(absolutePath: string): Invalidation;
+  analyze(options?: {
+    readonly signal?: AbortSignal;
+    /**
+     * Called with the best diagnostics available so far (e.g. refreshed
+     * coverage before the slower issue pass finishes).
+     */
+    readonly onPartial?: (diagnostics: readonly LocatedDiagnostic[]) => void;
+  }): Promise<ProjectAnalysis>;
   /**
    * Ensures the translation index (and usage catalog) for the scope that owns
    * `absolutePath` is ready. Rebuilds only dirty halves — never a full rescan
@@ -196,6 +212,7 @@ export function createProject(options: ProjectOptions): Project {
     invalidateFile(absolutePath) {
       const invalidation = cache.invalidateFile(absolutePath);
       if (invalidation.config) configDirty = true;
+      return invalidation;
     },
 
     setOverrides(next) {
@@ -210,6 +227,7 @@ export function createProject(options: ProjectOptions): Project {
 
     async analyze(analyzeOptions) {
       const signal = analyzeOptions?.signal;
+      const onPartial = analyzeOptions?.onPartial;
       const started = performance.now();
 
       if (configDirty) {
@@ -225,6 +243,10 @@ export function createProject(options: ProjectOptions): Project {
       const diagnostics: LocatedDiagnostic[] = [];
       const errors: string[] = [];
       let cachedScopes = 0;
+      const diagnosticContext = {
+        ...(io.textOf ? { textOf: io.textOf } : {}),
+        ...(options.platform ? { platform: options.platform } : {}),
+      };
 
       for (const scope of workspace.scopes) {
         throwIfCancelled(signal);
@@ -243,21 +265,57 @@ export function createProject(options: ProjectOptions): Project {
           }
         } else {
           try {
+            const ioPorts = {
+              ...(io.fs ? { fs: io.fs } : {}),
+              ...(io.fileExists ? { fileExists: io.fileExists } : {}),
+              ...(io.readFile ? { readFile: io.readFile } : {}),
+              ...(io.readDir ? { readDir: io.readDir } : {}),
+            };
+
+            // Locale edits: refresh catalogs + coverage first and publish a
+            // partial result so missing-translation does not wait on the
+            // slower usage/issue pass.
+            let refreshedSources: TranslationCatalog | undefined;
+            if (dirty.sources && config.coverage) {
+              refreshedSources = await createSourceDetector().discover({
+                root: scopeRoot,
+                useDetection: true,
+                ...(libraryHints ? { libraryHints } : {}),
+                minConfidence: scope.minConfidence,
+                maxCandidates: limits.maxCandidates,
+                ...(io.fs ? { fs: io.fs } : {}),
+              });
+              throwIfCancelled(signal);
+
+              entry.sourceCatalog = refreshedSources;
+              const earlyCoverage = analyzeCoverage(
+                scope,
+                refreshedSources,
+                entry.preferredLocales?.[0],
+                logger,
+              );
+              if (earlyCoverage) entry.coverage = earlyCoverage;
+              else delete entry.coverage;
+
+              if (onPartial && entry.analysis) {
+                const partial: LocatedDiagnostic[] = [];
+                collectScopeDiagnostics(entry, partial, diagnosticContext);
+                onPartial(partial);
+              }
+            }
+
             const result = await analyzeScope({
               scope,
               ...(libraryHints ? { libraryHints } : {}),
               limits,
               useDetection: true,
-              io: {
-                ...(io.fs ? { fs: io.fs } : {}),
-                ...(io.fileExists ? { fileExists: io.fileExists } : {}),
-                ...(io.readFile ? { readFile: io.readFile } : {}),
-                ...(io.readDir ? { readDir: io.readDir } : {}),
-              },
+              io: ioPorts,
               // Reuse whichever catalog this change could not have affected.
               ...(!dirty.sources && entry.sourceCatalog
                 ? { sourceCatalog: entry.sourceCatalog }
-                : {}),
+                : refreshedSources
+                  ? { sourceCatalog: refreshedSources }
+                  : {}),
               ...(!dirty.usages && entry.usageCatalog
                 ? { usageCatalog: entry.usageCatalog }
                 : {}),
@@ -318,10 +376,7 @@ export function createProject(options: ProjectOptions): Project {
           }
         }
 
-        collectScopeDiagnostics(entry, diagnostics, {
-          ...(io.textOf ? { textOf: io.textOf } : {}),
-          ...(options.platform ? { platform: options.platform } : {}),
-        });
+        collectScopeDiagnostics(entry, diagnostics, diagnosticContext);
       }
 
       throwIfCancelled(signal);

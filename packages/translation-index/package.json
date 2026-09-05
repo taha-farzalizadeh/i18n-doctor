@@ -20,7 +20,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@i18n-doctor/issues": "0.10.2",
+    "@i18n-doctor/issues": "0.10.3",
     "@i18n-doctor/sources": "0.10.2",
     "@i18n-doctor/usages": "0.10.2"
   },

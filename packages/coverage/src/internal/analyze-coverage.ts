@@ -263,7 +263,6 @@ export function analyzeCatalogs(
   const model = mergeLocaleCatalogs(catalogs, {
     ...(options.locales ? { locales: options.locales } : {}),
     ...(options.namespaces ? { namespaces: options.namespaces } : {}),
-    ...(options.ignoreKeys ? { ignoreKeys: options.ignoreKeys } : {}),
     ...(options.minConfidence !== undefined
       ? { minConfidence: options.minConfidence }
       : {}),

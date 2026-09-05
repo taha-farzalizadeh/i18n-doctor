@@ -2,7 +2,7 @@
   "name": "i18n-doctor-vscode",
   "displayName": "i18n-doctor",
   "description": "Live i18n diagnostics, Go to Translation, Hover, and Completion — powered by the i18n-doctor language server",
-  "version": "0.11.0",
+  "version": "0.11.1",
   "private": true,
   "publisher": "i18n-doctor",
   "license": "MIT",
@@ -110,7 +110,7 @@
     "package": "npm run build && vsce package --no-dependencies -o dist/i18n-doctor.vsix"
   },
   "dependencies": {
-    "@i18n-doctor/language-server": "0.11.0",
+    "@i18n-doctor/language-server": "0.11.1",
     "vscode-languageclient": "^9.0.1"
   },
   "devDependencies": {

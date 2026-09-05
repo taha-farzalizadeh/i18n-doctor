@@ -18,7 +18,6 @@ const DEFAULT_NS = "*";
 export interface MergeOptions {
   readonly locales?: readonly string[];
   readonly namespaces?: readonly string[];
-  readonly ignoreKeys?: readonly string[];
   readonly minConfidence?: number;
   /**
    * Build nested LocaleTree per namespace.
@@ -48,7 +47,6 @@ export function mergeLocaleCatalogs(
 
   const root = catalogs[0]!.root;
   const minConfidence = options.minConfidence ?? 0;
-  const ignore = compileIgnore(options.ignoreKeys);
   const localeFilter = options.locales ? new Set(options.locales) : undefined;
   const nsFilter = options.namespaces
     ? new Set(options.namespaces)
@@ -74,7 +72,6 @@ export function mergeLocaleCatalogs(
 
       const ns = keyDef.namespace ?? DEFAULT_NS;
       if (nsFilter && !nsFilter.has(ns)) continue;
-      if (isIgnored(keyDef.key, ignore)) continue;
 
       localeSet.add(keyDef.locale);
 
@@ -139,35 +136,6 @@ export function mergeLocaleCatalogs(
   diagnostics.sort((a, b) => a.message.localeCompare(b.message));
 
   return { root, locales, namespaces, byNamespace, diagnostics };
-}
-
-function compileIgnore(
-  patterns: readonly string[] | undefined,
-): readonly { exact?: string; prefix?: string }[] {
-  if (!patterns?.length) return [];
-  return patterns.map((p) => {
-    if (p.endsWith(".*") || p.endsWith("*")) {
-      const prefix = p.replace(/\.\*$/, "").replace(/\*$/, "");
-      return { prefix };
-    }
-    return { exact: p };
-  });
-}
-
-function isIgnored(
-  key: string,
-  rules: readonly { exact?: string; prefix?: string }[],
-): boolean {
-  for (const r of rules) {
-    if (r.exact !== undefined && key === r.exact) return true;
-    if (
-      r.prefix !== undefined &&
-      (key === r.prefix || key.startsWith(`${r.prefix}.`))
-    ) {
-      return true;
-    }
-  }
-  return false;
 }
 
 export { DEFAULT_NS };

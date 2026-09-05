@@ -19,7 +19,7 @@ describe("change classification", () => {
     expect(cache.classify(p("locales", "en.YML")).usages).toBe(false);
   });
 
-  it("treats a code file as affecting both halves", () => {
+  it("treats a code file as a usage-only change", () => {
     for (const file of [
       "src/App.ts",
       "src/App.tsx",
@@ -30,8 +30,11 @@ describe("change classification", () => {
       "src/App.svelte",
     ]) {
       const invalidation = cache.classify(p(...file.split("/")));
-      expect(invalidation.usages, file).toBe(true);
-      expect(invalidation.config, file).toBe(false);
+      expect(invalidation, file).toEqual({
+        sources: false,
+        usages: true,
+        config: false,
+      });
     }
   });
 
@@ -157,7 +160,11 @@ describe("scope invalidation", () => {
 
     // Usage detection re-runs; the untouched catalog is still available.
     expect(entry.sourceCatalog).toBeDefined();
-    expect(entry.dirty.usages).toBe(true);
+    expect(entry.dirty).toEqual({
+      sources: false,
+      usages: true,
+      config: false,
+    });
   });
 
   it("drops scopes that no longer exist", () => {

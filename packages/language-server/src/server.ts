@@ -266,7 +266,19 @@ export function createServerCore(options: ServerCoreOptions): ServerCore {
     for (const project of projects) {
       if (signal.aborted || isStale()) return;
       try {
-        const analysis = await project.analyze({ signal });
+        const analysis = await project.analyze({
+          signal,
+          onPartial: (partial) => {
+            if (signal.aborted || isStale()) return;
+            // Publish refreshed coverage (and prior issue diagnostics) without
+            // waiting for the remainder of the workspace analyze pass.
+            publish(
+              index.publishSet([...found, ...partial], {
+                limitPerFile: settings.maxDiagnosticsPerFile,
+              }),
+            );
+          },
+        });
         found.push(...analysis.diagnostics);
         for (const error of analysis.errors) logger.warn(error);
         logger.debug(
@@ -302,12 +314,35 @@ export function createServerCore(options: ServerCoreOptions): ServerCore {
     return filePath === undefined ? undefined : normalizePath(filePath, platform);
   }
 
-  function invalidate(filePath: string): void {
+  function invalidate(filePath: string): {
+    readonly sources: boolean;
+    readonly usages: boolean;
+    readonly config: boolean;
+  } {
     const matching = projects.filter((project) =>
       isWithin(project.root, filePath, platform),
     );
     const targets = matching.length > 0 ? matching : projects;
-    for (const project of targets) project.invalidateFile(filePath);
+    let sources = false;
+    let usages = false;
+    let config = false;
+    for (const project of targets) {
+      const next = project.invalidateFile(filePath);
+      sources = sources || next.sources;
+      usages = usages || next.usages;
+      config = config || next.config;
+    }
+    return { sources, usages, config };
+  }
+
+  /** Locale/catalog edits skip the debounce window so coverage updates promptly. */
+  function scheduleAfterEdit(filePath: string, reason: string): void {
+    const invalidation = invalidate(filePath);
+    if (invalidation.sources && !invalidation.usages && !invalidation.config) {
+      scheduler.scheduleNow(reason);
+      return;
+    }
+    scheduler.schedule(reason);
   }
 
   function createProjects(folders: readonly string[]): Project[] {
@@ -452,8 +487,7 @@ export function createServerCore(options: ServerCoreOptions): ServerCore {
         logger.debug(`didChange for untracked ${params.textDocument.uri}`);
         return;
       }
-      invalidate(document.path);
-      scheduler.schedule(`didChange ${document.path}@${document.version}`);
+      scheduleAfterEdit(document.path, `didChange ${document.path}@${document.version}`);
     },
 
     didClose(params) {
@@ -464,15 +498,13 @@ export function createServerCore(options: ServerCoreOptions): ServerCore {
       const release = index.release(filePath);
       if (release) publish([release]);
       // On-disk contents govern again, so the file must be re-analyzed.
-      invalidate(filePath);
-      scheduler.schedule(`didClose ${filePath}`);
+      scheduleAfterEdit(filePath, `didClose ${filePath}`);
     },
 
     didSave(params) {
       const filePath = pathOf(params.textDocument.uri);
       if (filePath === undefined) return;
-      invalidate(filePath);
-      scheduler.schedule(`didSave ${filePath}`);
+      scheduleAfterEdit(filePath, `didSave ${filePath}`);
     },
 
     didChangeConfiguration(params) {

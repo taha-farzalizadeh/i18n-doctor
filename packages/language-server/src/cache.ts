@@ -126,8 +126,10 @@ export function createAnalysisCache(options?: {
       return { sources: true, usages: false, config: false };
     }
     if (CODE_EXTENSIONS.has(extension)) {
-      // A new file may become a catalog module, so refresh sources too.
-      return { sources: true, usages: true, config: false };
+      // App/component edits almost never introduce translation catalogs.
+      // Keep the source catalog (and coverage) warm so missing-translation
+      // diagnostics are not forced to wait on a full rediscovery.
+      return { sources: false, usages: true, config: false };
     }
     return { sources: true, usages: true, config: false };
   };

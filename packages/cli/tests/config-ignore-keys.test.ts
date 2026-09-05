@@ -123,4 +123,39 @@ describe("check — i18n-doctor.config.ts ignoreKeys", () => {
     expect(unused.some((k) => /BACKEND_ERROR/.test(k))).toBe(true);
     expect(unused.some((k) => /farewell/.test(k))).toBe(true);
   });
+
+  it("still reports locale coverage gaps for ignoreKeys keys", async () => {
+    const root = fixture({
+      "package.json": JSON.stringify({
+        name: "demo",
+        dependencies: { i18next: "23.0.0", "react-i18next": "14.0.0" },
+      }),
+      "i18n-doctor.config.json": JSON.stringify({
+        ignoreKeys: ["SERVER_*"],
+      }),
+      "locales/en.json": JSON.stringify({
+        title: "Title",
+        SERVER_X: "Server only in EN",
+      }),
+      "locales/fr.json": JSON.stringify({
+        title: "Titre",
+      }),
+      "src/App.tsx": `
+        import { useTranslation } from 'react-i18next';
+        export function App() {
+          const { t } = useTranslation();
+          return <span>{t('title')}</span>;
+        }
+      `,
+    });
+
+    const result = await runCheck({ path: root, json: true, noColor: true });
+    const unused = unusedKeys(issuesOf(result));
+
+    expect(unused.some((k) => /SERVER_X/.test(k))).toBe(false);
+
+    const gap = result.coverage?.missing.find((m) => m.key === "SERVER_X");
+    expect(gap).toBeDefined();
+    expect(gap?.missingLocales).toContain("fr");
+  });
 });

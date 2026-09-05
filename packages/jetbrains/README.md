@@ -1,6 +1,6 @@
 # i18n-doctor for JetBrains (WebStorm)
 
-> **Beta — v0.11.0**
+> **Beta — v0.11.2**
 
 Live i18n diagnostics, **Go to Translation**, **Hover**, and **Completion** in
 WebStorm and other JetBrains IDEs that ship the platform LSP API. This plugin is
@@ -8,6 +8,17 @@ a **thin LSP client**: it starts the bundled
 [`@i18n-doctor/language-server`](../language-server) over stdio and lets the IDE
 render LSP results. It does **not** parse source, extract keys, or decide what
 is unused.
+
+## What's new in 0.11.2
+
+- Faster locale coverage warnings (locale edits skip debounce; early coverage publish)
+- App edits keep coverage warm (no forced catalog rediscovery)
+- Bundled language server @ 0.11.1
+
+## What's new in 0.11.1
+
+- **`ignoreKeys` + locale coverage** — ignored keys still warn when missing in
+  another locale (unused-only suppression)
 
 ## What's new in 0.11.0 (Phase 20)
 

@@ -1,6 +1,6 @@
 {
   "name": "@i18n-doctor/coverage",
-  "version": "0.10.2",
+  "version": "0.10.3",
   "description": "Translation coverage and locale consistency analysis",
   "type": "module",
   "exports": {

@@ -92,4 +92,54 @@ export default defineConfig({
     expect(unused.some((k) => /BACKEND_ERROR/.test(k))).toBe(false);
     expect(unused.some((k) => /farewell/.test(k))).toBe(true);
   }, 60_000);
+
+  it("still reports locale-consistency for ignoreKeys keys missing in another locale", async () => {
+    const root = writeFixture({
+      "package.json": JSON.stringify({
+        name: "demo",
+        private: true,
+        dependencies: { i18next: "23.0.0", "react-i18next": "14.0.0" },
+      }),
+      "i18n-doctor.config.json": JSON.stringify({
+        ignoreKeys: ["SERVER_*"],
+      }),
+      "locales/en.json": JSON.stringify({
+        title: "Title",
+        SERVER_X: "Server only in EN",
+      }),
+      "locales/fr.json": JSON.stringify({
+        title: "Titre",
+      }),
+      "src/App.tsx": `
+        import { useTranslation } from 'react-i18next';
+        export function App() {
+          const { t } = useTranslation();
+          return <span>{t('title')}</span>;
+        }
+      `,
+    });
+
+    const messages = await lintProject(root, [
+      "src/**/*.{js,jsx,ts,tsx}",
+      "locales/**/*.json",
+    ]);
+    const en = messagesForFile(messages, "locales/en.json");
+
+    expect(
+      en.some(
+        (m) =>
+          m.ruleId === "i18n-doctor/no-unused-key" &&
+          /SERVER_X/.test(m.message),
+      ),
+    ).toBe(false);
+
+    expect(
+      en.some(
+        (m) =>
+          m.ruleId === "i18n-doctor/locale-consistency" &&
+          /SERVER_X/.test(m.message) &&
+          /fr/i.test(m.message),
+      ),
+    ).toBe(true);
+  }, 60_000);
 });

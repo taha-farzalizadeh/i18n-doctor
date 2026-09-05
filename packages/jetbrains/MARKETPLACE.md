@@ -161,6 +161,31 @@ Capture from `npm run runIde -w i18n-doctor-jetbrains` + `examples/demo-project`
 - Use channel **default** for public releases.
 - Use channel **eap** only if you intentionally ship pre-releases.
 
+## Change notes (0.11.2)
+
+```html
+<h3>0.11.2</h3>
+<p>Faster locale coverage warnings + <code>ignoreKeys</code> / coverage hardener.</p>
+<ul>
+  <li>Locale file edits update <code>missing-translation</code> without waiting the full debounce window</li>
+  <li>App/source edits no longer force catalog rediscovery (keeps coverage warm)</li>
+  <li><code>ignoreKeys</code> still suppresses only <code>unused-key</code> — locale gaps stay reported</li>
+  <li>Rebundled language server @ 0.11.1</li>
+</ul>
+```
+
+## Change notes (0.11.1)
+
+```html
+<h3>0.11.1</h3>
+<p>Fix: <code>ignoreKeys</code> must not suppress locale coverage warnings.</p>
+<ul>
+  <li><code>ignoreKeys</code> still suppresses only <code>unused-key</code></li>
+  <li>Keys missing in another locale (e.g. <code>SERVER_X</code> in <code>en</code> but not <code>fr</code>) still report <code>missing-translation</code></li>
+  <li>Rebundled language server with the coverage hardener</li>
+</ul>
+```
+
 ## Change notes (0.11.0)
 
 ```html

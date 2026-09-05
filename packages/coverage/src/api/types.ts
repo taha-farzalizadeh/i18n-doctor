@@ -216,10 +216,6 @@ export interface CoverageAnalyzerOptions {
    */
   readonly namespaces?: readonly string[];
   /**
-   * Ignore keys matching these glob-like prefixes (exact or `*` suffix).
-   */
-  readonly ignoreKeys?: readonly string[];
-  /**
    * Minimum key confidence to include.
    * @default 0
    */
