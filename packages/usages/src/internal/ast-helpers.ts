@@ -98,6 +98,28 @@ export function staticStringKeys(
     }
   }
 
+  // Same-file helper: t(getTitleByStatusType(variant))
+  if (ts.isCallExpression(node) && sourceFile) {
+    const callee = node.expression;
+    if (ts.isIdentifier(callee)) {
+      const fromHelper = collectSameFileHelperReturns(callee.text, sourceFile, seen, options);
+      if (fromHelper.length > 0) return fromHelper;
+    }
+  }
+
+  // Same-file string map: t(descriptions[item])
+  if (
+    ts.isElementAccessExpression(node) &&
+    ts.isIdentifier(node.expression) &&
+    sourceFile
+  ) {
+    const mapInit = findConstInitializer(node.expression, sourceFile);
+    if (mapInit && ts.isObjectLiteralExpression(unwrapExpr(mapInit))) {
+      const values = stringMapValues(unwrapExpr(mapInit) as ts.ObjectLiteralExpression, sourceFile, seen, options);
+      if (values.length > 0) return values;
+    }
+  }
+
   if (ts.isIdentifier(node) && sourceFile) {
     return resolveConstStringBindings(node, sourceFile, seen, options);
   }
@@ -319,6 +341,132 @@ function findConstInitializer(
   };
   visit(sourceFile);
   return best?.initializer;
+}
+
+function collectSameFileHelperReturns(
+  name: string,
+  sourceFile: ts.SourceFile,
+  seen: Set<ts.Node>,
+  options?: StaticKeyOptions,
+): readonly string[] {
+  for (const stmt of sourceFile.statements) {
+    if (ts.isFunctionDeclaration(stmt) && stmt.name?.text === name && stmt.body) {
+      return returnsFromFunctionLike(stmt, sourceFile, seen, options);
+    }
+    if (ts.isVariableStatement(stmt)) {
+      for (const decl of stmt.declarationList.declarations) {
+        if (
+          ts.isIdentifier(decl.name) &&
+          decl.name.text === name &&
+          decl.initializer
+        ) {
+          let init = decl.initializer;
+          while (
+            ts.isAsExpression(init) ||
+            ts.isSatisfiesExpression(init) ||
+            ts.isParenthesizedExpression(init)
+          ) {
+            init = init.expression;
+          }
+          if (ts.isArrowFunction(init) || ts.isFunctionExpression(init)) {
+            return returnsFromFunctionLike(init, sourceFile, seen, options);
+          }
+        }
+      }
+    }
+  }
+  return [];
+}
+
+function returnsFromFunctionLike(
+  fn: ts.FunctionLikeDeclaration,
+  sourceFile: ts.SourceFile,
+  seen: Set<ts.Node>,
+  options?: StaticKeyOptions,
+): readonly string[] {
+  if (!fn.body) return [];
+  const returns: ts.Expression[] = [];
+  if (!ts.isBlock(fn.body)) {
+    returns.push(fn.body);
+  } else {
+    const visit = (node: ts.Node): void => {
+      if (ts.isReturnStatement(node)) {
+        if (node.expression) returns.push(node.expression);
+        return;
+      }
+      if (
+        ts.isFunctionDeclaration(node) ||
+        ts.isFunctionExpression(node) ||
+        ts.isArrowFunction(node) ||
+        ts.isMethodDeclaration(node)
+      ) {
+        return;
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(fn.body);
+  }
+  if (returns.length === 0) return [];
+  const out: string[] = [];
+  for (const expr of returns) {
+    const keys = staticStringKeys(expr, sourceFile, new Set(seen), options);
+    if (keys.length === 0) {
+      let text = expr;
+      while (
+        ts.isAsExpression(text) ||
+        ts.isSatisfiesExpression(text) ||
+        ts.isParenthesizedExpression(text)
+      ) {
+        text = text.expression;
+      }
+      if (
+        (ts.isStringLiteral(text) ||
+          ts.isNoSubstitutionTemplateLiteral(text)) &&
+        text.text === ""
+      ) {
+        continue;
+      }
+      return [];
+    }
+    for (const key of keys) {
+      if (key.length > 0 && !out.includes(key)) out.push(key);
+    }
+  }
+  return out;
+}
+
+function stringMapValues(
+  obj: ts.ObjectLiteralExpression,
+  sourceFile: ts.SourceFile,
+  seen: Set<ts.Node>,
+  options?: StaticKeyOptions,
+): readonly string[] {
+  const out: string[] = [];
+  for (const prop of obj.properties) {
+    if (!ts.isPropertyAssignment(prop)) continue;
+    const values = staticStringKeys(
+      prop.initializer,
+      sourceFile,
+      new Set(seen),
+      options,
+    );
+    for (const value of values) {
+      if (value.length > 0 && !out.includes(value)) out.push(value);
+    }
+  }
+  return out;
+}
+
+function unwrapExpr(expr: ts.Expression): ts.Expression {
+  let current = expr;
+  while (
+    ts.isAsExpression(current) ||
+    ts.isSatisfiesExpression(current) ||
+    ts.isParenthesizedExpression(current)
+  ) {
+    current = current.expression;
+  }
+  return current;
 }
 
 function uniqueStrings(values: readonly string[]): readonly string[] {

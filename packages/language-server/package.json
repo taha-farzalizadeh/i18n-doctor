@@ -1,6 +1,6 @@
 {
   "name": "@i18n-doctor/language-server",
-  "version": "0.11.7",
+  "version": "0.11.8",
   "description": "IDE-agnostic Language Server exposing i18n-doctor analysis as live LSP diagnostics",
   "type": "module",
   "bin": {
@@ -25,7 +25,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@i18n-doctor/cli": "0.11.7",
+    "@i18n-doctor/cli": "0.11.8",
     "@i18n-doctor/config": "0.10.2",
     "@i18n-doctor/coverage": "0.10.3",
     "@i18n-doctor/detect": "0.10.2",
@@ -33,7 +33,7 @@
     "@i18n-doctor/scanner": "0.10.2",
     "@i18n-doctor/sources": "0.10.2",
     "@i18n-doctor/translation-index": "0.11.0",
-    "@i18n-doctor/usages": "0.11.7",
+    "@i18n-doctor/usages": "0.11.8",
     "vscode-languageserver": "^10.0.0",
     "vscode-languageserver-textdocument": "^1.0.12"
   },

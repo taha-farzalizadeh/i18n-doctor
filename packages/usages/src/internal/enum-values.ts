@@ -47,6 +47,61 @@ export function mergeEnumValueIndex(
 }
 
 /**
+ * All string values of a string enum (same-file or indexed), for
+ * `Object.keys(Enum).map((key) => t(key))` / `Object.values(Enum)`.
+ */
+export function allStringEnumValues(
+  enumName: string,
+  sourceFile: ts.SourceFile,
+  relativePath: string | undefined,
+  enumIndex: EnumValueIndex | undefined,
+): readonly string[] {
+  const local = findLocalEnumValues(enumName, sourceFile);
+  if (local.length > 0) return local;
+
+  if (!enumIndex || !relativePath) return [];
+
+  const modulePath = findImportModulePath(enumName, sourceFile);
+  if (!modulePath) {
+    const members = enumIndex.get(enumIndexKey(relativePath, enumName));
+    return members ? [...members.values()] : [];
+  }
+
+  if (modulePath.startsWith(".")) {
+    const targetRel = resolveRelativeModule(relativePath, modulePath);
+    if (!targetRel) return [];
+    for (const candidate of moduleCandidates(targetRel)) {
+      const members = enumIndex.get(enumIndexKey(candidate, enumName));
+      if (members && members.size > 0) return [...members.values()];
+    }
+    return [];
+  }
+
+  const suffix = `#${enumName}`;
+  for (const [key, members] of enumIndex) {
+    if (!key.endsWith(suffix)) continue;
+    if (members.size > 0) return [...members.values()];
+  }
+  return [];
+}
+
+function findLocalEnumValues(
+  enumName: string,
+  sourceFile: ts.SourceFile,
+): readonly string[] {
+  for (const stmt of sourceFile.statements) {
+    if (!ts.isEnumDeclaration(stmt) || stmt.name?.text !== enumName) continue;
+    const out: string[] = [];
+    for (const member of stmt.members) {
+      const value = stringEnumMemberValue(member);
+      if (value !== undefined && !out.includes(value)) out.push(value);
+    }
+    return out;
+  }
+  return [];
+}
+
+/**
  * Resolve `Enum.Member` / `Enum["Member"]` to its string value when the enum
  * is a string enum (same-file or indexed import).
  */

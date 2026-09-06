@@ -28,6 +28,11 @@ import {
   type EnumValueIndex,
 } from "./enum-values.js";
 import {
+  indexHelperStringReturns,
+  mergeHelperReturnIndex,
+  type HelperReturnIndex,
+} from "./helper-returns.js";
+import {
   analyzeTemplates,
   extractVueScripts,
   templateSupportedExtension,
@@ -89,9 +94,10 @@ export async function collectUsages(input: {
   const untranslatedLiterals: UntranslatedLiteral[] = [];
   let fileCount = 0;
 
-  // Pre-index string enums, then object-array configs + translator callables.
+  // Pre-index string enums, then object-array configs + translator callables + helpers.
   const enumIndex: EnumValueIndex = new Map();
   const objectArrayIndex: ObjectArrayPropIndex = new Map();
+  const helperReturnIndex: HelperReturnIndex = new Map();
   const translatorCallableIndex: TranslatorCallableIndex = new Map();
   await mapPool(candidates, ANALYZE_CONCURRENCY, async (file) => {
     try {
@@ -146,6 +152,10 @@ export async function collectUsages(input: {
               enumIndex,
             ),
           );
+          mergeHelperReturnIndex(
+            helperReturnIndex,
+            indexHelperStringReturns(parsed.sourceFile, file.relativePath),
+          );
           mergeTranslatorCallableIndex(
             translatorCallableIndex,
             indexTranslatorCallables(parsed.sourceFile, file.relativePath),
@@ -162,6 +172,10 @@ export async function collectUsages(input: {
       mergeObjectArrayIndex(
         objectArrayIndex,
         indexObjectArrayProps(parsed.sourceFile, file.relativePath, enumIndex),
+      );
+      mergeHelperReturnIndex(
+        helperReturnIndex,
+        indexHelperStringReturns(parsed.sourceFile, file.relativePath),
       );
       mergeTranslatorCallableIndex(
         translatorCallableIndex,
@@ -272,6 +286,7 @@ export async function collectUsages(input: {
               minConfidence: input.minConfidence,
               objectArrayIndex,
               enumIndex,
+              helperReturnIndex,
               translatorCallSites,
             });
           const shifted = offsetUsages(scriptUsages, sourceText, script.offset);
@@ -332,6 +347,7 @@ export async function collectUsages(input: {
           minConfidence: input.minConfidence,
           objectArrayIndex,
           enumIndex,
+          helperReturnIndex,
           translatorCallSites,
         });
       usages.push(...scriptUsages);
@@ -377,6 +393,7 @@ function analyzeScript(input: {
   minConfidence: number;
   objectArrayIndex: ObjectArrayPropIndex;
   enumIndex: EnumValueIndex;
+  helperReturnIndex: HelperReturnIndex;
   translatorCallSites: TranslatorCallSiteNamespaces;
 }): {
   usages: TranslationUsage[];
@@ -433,6 +450,7 @@ function analyzeScript(input: {
     aliasAnalysis,
     index: input.objectArrayIndex,
     enumIndex: input.enumIndex,
+    helperIndex: input.helperReturnIndex,
   })) {
     if (usage.confidence < input.minConfidence) {
       continue;

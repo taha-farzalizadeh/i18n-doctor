@@ -733,6 +733,19 @@ function staticStringArg(arg: ts.Expression | undefined): string | undefined {
   if (ts.isStringLiteral(arg) || ts.isNoSubstitutionTemplateLiteral(arg)) {
     return arg.text;
   }
+  // useTranslation(ref || "settings") / useTranslation(ref ?? "settings")
+  if (
+    ts.isBinaryExpression(arg) &&
+    (arg.operatorToken.kind === ts.SyntaxKind.BarBarToken ||
+      arg.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken)
+  ) {
+    return (
+      staticStringArg(arg.right) ?? staticStringArg(arg.left)
+    );
+  }
+  if (ts.isParenthesizedExpression(arg)) {
+    return staticStringArg(arg.expression);
+  }
   return undefined;
 }
 

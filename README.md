@@ -1,6 +1,6 @@
 # i18n-doctor
 
-> **Beta — v0.11.7**
+> **Beta — v0.11.8**
 > This is an early release. APIs may change, edge cases exist, and your feedback matters. See [Contributing](#contributing) to help shape the project.
 
 Static localization analysis for JavaScript and TypeScript projects. Finds unused, missing, and duplicate translation keys — and hardcoded UI text that never goes through translation — without executing your code.
@@ -398,6 +398,18 @@ If something doesn't work on your project, please open an issue. That's exactly 
 ---
 
 ## Changelog (recent)
+
+### 0.11.8 — broader static key resolution (2026-09)
+
+All user-facing packages and IDE plugins ship as **0.11.8**.
+
+- Helper returns: `t(getTitleByStatusType(variant))` when the helper only returns static strings
+- String maps: `t(descriptions[item])`
+- Object configs: `t(config.title)` from chart/config object maps
+- Route titles: `t(matchedTitle)` after `getRouteParam(..., "title")`
+- `Object.keys(Enum).map((key) => t(key))` / `Object.values(Enum)`
+- `useTranslation(ref || "settings")` fallback namespace (fixes yup/`validation(t)` false missing)
+- Safer prop-index allowlist (avoids false missings from `t(newValue.type)`)
 
 ### 0.11.7 — unified release (2026-09)
 

@@ -1,6 +1,6 @@
 # i18n-doctor for VS Code
 
-> **Beta — v0.11.7**
+> **Beta — v0.11.8**
 
 Live i18n diagnostics, **Go to Translation**, **Hover**, and **Completion** in
 VS Code. This extension is an LSP client: it starts the bundled
@@ -8,12 +8,19 @@ VS Code. This extension is an LSP client: it starts the bundled
 render what the server publishes. It does not parse source, extract keys, or
 decide what is unused.
 
+## What's new in 0.11.8
+
+- Helper returns (`t(getTitleByStatusType(…))`), string maps (`t(descriptions[item])`),
+  object configs (`t(config.title)`), route titles via `getRouteParam(..., "title")`
+- `Object.keys(Enum).map((key) => t(key))` and `useTranslation(ref || "ns")` fallback
+- **Unified versioning:** npm packages, language-server, and IDE plugins are all **0.11.8**
+- Bundled language server @ 0.11.8
+
 ## What's new in 0.11.7
 
 - Prop-passed nav/config keys via `t(item.translation)` (e.g. `navigationConfig`)
 - Nested `children` arrays included
-- **Unified versioning:** npm packages, language-server, and IDE plugins are all **0.11.7**
-- Bundled language server @ 0.11.7
+- Unified versioning at **0.11.7**
 
 ## What's new in 0.11.6
 
@@ -145,6 +152,7 @@ So a published extension is self-contained.
 
 ### Changelog (recent)
 
+- **0.11.8** — Helpers, string maps, chart/route configs, `Object.keys(Enum)`, `useTranslation` fallback; unified version with npm/ESLint/LS
 - **0.11.7** — Prop-passed `t(item.translation)` for navigation configs; unified version with npm/ESLint/LS
 - **0.11.6** — Form maps, column factories, string-enum state maps (parity with CLI/ESLint)
 - **0.11.2** — Static ternaries count as usages (`t(cond ? "A" : "B")`)

@@ -1,6 +1,6 @@
 # i18n-doctor for JetBrains (WebStorm)
 
-> **Beta — v0.11.7**
+> **Beta — v0.11.8**
 
 Live i18n diagnostics, **Go to Translation**, **Hover**, and **Completion** in
 WebStorm and other JetBrains IDEs that ship the platform LSP API. This plugin is
@@ -9,12 +9,19 @@ a **thin LSP client**: it starts the bundled
 render LSP results. It does **not** parse source, extract keys, or decide what
 is unused.
 
+## What's new in 0.11.8
+
+- Helper returns (`t(getTitleByStatusType(…))`), string maps (`t(descriptions[item])`),
+  object configs (`t(config.title)`), route titles via `getRouteParam(..., "title")`
+- `Object.keys(Enum).map((key) => t(key))` and `useTranslation(ref || "ns")` fallback
+- **Unified versioning:** npm packages, language-server, and IDE plugins are all **0.11.8**
+- Bundled language server @ 0.11.8
+
 ## What's new in 0.11.7
 
 - Prop-passed nav/config keys via `t(item.translation)` (e.g. `navigationConfig`)
 - Nested `children` arrays included
-- **Unified versioning:** npm packages, language-server, and IDE plugins are all **0.11.7**
-- Bundled language server @ 0.11.7
+- Unified versioning at **0.11.7**
 
 ## What's new in 0.11.6
 
@@ -176,7 +183,7 @@ npm run runIde -w i18n-doctor-jetbrains   # sandboxed WebStorm + demo project
 npm test -w i18n-doctor-jetbrains
 ```
 
-Current release version is **`0.11.7`** — bump it before every Marketplace
+Current release version is **`0.11.8`** — bump it before every Marketplace
 upload (see [PUBLISHING.md](./PUBLISHING.md)). Listing copy:
 [MARKETPLACE.md](./MARKETPLACE.md).
 

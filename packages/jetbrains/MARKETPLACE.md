@@ -161,6 +161,20 @@ Capture from `npm run runIde -w i18n-doctor-jetbrains` + `examples/demo-project`
 - Use channel **default** for public releases.
 - Use channel **eap** only if you intentionally ship pre-releases.
 
+## Change notes (0.11.8)
+
+```html
+<h3>0.11.8</h3>
+<p>Broader static key resolution: helpers, string maps, chart/route configs, enum Object.keys, and useTranslation fallbacks.</p>
+<ul>
+  <li><code>t(getTitleByStatusType(…))</code>, <code>t(descriptions[item])</code>, <code>t(config.title)</code></li>
+  <li>Route titles via <code>getRouteParam(..., "title")</code></li>
+  <li><code>Object.keys(Enum).map((key) =&gt; t(key))</code> and <code>useTranslation(ref || "ns")</code></li>
+  <li>npm / ESLint / language-server / JetBrains / VS Code all at <b>0.11.8</b></li>
+  <li>Rebundled language server @ 0.11.8</li>
+</ul>
+```
+
 ## Change notes (0.11.7)
 
 ```html

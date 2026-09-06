@@ -240,4 +240,58 @@ export function Table() {
     expect(u?.namespace).toBe("usersManagement");
     expect(u?.namespaceResolved).toBe(true);
   });
+
+  it("resolves useTranslation(ref || 'settings') fallback namespace", async () => {
+    const root = await fixture({
+      "package.json": JSON.stringify({
+        dependencies: { "react-i18next": "14.0.0" },
+      }),
+      "src/Form.tsx": `
+import { useTranslation } from 'react-i18next';
+export function Form(translateReference?: string) {
+  const { t } = useTranslation(translateReference || 'settings');
+  return t('ENTER_PERSIAN_NAME');
+}
+`,
+    });
+    const catalog = await createUsageDetector().detect({
+      root,
+      useDetection: false,
+    });
+    const u = catalog.usages.find((x) => x.key === "ENTER_PERSIAN_NAME");
+    expect(u?.namespace).toBe("settings");
+    expect(u?.namespaceResolved).toBe(true);
+  });
+
+  it("resolves validation(t) namespace via useTranslation(ref || 'settings')", async () => {
+    const root = await fixture({
+      "package.json": JSON.stringify({
+        dependencies: { "react-i18next": "14.0.0", i18next: "23.0.0" },
+      }),
+      "src/validation.ts": `
+import type { TFunction } from 'i18next';
+export const validation = (t: TFunction) => ({
+  name: t("ENTER_PERSIAN_NAME"),
+  max: t("255_CHAR"),
+});
+`,
+      "src/Form.tsx": `
+import { useTranslation } from 'react-i18next';
+import { validation } from './validation';
+export function Form(translateReference?: string) {
+  const { t } = useTranslation(translateReference || 'settings');
+  return validation(t);
+}
+`,
+    });
+    const catalog = await createUsageDetector().detect({
+      root,
+      useDetection: false,
+    });
+    for (const key of ["ENTER_PERSIAN_NAME", "255_CHAR"]) {
+      const u = catalog.usages.find((x) => x.key === key);
+      expect(u?.namespace).toBe("settings");
+      expect(u?.namespaceResolved).toBe(true);
+    }
+  });
 });

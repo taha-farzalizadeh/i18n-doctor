@@ -467,4 +467,245 @@ export function Page() {
     const u = catalog.usages.find((x) => x.key === "SENSITIVE_TERMS");
     expect(u?.namespace).toBe("wp");
   });
+
+  it("resolves t(getTitleByStatusType(v)) from cross-file helper returns", async () => {
+    const root = await fixture({
+      "package.json": JSON.stringify({
+        dependencies: { "react-i18next": "14.0.0" },
+      }),
+      "src/utils.tsx": `
+export const getTitleByStatusType = (type: string): string => {
+  switch (type) {
+    case "loading":
+      return "THE_PAGE_IS_PROCESSING_INFORMATION";
+    case "error":
+      return "THE_OPERATION_ENCOUNTERED_AN_ERROR";
+    case "empty":
+      return "NO_DATA_FOUND_IN_SEARCH_RESULT";
+    default:
+      return "";
+  }
+};
+`,
+      "src/ShowStatus.tsx": `
+import { useTranslation } from 'react-i18next';
+import { getTitleByStatusType } from './utils';
+export function ShowStatus({ variant }: { variant: string }) {
+  const { t } = useTranslation('status-renderer');
+  return <p>{t(getTitleByStatusType(variant))}</p>;
+}
+`,
+    });
+    const catalog = await createUsageDetector().detect({
+      root,
+      useDetection: false,
+    });
+    const keys = catalog.usages.map((u) => u.key);
+    expect(keys).toContain("THE_PAGE_IS_PROCESSING_INFORMATION");
+    expect(keys).toContain("THE_OPERATION_ENCOUNTERED_AN_ERROR");
+    expect(keys).toContain("NO_DATA_FOUND_IN_SEARCH_RESULT");
+  });
+
+  it("resolves t(descriptions[item]) from local string map", async () => {
+    const root = await fixture({
+      "package.json": JSON.stringify({
+        dependencies: { "react-i18next": "14.0.0" },
+      }),
+      "src/AddLayer.tsx": `
+import { useTranslation } from 'react-i18next';
+enum Layer {
+  POINT = "POINT",
+  HEAT = "HEAT",
+}
+const descriptions = {
+  [Layer.POINT]: "POINT_LAYER_DESCRIPTION",
+  [Layer.HEAT]: "HEAT_LAYER_DESCRIPTION",
+};
+export function AddLayer() {
+  const { t } = useTranslation('mapComponent');
+  return Object.keys(Layer).map((item) => (
+    <p key={item}>{t(descriptions[item as Layer])}</p>
+  ));
+}
+`,
+    });
+    const catalog = await createUsageDetector().detect({
+      root,
+      useDetection: false,
+    });
+    const keys = catalog.usages.map((u) => u.key);
+    expect(keys).toContain("POINT_LAYER_DESCRIPTION");
+    expect(keys).toContain("HEAT_LAYER_DESCRIPTION");
+  });
+
+  it("resolves t(config.title) from object-of-objects chartConfigs", async () => {
+    const root = await fixture({
+      "package.json": JSON.stringify({
+        dependencies: { "react-i18next": "14.0.0" },
+      }),
+      "src/chartConfigs.ts": `
+const configs = {
+  geo: { title: "GEO", sampleUri: "a.webp" },
+  bar: { title: "BAR", sampleUri: "b.webp" },
+  pie: { title: "SHARE_DATASET_PIE_LINE", sampleUri: "c.webp" },
+};
+export default configs;
+`,
+      "src/ChartListItem.tsx": `
+import { useTranslation } from 'react-i18next';
+type ChartConfig = { title: string };
+export function ChartListItem({ config }: { config: ChartConfig }) {
+  const { t } = useTranslation('AGGREGATION');
+  return <p>{t(config.title)}</p>;
+}
+`,
+    });
+    const catalog = await createUsageDetector().detect({
+      root,
+      useDetection: false,
+    });
+    const keys = catalog.usages.map((u) => u.key);
+    expect(keys).toContain("GEO");
+    expect(keys).toContain("BAR");
+    expect(keys).toContain("SHARE_DATASET_PIE_LINE");
+  });
+
+  it("resolves t(matchedTitle) from getRouteParam(..., 'title')", async () => {
+    const root = await fixture({
+      "package.json": JSON.stringify({
+        dependencies: { "react-i18next": "14.0.0" },
+      }),
+      "src/userManagementRoute.tsx": `
+export default {
+  path: "users",
+  title: "USERS_MANAGEMENT",
+};
+`,
+      "src/regionRoute.tsx": `
+export default {
+  path: "regions",
+  title: "REGION_MANAGEMENT",
+};
+`,
+      "src/utils.ts": `
+export function getRouteParam(pathname: string, key: string) {
+  return key;
+}
+`,
+      "src/AppLayout.tsx": `
+import { useTranslation } from 'react-i18next';
+import { getRouteParam } from './utils';
+export function AppLayout({ pathname }: { pathname: string }) {
+  const { t } = useTranslation('routes');
+  const matchedTitle = getRouteParam(pathname, "title");
+  return <title>{t(matchedTitle)}</title>;
+}
+`,
+    });
+    const catalog = await createUsageDetector().detect({
+      root,
+      useDetection: false,
+    });
+    const keys = catalog.usages.map((u) => u.key);
+    expect(keys).toContain("USERS_MANAGEMENT");
+    expect(keys).toContain("REGION_MANAGEMENT");
+  });
+
+  it("resolves Object.keys(Enum).map((key) => t(key))", async () => {
+    const root = await fixture({
+      "package.json": JSON.stringify({
+        dependencies: { "react-i18next": "14.0.0" },
+      }),
+      "src/types.ts": `
+export enum DateTimeFilterValue {
+  TODAY = "TODAY",
+  YESTERDAY = "YESTERDAY",
+  PREVIOUS_MONTH = "PREVIOUS_MONTH",
+}
+`,
+      "src/DateInput.tsx": `
+import { useTranslation } from 'react-i18next';
+import { DateTimeFilterValue } from './types';
+export function DateInput() {
+  const { t } = useTranslation('general');
+  return Object.keys(DateTimeFilterValue).map((key) => (
+    <span key={key}>{t(key)}</span>
+  ));
+}
+`,
+    });
+    const catalog = await createUsageDetector().detect({
+      root,
+      useDetection: false,
+    });
+    const keys = catalog.usages.map((u) => u.key);
+    expect(keys).toContain("TODAY");
+    expect(keys).toContain("YESTERDAY");
+    expect(keys).toContain("PREVIOUS_MONTH");
+  });
+
+  it("resolves t(sortOption.name) from local options array", async () => {
+    const root = await fixture({
+      "package.json": JSON.stringify({
+        dependencies: { "react-i18next": "14.0.0" },
+      }),
+      "src/Footer.tsx": `
+import { useTranslation } from 'react-i18next';
+export function Footer() {
+  const { t } = useTranslation('aggregation');
+  const sortOptions = [
+    { value: "ASC", name: "ASCENDING" },
+    { value: "DESC", name: "DESCENDING" },
+  ];
+  return sortOptions.map((sortOption) => (
+    <span key={sortOption.value}>{t(sortOption.name)}</span>
+  ));
+}
+`,
+    });
+    const catalog = await createUsageDetector().detect({
+      root,
+      useDetection: false,
+    });
+    const keys = catalog.usages.map((u) => u.key);
+    expect(keys).toContain("ASCENDING");
+    expect(keys).toContain("DESCENDING");
+  });
+
+  it("does not pull every indexed type string for t(newValue.type)", async () => {
+    const root = await fixture({
+      "package.json": JSON.stringify({
+        dependencies: { "react-i18next": "14.0.0", i18next: "23.0.0" },
+      }),
+      "src/menu.ts": `
+export const menu = [
+  { type: "Access" },
+  { type: "CSV" },
+  { type: "MySQL" },
+];
+`,
+      "src/utils.ts": `
+import type { TFunction } from 'i18next';
+export function createNewLayer(t: TFunction, newValue: { type: string }) {
+  return t(newValue.type);
+}
+`,
+      "src/Page.tsx": `
+import { useTranslation } from 'react-i18next';
+import { createNewLayer } from './utils';
+export function Page() {
+  const { t } = useTranslation('mapComponent');
+  return createNewLayer(t, { type: "POINT" });
+}
+`,
+    });
+    const catalog = await createUsageDetector().detect({
+      root,
+      useDetection: false,
+    });
+    const keys = catalog.usages.map((u) => u.key);
+    expect(keys).not.toContain("Access");
+    expect(keys).not.toContain("CSV");
+    expect(keys).not.toContain("MySQL");
+  });
 });

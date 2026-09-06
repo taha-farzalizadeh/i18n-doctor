@@ -74,9 +74,9 @@ export function namespacedProject(
 }
 
 /**
- * Santez-style co-located catalogs via addResourceBundle.
+ * Co-located catalogs registered via addResourceBundle.
  */
-export function santezProject(
+export function colocatedResourceBundleProject(
   overrides: Record<string, string> = {},
 ): Record<string, string> {
   return {

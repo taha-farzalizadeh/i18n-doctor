@@ -5,7 +5,7 @@ import {
   flatProject,
   LOGIN_TSX,
   namespacedProject,
-  santezProject,
+  colocatedResourceBundleProject,
 } from "./fixtures.js";
 import { fixture, harness } from "./helpers.js";
 
@@ -81,11 +81,11 @@ describe("textDocument/definition", () => {
     expect(locations[0]!.uri).toMatch(/locales\/en\.json$/);
   });
 
-  it("resolves Santez-style addResourceBundle catalogs", async () => {
-    const root = await fixture(santezProject());
+  it("resolves co-located addResourceBundle catalogs", async () => {
+    const root = await fixture(colocatedResourceBundleProject());
     const h = harness(root);
     await h.start();
-    const text = santezProject()["src/App.tsx"]!;
+    const text = colocatedResourceBundleProject()["src/App.tsx"]!;
     await h.open("src/App.tsx", text);
 
     const position = posOf(text, '"SAVE"');

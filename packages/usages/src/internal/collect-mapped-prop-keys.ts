@@ -20,11 +20,13 @@ import {
   type ObjectArrayPropIndex,
 } from "./object-array-props.js";
 import type { EnumValueIndex } from "./enum-values.js";
+import type { HelperReturnIndex } from "./helper-returns.js";
 import { buildUsage } from "./usage-builder.js";
 
 /**
- * Emit usages for `t(field.label)` when `field` comes from mapping a static
- * array of objects (same-file or cross-file form-field configs).
+ * Emit usages for indirect key expressions:
+ *   t(field.label) | t(descriptions[item]) | t(getTitle(...)) |
+ *   t(matchedTitle) | Object.keys(Enum).map((k) => t(k))
  */
 export function collectMappedPropUsages(input: {
   absolutePath: string;
@@ -34,6 +36,7 @@ export function collectMappedPropUsages(input: {
   aliasAnalysis: FileAliasAnalysis;
   index: ObjectArrayPropIndex;
   enumIndex?: EnumValueIndex;
+  helperIndex?: HelperReturnIndex;
 }): TranslationUsage[] {
   const found: TranslationUsage[] = [];
   const seen = new Set<string>();
@@ -55,19 +58,20 @@ export function collectMappedPropUsages(input: {
       new Set(),
       keyOpts,
     );
-    // Cross-file string enums resolve here (detectors lack the enum index).
+    const indirect = resolveMappedPropKeys(
+      keyNode,
+      input.sourceFile,
+      input.relativePath,
+      input.index,
+      input.enumIndex,
+      input.helperIndex,
+    );
+    // Cross-file string enums resolve via staticKeys + member access
+    // (detectors lack the enum index). Other indirect patterns use the index.
     const keys =
       staticKeys.length > 0 && isMemberAccess(keyNode)
         ? staticKeys
-        : staticKeys.length > 0
-          ? []
-          : resolveMappedPropKeys(
-              keyNode,
-              input.sourceFile,
-              input.relativePath,
-              input.index,
-              input.enumIndex,
-            );
+        : indirect;
     if (keys.length === 0) return;
 
     const binding = resolveMappedCallee(
