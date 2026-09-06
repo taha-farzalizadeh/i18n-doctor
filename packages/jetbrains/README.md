@@ -1,6 +1,6 @@
 # i18n-doctor for JetBrains (WebStorm)
 
-> **Beta — v0.11.3**
+> **Beta — v0.11.6**
 
 Live i18n diagnostics, **Go to Translation**, **Hover**, and **Completion** in
 WebStorm and other JetBrains IDEs that ship the platform LSP API. This plugin is
@@ -8,6 +8,22 @@ a **thin LSP client**: it starts the bundled
 [`@i18n-doctor/language-server`](../language-server) over stdio and lets the IDE
 render LSP results. It does **not** parse source, extract keys, or decide what
 is unused.
+
+## What's new in 0.11.6
+
+- Form-field maps, column factories (`usersColumns(t)`), and string-enum
+  `useState` maps (`t(item.name)`) resolve as usages
+- Bundled language server @ 0.11.5
+
+## What's new in 0.11.5
+
+- Column/factory helpers that take `t` inherit the caller namespace
+- Bundled language server @ 0.11.4
+
+## What's new in 0.11.4
+
+- Form-field config labels via `t(field.label)` count as used
+- Bundled language server @ 0.11.3
 
 ## What's new in 0.11.3
 

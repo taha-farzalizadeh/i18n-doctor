@@ -8,6 +8,9 @@ helpers used by the issue engine:
 - Prop-passed translators (`{ t }` / `props.t`)
 - Static key composition (`"a" + "b"`, static templates, same-file `const`)
 - Static ternaries (`t(cond ? "A" : "B")`, `const k = cond ? "A" : "B"; t(k)`)
+- Form-field maps (`t(field.label)` from static config arrays)
+- Translator factories (`usersColumns(t)` inherits call-site namespace)
+- String enums + `useState` maps (`t(item.name)` / `WpNavbar.SENSITIVE_TERMS`)
 - Dynamic key fragments (for soft unused hints)
 - Untranslated UI literals (JSX text / common attributes)
 

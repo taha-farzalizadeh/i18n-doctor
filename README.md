@@ -1,6 +1,6 @@
 # i18n-doctor
 
-> **Beta — v0.11.0**
+> **Beta — npm 0.10.6 / IDE 0.11.6**
 > This is an early release. APIs may change, edge cases exist, and your feedback matters. See [Contributing](#contributing) to help shape the project.
 
 Static localization analysis for JavaScript and TypeScript projects. Finds unused, missing, and duplicate translation keys — and hardcoded UI text that never goes through translation — without executing your code.
@@ -398,6 +398,15 @@ If something doesn't work on your project, please open an issue. That's exactly 
 ---
 
 ## Changelog (recent)
+
+### Form maps, column factories, string enums (2026-09)
+
+- **`t(field.label)`** from static form-field configs (incl. cross-file factories)
+- **`usersColumns(t)`** — translator params inherit the call-site namespace
+- **`t(item.name)`** via string enums + `useState` setters (e.g. `WpNavbar.SENSITIVE_TERMS`)
+- **npm** `i18n-doctor` / `@i18n-doctor/cli` / `@i18n-doctor/usages` /
+  `@i18n-doctor/eslint-plugin` **0.10.6**, `@i18n-doctor/language-server` **0.11.5**
+- **JetBrains 0.11.6** / **VS Code 0.11.6** — rebundled language server
 
 ### Static ternaries (2026-09)
 
