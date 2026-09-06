@@ -385,6 +385,62 @@ export function ActiveWPActions(uuid: string) {
     expect(sensitive?.namespace).toBe("wp");
   });
 
+  it("resolves t(item.translation) when item is a props binding (nav config)", async () => {
+    const root = await fixture({
+      "package.json": JSON.stringify({
+        dependencies: { "react-i18next": "14.0.0" },
+      }),
+      "src/navigationConfig.tsx": `
+import React from 'react';
+const Icon = () => <span />;
+const navigationConfig = [
+  { id: "divider", translation: "", type: "divider" },
+  {
+    id: "CHANGE_PROFILES",
+    translation: "CHANGE_PROFILES",
+    type: "component",
+    icon: <Icon />,
+  },
+  {
+    id: "DATA_EXPLORE",
+    translation: "DATA_EXPLORE",
+    type: "item",
+    children: [
+      { id: "ACTIVE_WP", translation: "ACTIVE_WP", type: "item" },
+    ],
+  },
+];
+export default navigationConfig;
+`,
+      "src/NavItem.tsx": `
+import { useTranslation } from 'react-i18next';
+type Item = { translation?: string };
+export function NavItem({ item }: { item: Item }) {
+  const { t } = useTranslation('navigation');
+  return <span>{item.translation ? t(item.translation) : null}</span>;
+}
+`,
+      "src/Navbar.tsx": `
+import navigation from './navigationConfig';
+import { NavItem } from './NavItem';
+export function Navbar() {
+  return navigation.map((item) => <NavItem key={item.id} item={item} />);
+}
+`,
+    });
+    const catalog = await createUsageDetector().detect({
+      root,
+      useDetection: false,
+    });
+    const keys = catalog.usages.map((u) => u.key);
+    expect(keys).toContain("CHANGE_PROFILES");
+    expect(keys).toContain("DATA_EXPLORE");
+    expect(keys).toContain("ACTIVE_WP");
+    expect(keys).not.toContain("");
+    const change = catalog.usages.find((u) => u.key === "CHANGE_PROFILES");
+    expect(change?.namespace).toBe("navigation");
+  });
+
   it("resolves t(WpNavbar.SENSITIVE_TERMS) from imported string enum", async () => {
     const root = await fixture({
       "package.json": JSON.stringify({

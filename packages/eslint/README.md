@@ -1,5 +1,7 @@
 # @i18n-doctor/eslint-plugin
 
+> **Beta — v0.11.7** (same version as CLI / language-server / IDE plugins)
+
 ESLint plugin that surfaces **i18n-doctor** findings in the editor and CI using the
 **same analyzer** as the CLI and language server.
 

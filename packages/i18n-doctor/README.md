@@ -1,6 +1,6 @@
 # i18n-doctor
 
-> **Beta — v0.10.6**
+> **Beta — v0.11.7**
 
 Static localization analysis for JavaScript and TypeScript projects.  
 Finds **unused**, **missing**, and **duplicate** translation keys — without executing your code.
@@ -278,7 +278,7 @@ Package: [@i18n-doctor/eslint-plugin](https://www.npmjs.com/package/@i18n-doctor
 
 ## Beta
 
-This is v0.10.6 — a beta release. Core analysis works on real projects but edge cases exist.
+This is v0.11.7 — a beta release. Core analysis works on real projects but edge cases exist.
 Prop-passed `t`, static key concat, static ternaries, soft dynamic-unused hints, and untranslated UI text are supported.
 Bug reports and contributions are very welcome.
 

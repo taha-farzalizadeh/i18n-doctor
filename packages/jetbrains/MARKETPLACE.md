@@ -161,6 +161,19 @@ Capture from `npm run runIde -w i18n-doctor-jetbrains` + `examples/demo-project`
 - Use channel **default** for public releases.
 - Use channel **eap** only if you intentionally ship pre-releases.
 
+## Change notes (0.11.7)
+
+```html
+<h3>0.11.7</h3>
+<p>Navigation config keys via <code>t(item.translation)</code> on props count as used. Unified release with npm packages.</p>
+<ul>
+  <li>Prop-passed config objects (e.g. <code>NavItem</code> + <code>navigationConfig</code>) resolve keys</li>
+  <li>Nested <code>children</code> arrays in nav/menu configs are included</li>
+  <li>npm / ESLint / language-server / JetBrains / VS Code all at <b>0.11.7</b></li>
+  <li>Rebundled language server @ 0.11.7</li>
+</ul>
+```
+
 ## Change notes (0.11.6)
 
 ```html

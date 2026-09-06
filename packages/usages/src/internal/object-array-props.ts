@@ -65,6 +65,12 @@ export function indexObjectArrayProps(
  * If `expr` is `ident.prop` (or `ident["prop"]`) where `ident` is a `.map` /
  * `.forEach` / `.flatMap` element binding over a known object array, return
  * the static string keys for that property.
+ *
+ * Also covers prop-passed config objects (navigation / table row patterns):
+ *   navigation.map((item) => <NavItem item={item} />)
+ *   // NavItem.tsx
+ *   t(item.translation)
+ * where `item` is a component prop, not the map callback parameter.
  */
 export function resolveMappedPropKeys(
   expr: ts.Expression,
@@ -77,16 +83,105 @@ export function resolveMappedPropKeys(
   if (!access) return [];
 
   const collection = collectionForMapParam(access.object, sourceFile);
-  if (!collection) return [];
+  if (collection) {
+    return keysFromCollection(
+      collection,
+      access.property,
+      sourceFile,
+      relativePath,
+      index,
+      enumIndex,
+    );
+  }
 
-  return keysFromCollection(
-    collection,
-    access.property,
-    sourceFile,
-    relativePath,
-    index,
-    enumIndex,
-  );
+  // `t(item.translation)` when `item` is a props/parameter binding.
+  if (isPropsOrParamObjectBinding(access.object, sourceFile)) {
+    return keysForPropFromIndex(access.property, index);
+  }
+
+  return [];
+}
+
+/**
+ * Demand-driven: any `t(x.prop)` on a props/param object pulls static `prop`
+ * values from every indexed object-array config (incl. nested children).
+ */
+function keysForPropFromIndex(
+  propName: string,
+  index: ObjectArrayPropIndex,
+): readonly string[] {
+  const out: string[] = [];
+  for (const props of index.values()) {
+    const keys = props.get(propName);
+    if (!keys) continue;
+    for (const key of keys) {
+      if (key.length > 0 && !out.includes(key)) out.push(key);
+    }
+  }
+  return out;
+}
+
+/**
+ * True when `id` is a function parameter or destructured props binding
+ * (e.g. `function NavItem({ item })` / `props.item` local).
+ */
+function isPropsOrParamObjectBinding(
+  id: ts.Identifier,
+  sourceFile: ts.SourceFile,
+): boolean {
+  const name = id.text;
+  const usePos = id.getStart(sourceFile);
+  let found = false;
+
+  const visit = (node: ts.Node): void => {
+    if (found) return;
+
+    if (ts.isParameter(node)) {
+      if (
+        ts.isIdentifier(node.name) &&
+        node.name.text === name &&
+        node.name.getStart(sourceFile) < usePos
+      ) {
+        found = true;
+        return;
+      }
+      if (ts.isObjectBindingPattern(node.name)) {
+        for (const el of node.name.elements) {
+          if (
+            !el.dotDotDotToken &&
+            ts.isIdentifier(el.name) &&
+            el.name.text === name &&
+            el.name.getStart(sourceFile) < usePos
+          ) {
+            found = true;
+            return;
+          }
+        }
+      }
+    }
+
+    // const { item } = props;  (or props.item assigned)
+    if (
+      ts.isVariableDeclaration(node) &&
+      ts.isObjectBindingPattern(node.name) &&
+      node.name.getStart(sourceFile) < usePos
+    ) {
+      for (const el of node.name.elements) {
+        if (
+          !el.dotDotDotToken &&
+          ts.isIdentifier(el.name) &&
+          el.name.text === name
+        ) {
+          found = true;
+          return;
+        }
+      }
+    }
+
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return found;
 }
 
 function keyOptions(
@@ -534,26 +629,41 @@ function propsFromObjectArray(
   options?: StaticKeyOptions,
 ): ReadonlyMap<string, readonly string[]> {
   const map = new Map<string, string[]>();
-  for (const el of array.elements) {
-    const obj = unwrap(el);
-    if (!ts.isObjectLiteralExpression(obj)) continue;
+  const merge = (name: string, values: readonly string[]) => {
+    const bucket = map.get(name) ?? [];
+    for (const value of values) {
+      if (value.length > 0 && !bucket.includes(value)) bucket.push(value);
+    }
+    if (bucket.length > 0) map.set(name, bucket);
+  };
+
+  const ingestObject = (obj: ts.ObjectLiteralExpression): void => {
     for (const prop of obj.properties) {
       if (!ts.isPropertyAssignment(prop)) continue;
       const name = propertyNameText(prop.name);
       if (!name) continue;
+      const init = unwrap(prop.initializer);
+      if (ts.isArrayLiteralExpression(init) && looksLikeObjectArray(init)) {
+        // Nested configs (e.g. navigation `children: [...]`).
+        const nested = propsFromObjectArray(init, sourceFile, options);
+        for (const [nestedName, nestedValues] of nested) {
+          merge(nestedName, nestedValues);
+        }
+        continue;
+      }
       const values = staticStringKeys(
         prop.initializer,
         sourceFile,
         new Set(),
         options,
       );
-      if (values.length === 0) continue;
-      const bucket = map.get(name) ?? [];
-      for (const value of values) {
-        if (!bucket.includes(value)) bucket.push(value);
-      }
-      map.set(name, bucket);
+      if (values.length > 0) merge(name, values);
     }
+  };
+
+  for (const el of array.elements) {
+    const obj = unwrap(el);
+    if (ts.isObjectLiteralExpression(obj)) ingestObject(obj);
   }
   return map;
 }

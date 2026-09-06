@@ -30,10 +30,35 @@ function intelligenceFixture(): string {
       SHOW: "Show",
       ORPHAN_WP: "unused",
     }),
+    "locales/en/navigation.json": JSON.stringify({
+      CHANGE_PROFILES: "Change Profile",
+      DATA_EXPLORE: "Explore",
+      ORPHAN_NAV: "unused",
+    }),
     "src/wpTypes.ts": `
 export enum WpNavbar {
   DATASETS = "DATASETS",
   SENSITIVE_TERMS = "SENSITIVE_TERMS",
+}
+`,
+    "src/navigationConfig.ts": `
+export const navigationConfig = [
+  { id: "CHANGE_PROFILES", translation: "CHANGE_PROFILES" },
+  { id: "DATA_EXPLORE", translation: "DATA_EXPLORE" },
+];
+`,
+    "src/NavItem.tsx": `
+import { useTranslation } from "react-i18next";
+export function NavItem({ item }: { item: { translation?: string } }) {
+  const { t } = useTranslation("navigation");
+  return <span>{item.translation ? t(item.translation) : null}</span>;
+}
+`,
+    "src/Navbar.tsx": `
+import { navigationConfig } from "./navigationConfig";
+import { NavItem } from "./NavItem";
+export function Navbar() {
+  return navigationConfig.map((item) => <NavItem key={item.id} item={item} />);
 }
 `,
     "src/formUtils.ts": `
@@ -125,6 +150,8 @@ describe("ESLint intelligence parity", () => {
       "DATASETS",
       "SENSITIVE_TERMS",
       "SHOW",
+      "CHANGE_PROFILES",
+      "DATA_EXPLORE",
     ]) {
       expect(
         unusedMsgs.some((m) => m.message.includes(`"${key}"`)),
@@ -141,9 +168,11 @@ describe("ESLint intelligence parity", () => {
       "locales/en/usersManagement.json",
     );
     const wpLocale = messagesForFile(unusedMsgs, "locales/en/wp.json");
+    const navLocale = messagesForFile(unusedMsgs, "locales/en/navigation.json");
     expect(usersLocale.some((m) => m.message.includes("ORPHAN_USER"))).toBe(
       true,
     );
     expect(wpLocale.some((m) => m.message.includes("ORPHAN_WP"))).toBe(true);
+    expect(navLocale.some((m) => m.message.includes("ORPHAN_NAV"))).toBe(true);
   });
 });

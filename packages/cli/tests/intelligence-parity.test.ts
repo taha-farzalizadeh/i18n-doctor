@@ -25,10 +25,35 @@ function intelligenceFixture(): string {
       SHOW: "Show",
       ORPHAN_WP: "unused in wp",
     }),
+    "locales/en/navigation.json": JSON.stringify({
+      CHANGE_PROFILES: "Change Profile",
+      DATA_EXPLORE: "Explore",
+      ORPHAN_NAV: "unused nav",
+    }),
     "src/wpTypes.ts": `
 export enum WpNavbar {
   DATASETS = "DATASETS",
   SENSITIVE_TERMS = "SENSITIVE_TERMS",
+}
+`,
+    "src/navigationConfig.ts": `
+export const navigationConfig = [
+  { id: "CHANGE_PROFILES", translation: "CHANGE_PROFILES" },
+  { id: "DATA_EXPLORE", translation: "DATA_EXPLORE" },
+];
+`,
+    "src/NavItem.tsx": `
+import { useTranslation } from "react-i18next";
+export function NavItem({ item }: { item: { translation?: string } }) {
+  const { t } = useTranslation("navigation");
+  return <span>{item.translation ? t(item.translation) : null}</span>;
+}
+`,
+    "src/Navbar.tsx": `
+import { navigationConfig } from "./navigationConfig";
+import { NavItem } from "./NavItem";
+export function Navbar() {
+  return navigationConfig.map((item) => <NavItem key={item.id} item={item} />);
 }
 `,
     "src/formUtils.ts": `
@@ -120,6 +145,8 @@ describe("CLI intelligence parity", () => {
       "DATASETS",
       "SENSITIVE_TERMS",
       "SHOW",
+      "CHANGE_PROFILES",
+      "DATA_EXPLORE",
     ]) {
       expect(unused, `unused should not include ${key}`).not.toContain(key);
       expect(missing, `missing should not include ${key}`).not.toContain(key);
@@ -127,6 +154,7 @@ describe("CLI intelligence parity", () => {
 
     expect(unused).toContain("ORPHAN_USER");
     expect(unused).toContain("ORPHAN_WP");
+    expect(unused).toContain("ORPHAN_NAV");
   });
 
   it("only reports intentional orphan unused keys", async () => {
@@ -141,7 +169,9 @@ describe("CLI intelligence parity", () => {
     const unexpected = result.analysis.issues.filter(
       (i) =>
         i.type !== "unused-key" ||
-        (i.key !== "ORPHAN_USER" && i.key !== "ORPHAN_WP"),
+        (i.key !== "ORPHAN_USER" &&
+          i.key !== "ORPHAN_WP" &&
+          i.key !== "ORPHAN_NAV"),
     );
     expect(unexpected).toEqual([]);
   });

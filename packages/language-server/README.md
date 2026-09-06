@@ -1,5 +1,7 @@
 # @i18n-doctor/language-server
 
+> **Beta — v0.11.7** (same version as CLI / ESLint / IDE plugins)
+
 Live i18n diagnostics plus **Go to Translation**, **Hover**, and **Completion**
 in any LSP-compatible editor. The server is an adapter: it translates
 i18n-doctor analysis into LSP features and does no independent parsing of its
