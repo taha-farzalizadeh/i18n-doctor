@@ -180,7 +180,7 @@ export interface ServerCore {
 }
 
 export const SERVER_NAME = "i18n-doctor-language-server";
-export const SERVER_VERSION = "0.11.0";
+export const SERVER_VERSION = "0.11.5";
 
 export function createServerCore(options: ServerCoreOptions): ServerCore {
   const platform = options.platform ?? currentPlatform();

@@ -302,6 +302,115 @@ export function buildFileBindings(
   return table;
 }
 
+/**
+ * Apply namespaces discovered at call sites (e.g. `usersColumns(t)` where
+ * `t` comes from `useTranslation("usersManagement")`) onto translator
+ * parameters in this file so `t("KEY")` inside the callee resolves.
+ */
+export function enrichBindingsFromCallSites(
+  bindings: FileBindingTable,
+  sourceFile: ts.SourceFile,
+  relativePath: string,
+  callSites: ReadonlyMap<string, readonly string[]>,
+): void {
+  if (callSites.size === 0) {
+    return;
+  }
+  const scopes = scopedT.get(bindings);
+  if (!scopes) {
+    return;
+  }
+  const mutableScopes = scopes as ScopedTBinding[];
+  const tFunctions = bindings.tFunctions as Map<string, TFunctionBinding>;
+
+  const apply = (
+    name: string,
+    paramName: string,
+    body: ts.Node,
+  ): void => {
+    const key = `${normalizeRelPath(relativePath)}#${name}`;
+    const namespaces = callSites.get(key);
+    if (!namespaces || namespaces.length === 0) {
+      return;
+    }
+    const existing = resolveTFunction(
+      bindings,
+      paramName,
+      body.getStart(sourceFile),
+    );
+    const primary = namespaces[0]!;
+    const enriched: ScopedTBinding = {
+      name: paramName,
+      library: existing?.library ?? "i18next",
+      confidence: Math.max(existing?.confidence ?? 0.7, 0.92),
+      origin: `${existing?.origin ?? "props"} → call-site ${name}(${paramName})`,
+      namespace: primary,
+      ...(namespaces.length > 1 ? { namespaces } : {}),
+      ...(existing?.keyPrefix !== undefined
+        ? { keyPrefix: existing.keyPrefix }
+        : {}),
+      declPos: body.getStart(sourceFile),
+      scopeEnd: body.end,
+    };
+    mutableScopes.push(enriched);
+    tFunctions.set(paramName, enriched);
+  };
+
+  for (const stmt of sourceFile.statements) {
+    if (ts.isFunctionDeclaration(stmt) && stmt.name && stmt.body) {
+      const param = firstTranslatorParamName(stmt);
+      if (param) apply(stmt.name.text, param, stmt.body);
+      continue;
+    }
+    if (!ts.isVariableStatement(stmt)) continue;
+    for (const decl of stmt.declarationList.declarations) {
+      if (!ts.isIdentifier(decl.name) || !decl.initializer) continue;
+      const init = unwrapExpr(decl.initializer);
+      if (ts.isArrowFunction(init) || ts.isFunctionExpression(init)) {
+        const param = firstTranslatorParamName(init);
+        if (param && init.body) apply(decl.name.text, param, init.body);
+      }
+    }
+  }
+}
+
+function firstTranslatorParamName(
+  fn: ts.SignatureDeclaration,
+): string | undefined {
+  for (const param of fn.parameters) {
+    if (!ts.isIdentifier(param.name)) continue;
+    if (param.name.text === "t" || param.name.text === "tx" || param.name.text === "translate") {
+      return param.name.text;
+    }
+  }
+  return undefined;
+}
+
+function unwrapExpr(expr: ts.Expression): ts.Expression {
+  let current = expr;
+  while (
+    ts.isAsExpression(current) ||
+    ts.isSatisfiesExpression(current) ||
+    ts.isParenthesizedExpression(current)
+  ) {
+    current = current.expression;
+  }
+  return current;
+}
+
+function normalizeRelPath(rel: string): string {
+  const parts: string[] = [];
+  for (const part of rel.replace(/\\/g, "/").split("/")) {
+    if (!part || part === ".") continue;
+    if (part === "..") {
+      parts.pop();
+      continue;
+    }
+    parts.push(part);
+  }
+  return parts.join("/");
+}
+
 function registerT(
   name: string,
   binding: TFunctionBinding,

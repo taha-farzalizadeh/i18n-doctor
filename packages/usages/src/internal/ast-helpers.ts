@@ -1,10 +1,18 @@
 import ts from "typescript";
+import type { EnumValueIndex } from "./enum-values.js";
+import { resolveEnumMemberString } from "./enum-values.js";
+
+export interface StaticKeyOptions {
+  readonly relativePath?: string;
+  readonly enumIndex?: EnumValueIndex;
+}
 
 /**
  * Statically resolve every translation key an expression can evaluate to.
  * Supports everything {@link staticStringKey} does, plus:
  * - `cond ? "A" : "B"` → both keys when each branch is static
  * - same-file `const k = cond ? "A" : "B"` followed by `t(k)`
+ * - string enum members: `WpNavbar.SENSITIVE_TERMS` → `"SENSITIVE_TERMS"`
  *
  * Returns an empty array for anything partially dynamic
  * (e.g. `"HELLO_" + suffix`, or a ternary with a dynamic branch).
@@ -13,6 +21,7 @@ export function staticStringKeys(
   node: ts.Expression | undefined,
   sourceFile?: ts.SourceFile,
   seen: Set<ts.Node> = new Set(),
+  options?: StaticKeyOptions,
 ): readonly string[] {
   if (!node) {
     return [];
@@ -27,7 +36,7 @@ export function staticStringKeys(
     ts.isSatisfiesExpression(node) ||
     ts.isParenthesizedExpression(node)
   ) {
-    return staticStringKeys(node.expression, sourceFile, seen);
+    return staticStringKeys(node.expression, sourceFile, seen, options);
   }
 
   if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
@@ -38,8 +47,8 @@ export function staticStringKeys(
     ts.isBinaryExpression(node) &&
     node.operatorToken.kind === ts.SyntaxKind.PlusToken
   ) {
-    const left = staticStringKeys(node.left, sourceFile, seen);
-    const right = staticStringKeys(node.right, sourceFile, seen);
+    const left = staticStringKeys(node.left, sourceFile, seen, options);
+    const right = staticStringKeys(node.right, sourceFile, seen, options);
     if (left.length === 1 && right.length === 1) {
       return [left[0]! + right[0]!];
     }
@@ -49,7 +58,7 @@ export function staticStringKeys(
   if (ts.isTemplateExpression(node)) {
     let out = node.head.text;
     for (const span of node.templateSpans) {
-      const part = staticStringKeys(span.expression, sourceFile, seen);
+      const part = staticStringKeys(span.expression, sourceFile, seen, options);
       if (part.length !== 1) {
         return [];
       }
@@ -63,11 +72,13 @@ export function staticStringKeys(
       node.whenTrue,
       sourceFile,
       new Set(seen),
+      options,
     );
     const whenFalse = staticStringKeys(
       node.whenFalse,
       sourceFile,
       new Set(seen),
+      options,
     );
     if (whenTrue.length === 0 || whenFalse.length === 0) {
       return [];
@@ -75,8 +86,20 @@ export function staticStringKeys(
     return uniqueStrings([...whenTrue, ...whenFalse]);
   }
 
+  if (sourceFile) {
+    const enumValue = resolveEnumMemberString(
+      node,
+      sourceFile,
+      options?.relativePath,
+      options?.enumIndex,
+    );
+    if (enumValue !== undefined) {
+      return [enumValue];
+    }
+  }
+
   if (ts.isIdentifier(node) && sourceFile) {
-    return resolveConstStringBindings(node, sourceFile, seen);
+    return resolveConstStringBindings(node, sourceFile, seen, options);
   }
 
   return [];
@@ -213,6 +236,7 @@ function resolveConstStringBindings(
   id: ts.Identifier,
   sourceFile: ts.SourceFile,
   seen: Set<ts.Node>,
+  options?: StaticKeyOptions,
 ): readonly string[] {
   const name = id.text;
   const usePos = id.getStart(sourceFile);
@@ -241,6 +265,7 @@ function resolveConstStringBindings(
           node.initializer,
           sourceFile,
           new Set(seen),
+          options,
         );
         if (values.length > 0) {
           const declPos = node.name.getStart(sourceFile);

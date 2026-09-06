@@ -1,5 +1,6 @@
 import { createAstEngine, isSupportedSourceFileName } from "@i18n-doctor/ast";
 import type { LiteFileEntry, ProjectSnapshotView } from "@i18n-doctor/scanner";
+import ts from "typescript";
 import type {
   DynamicTranslationUsage,
   TemplateFrameworkId,
@@ -8,16 +9,36 @@ import type {
   UsageWarning,
 } from "../api/types.js";
 import { analyzeFileAliases } from "./alias-resolve.js";
-import { buildFileBindings } from "./bindings.js";
+import {
+  buildFileBindings,
+  enrichBindingsFromCallSites,
+} from "./bindings.js";
 import { collectDynamicUsages } from "./collect-dynamic.js";
+import { collectMappedPropUsages } from "./collect-mapped-prop-keys.js";
 import { collectUntranslatedLiterals } from "./collect-untranslated.js";
 import { LIBRARY_USAGE_DETECTORS } from "./detectors/index.js";
 import { offsetUsages, resolveAbsolutePath } from "./location.js";
+import {
+  indexObjectArrayProps,
+  type ObjectArrayPropIndex,
+} from "./object-array-props.js";
+import {
+  indexStringEnums,
+  mergeEnumValueIndex,
+  type EnumValueIndex,
+} from "./enum-values.js";
 import {
   analyzeTemplates,
   extractVueScripts,
   templateSupportedExtension,
 } from "./template-scan.js";
+import {
+  collectTranslatorCallSiteNamespaces,
+  indexTranslatorCallables,
+  mergeTranslatorCallSiteNamespaces,
+  type TranslatorCallSiteNamespaces,
+  type TranslatorCallableIndex,
+} from "./translator-call-flow.js";
 
 function vueFrameworkFromHints(
   hints: ReadonlySet<string>,
@@ -67,6 +88,137 @@ export async function collectUsages(input: {
   const dynamicUsages: DynamicTranslationUsage[] = [];
   const untranslatedLiterals: UntranslatedLiteral[] = [];
   let fileCount = 0;
+
+  // Pre-index string enums, then object-array configs + translator callables.
+  const enumIndex: EnumValueIndex = new Map();
+  const objectArrayIndex: ObjectArrayPropIndex = new Map();
+  const translatorCallableIndex: TranslatorCallableIndex = new Map();
+  await mapPool(candidates, ANALYZE_CONCURRENCY, async (file) => {
+    try {
+      const read = await input.snapshot.content.read(file.fileId);
+      if (!read.ok || read.bytes.byteLength > MAX_FILE_BYTES) return;
+      const sourceText = Buffer.from(read.bytes).toString("utf8");
+      if (file.extension === "vue") {
+        for (const script of extractVueScripts(sourceText)) {
+          const parsed = engine.parse({
+            fileName: `${file.relativePath}.${script.lang}`,
+            sourceText: script.text,
+          });
+          mergeEnumValueIndex(
+            enumIndex,
+            indexStringEnums(parsed.sourceFile, file.relativePath),
+          );
+        }
+        return;
+      }
+      if (!SCRIPT_EXT.has(file.extension)) return;
+      if (!isSupportedSourceFileName(file.relativePath)) return;
+      const parsed = engine.parse({
+        fileName: file.relativePath,
+        sourceText,
+      });
+      mergeEnumValueIndex(
+        enumIndex,
+        indexStringEnums(parsed.sourceFile, file.relativePath),
+      );
+    } catch {
+      // Best-effort.
+    }
+  });
+
+  await mapPool(candidates, ANALYZE_CONCURRENCY, async (file) => {
+    try {
+      const read = await input.snapshot.content.read(file.fileId);
+      if (!read.ok || read.bytes.byteLength > MAX_FILE_BYTES) return;
+      const sourceText = Buffer.from(read.bytes).toString("utf8");
+      if (file.extension === "vue") {
+        for (const script of extractVueScripts(sourceText)) {
+          const fileName = `${file.relativePath}.${script.lang}`;
+          const parsed = engine.parse({
+            fileName,
+            sourceText: script.text,
+          });
+          mergeObjectArrayIndex(
+            objectArrayIndex,
+            indexObjectArrayProps(
+              parsed.sourceFile,
+              file.relativePath,
+              enumIndex,
+            ),
+          );
+          mergeTranslatorCallableIndex(
+            translatorCallableIndex,
+            indexTranslatorCallables(parsed.sourceFile, file.relativePath),
+          );
+        }
+        return;
+      }
+      if (!SCRIPT_EXT.has(file.extension)) return;
+      if (!isSupportedSourceFileName(file.relativePath)) return;
+      const parsed = engine.parse({
+        fileName: file.relativePath,
+        sourceText,
+      });
+      mergeObjectArrayIndex(
+        objectArrayIndex,
+        indexObjectArrayProps(parsed.sourceFile, file.relativePath, enumIndex),
+      );
+      mergeTranslatorCallableIndex(
+        translatorCallableIndex,
+        indexTranslatorCallables(parsed.sourceFile, file.relativePath),
+      );
+    } catch {
+      // Best-effort index; analysis below still runs.
+    }
+  });
+
+  // Collect namespaces passed into those callables (usersColumns(t), …).
+  const translatorCallSites: TranslatorCallSiteNamespaces = new Map();
+  if (translatorCallableIndex.size > 0) {
+    await mapPool(candidates, ANALYZE_CONCURRENCY, async (file) => {
+      try {
+        if (
+          !SCRIPT_EXT.has(file.extension) &&
+          file.extension !== "vue"
+        ) {
+          return;
+        }
+        const read = await input.snapshot.content.read(file.fileId);
+        if (!read.ok || read.bytes.byteLength > MAX_FILE_BYTES) return;
+        const sourceText = Buffer.from(read.bytes).toString("utf8");
+        const ingest = (sourceFile: ts.SourceFile, relativePath: string) => {
+          const bindings = buildFileBindings(sourceFile);
+          mergeTranslatorCallSiteNamespaces(
+            translatorCallSites,
+            collectTranslatorCallSiteNamespaces(
+              sourceFile,
+              relativePath,
+              bindings,
+              translatorCallableIndex,
+            ),
+          );
+        };
+        if (file.extension === "vue") {
+          for (const script of extractVueScripts(sourceText)) {
+            const parsed = engine.parse({
+              fileName: `${file.relativePath}.${script.lang}`,
+              sourceText: script.text,
+            });
+            ingest(parsed.sourceFile, file.relativePath);
+          }
+          return;
+        }
+        if (!isSupportedSourceFileName(file.relativePath)) return;
+        const parsed = engine.parse({
+          fileName: file.relativePath,
+          sourceText,
+        });
+        ingest(parsed.sourceFile, file.relativePath);
+      } catch {
+        // Best-effort.
+      }
+    });
+  }
 
   await mapPool(candidates, ANALYZE_CONCURRENCY, async (file) => {
     fileCount += 1;
@@ -118,6 +270,9 @@ export async function collectUsages(input: {
               engine,
               libraryHints: input.libraryHints,
               minConfidence: input.minConfidence,
+              objectArrayIndex,
+              enumIndex,
+              translatorCallSites,
             });
           const shifted = offsetUsages(scriptUsages, sourceText, script.offset);
           usages.push(
@@ -175,6 +330,9 @@ export async function collectUsages(input: {
           engine,
           libraryHints: input.libraryHints,
           minConfidence: input.minConfidence,
+          objectArrayIndex,
+          enumIndex,
+          translatorCallSites,
         });
       usages.push(...scriptUsages);
       dynamicUsages.push(...scriptDynamic);
@@ -191,6 +349,24 @@ export async function collectUsages(input: {
   return { usages, dynamicUsages, untranslatedLiterals, fileCount };
 }
 
+function mergeObjectArrayIndex(
+  target: ObjectArrayPropIndex,
+  source: ObjectArrayPropIndex,
+): void {
+  for (const [key, props] of source) {
+    target.set(key, props);
+  }
+}
+
+function mergeTranslatorCallableIndex(
+  target: TranslatorCallableIndex,
+  source: TranslatorCallableIndex,
+): void {
+  for (const [key, info] of source) {
+    target.set(key, info);
+  }
+}
+
 function analyzeScript(input: {
   absolutePath: string;
   relativePath: string;
@@ -199,6 +375,9 @@ function analyzeScript(input: {
   engine: ReturnType<typeof createAstEngine>;
   libraryHints: ReadonlySet<string>;
   minConfidence: number;
+  objectArrayIndex: ObjectArrayPropIndex;
+  enumIndex: EnumValueIndex;
+  translatorCallSites: TranslatorCallSiteNamespaces;
 }): {
   usages: TranslationUsage[];
   dynamicUsages: DynamicTranslationUsage[];
@@ -210,6 +389,12 @@ function analyzeScript(input: {
   });
   // Malformed files still yield a best-effort AST — never throw.
   const bindings = buildFileBindings(parsed.sourceFile);
+  enrichBindingsFromCallSites(
+    bindings,
+    parsed.sourceFile,
+    input.relativePath,
+    input.translatorCallSites,
+  );
   const aliasAnalysis = analyzeFileAliases(
     parsed.sourceFile,
     input.fileName,
@@ -238,6 +423,26 @@ function analyzeScript(input: {
       seen.add(dedupeKey);
       found.push(usage);
     }
+  }
+
+  for (const usage of collectMappedPropUsages({
+    absolutePath: input.absolutePath,
+    relativePath: input.relativePath,
+    sourceFile: parsed.sourceFile,
+    bindings,
+    aliasAnalysis,
+    index: input.objectArrayIndex,
+    enumIndex: input.enumIndex,
+  })) {
+    if (usage.confidence < input.minConfidence) {
+      continue;
+    }
+    const dedupeKey = `${usage.relativePath}:${usage.location.start}:${usage.location.end}:${usage.key}:${usage.library}`;
+    if (seen.has(dedupeKey)) {
+      continue;
+    }
+    seen.add(dedupeKey);
+    found.push(usage);
   }
 
   const dynamicUsages = collectDynamicUsages({

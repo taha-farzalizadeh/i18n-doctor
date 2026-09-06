@@ -236,3 +236,179 @@ export function Fallback(isMultiSelect: boolean, selectedName?: string) {
     expect(catalog.dynamicUsages).toEqual([]);
   });
 });
+
+describe("mapped object-array prop keys", () => {
+  it("resolves t(field.label) from same-file config array map", async () => {
+    const root = await fixture({
+      "package.json": JSON.stringify({
+        dependencies: { "react-i18next": "14.0.0" },
+      }),
+      "src/Form.tsx": `
+import { useTranslation } from 'react-i18next';
+const fields = [
+  { id: "username", label: "USER_NAME" },
+  { id: "password", label: "PASSWORD" },
+  { id: "confirmPassword", label: "CONFIRM_PASSWORD" },
+];
+export function Form() {
+  const { t } = useTranslation();
+  return fields.map((field) => t(field.label));
+}
+`,
+    });
+    const catalog = await createUsageDetector().detect({
+      root,
+      useDetection: false,
+    });
+    const keys = catalog.usages.map((u) => u.key);
+    expect(keys).toContain("USER_NAME");
+    expect(keys).toContain("PASSWORD");
+    expect(keys).toContain("CONFIRM_PASSWORD");
+  });
+
+  it("resolves t(field.label) from cross-file userFormFields()", async () => {
+    const root = await fixture({
+      "package.json": JSON.stringify({
+        dependencies: { "react-i18next": "14.0.0" },
+      }),
+      "src/utils.ts": `
+export const userFormFields = (isEdit?: boolean) => [
+  { id: "username", label: "USER_NAME", disable: !!isEdit, type: "text" },
+  { id: "firstName", label: "NAME", type: "text" },
+  { id: "lastName", label: "LAST_NAME", type: "text" },
+  { id: "password", label: "PASSWORD", type: "password", hide: !!isEdit },
+  { id: "confirmPassword", label: "CONFIRM_PASSWORD", type: "password", hide: !!isEdit },
+];
+`,
+      "src/AddUserForm.tsx": `
+import { useTranslation } from 'react-i18next';
+import { userFormFields } from './utils';
+export function AddUserForm(isEdit: boolean) {
+  const { t } = useTranslation('usersManagement');
+  return userFormFields(isEdit).map((field) => (
+    <span key={field.id}>{t(field.label)}</span>
+  ));
+}
+`,
+    });
+    const catalog = await createUsageDetector().detect({
+      root,
+      useDetection: false,
+    });
+    const keys = catalog.usages.map((u) => u.key);
+    expect(keys).toContain("USER_NAME");
+    expect(keys).toContain("NAME");
+    expect(keys).toContain("LAST_NAME");
+    expect(keys).toContain("PASSWORD");
+    expect(keys).toContain("CONFIRM_PASSWORD");
+  });
+
+  it("does not invent keys from unrelated object arrays", async () => {
+    const root = await fixture({
+      "package.json": JSON.stringify({
+        dependencies: { "react-i18next": "14.0.0" },
+      }),
+      "src/Other.tsx": `
+import { useTranslation } from 'react-i18next';
+const menu = [{ label: "MENU_HOME" }, { label: "MENU_ABOUT" }];
+export function Other(label: string) {
+  const { t } = useTranslation();
+  return t(label);
+}
+`,
+    });
+    const catalog = await createUsageDetector().detect({
+      root,
+      useDetection: false,
+    });
+    expect(catalog.usages.map((u) => u.key)).not.toContain("MENU_HOME");
+    expect(catalog.usages.map((u) => u.key)).not.toContain("MENU_ABOUT");
+  });
+
+  it("resolves t(item.name) from useState + string enum members", async () => {
+    const root = await fixture({
+      "package.json": JSON.stringify({
+        dependencies: { "react-i18next": "14.0.0" },
+      }),
+      "src/wpTypes.ts": `
+export enum WpNavbar {
+  FILES = "FILES",
+  ACTIVE_WP = "ACTIVE_WP",
+  DATASETS = "DATASETS",
+  SENSITIVE_TERMS = "SENSITIVE_TERMS",
+}
+`,
+      "src/utils.ts": `
+import { WpNavbar } from './wpTypes';
+export const initialTotalActiveWpAction = [
+  { name: WpNavbar.DATASETS, value: 0 },
+  { name: WpNavbar.SENSITIVE_TERMS, value: 0 },
+];
+`,
+      "src/ActiveWPActions.tsx": `
+import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { WpNavbar } from './wpTypes';
+import { initialTotalActiveWpAction } from './utils';
+
+export function ActiveWPActions(uuid: string) {
+  const { t } = useTranslation('wp');
+  const [totalActiveWpCount, setTotalActiveWpCount] = useState(initialTotalActiveWpAction);
+
+  React.useEffect(() => {
+    setTotalActiveWpCount([
+      { name: WpNavbar.DATASETS, value: 1 },
+      { name: WpNavbar.SENSITIVE_TERMS, value: 2 },
+    ]);
+  }, [uuid]);
+
+  return (
+    <>
+      {totalActiveWpCount.map((item) => (
+        <p key={item.name}>{t(item.name)}</p>
+      ))}
+      <span>{t("SHOW")}</span>
+    </>
+  );
+}
+`,
+    });
+    const catalog = await createUsageDetector().detect({
+      root,
+      useDetection: false,
+    });
+    const keys = catalog.usages.map((u) => u.key);
+    expect(keys).toContain("DATASETS");
+    expect(keys).toContain("SENSITIVE_TERMS");
+    expect(keys).toContain("SHOW");
+    const sensitive = catalog.usages.find((u) => u.key === "SENSITIVE_TERMS");
+    expect(sensitive?.namespace).toBe("wp");
+  });
+
+  it("resolves t(WpNavbar.SENSITIVE_TERMS) from imported string enum", async () => {
+    const root = await fixture({
+      "package.json": JSON.stringify({
+        dependencies: { "react-i18next": "14.0.0" },
+      }),
+      "src/wpTypes.ts": `
+export enum WpNavbar {
+  SENSITIVE_TERMS = "SENSITIVE_TERMS",
+}
+`,
+      "src/Page.tsx": `
+import { useTranslation } from 'react-i18next';
+import { WpNavbar } from './wpTypes';
+export function Page() {
+  const { t } = useTranslation('wp');
+  return t(WpNavbar.SENSITIVE_TERMS);
+}
+`,
+    });
+    const catalog = await createUsageDetector().detect({
+      root,
+      useDetection: false,
+    });
+    const u = catalog.usages.find((x) => x.key === "SENSITIVE_TERMS");
+    expect(u?.namespace).toBe("wp");
+  });
+});

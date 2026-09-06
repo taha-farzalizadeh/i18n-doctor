@@ -1,12 +1,19 @@
 # i18n-doctor for VS Code
 
-> **Beta — v0.11.2**
+> **Beta — v0.11.6**
 
 Live i18n diagnostics, **Go to Translation**, **Hover**, and **Completion** in
 VS Code. This extension is an LSP client: it starts the bundled
 [`@i18n-doctor/language-server`](../language-server) over stdio and lets VS Code
 render what the server publishes. It does not parse source, extract keys, or
 decide what is unused.
+
+## What's new in 0.11.6
+
+- Form-field maps (`t(field.label)`), column factories (`usersColumns(t)`), and
+  string-enum state maps (`t(item.name)` / `WpNavbar.SENSITIVE_TERMS`) resolve
+  as usages — same analyzer as CLI / ESLint / JetBrains
+- Bundled language server @ 0.11.5
 
 ## What's new in 0.11.2
 
@@ -131,6 +138,7 @@ So a published extension is self-contained.
 
 ### Changelog (recent)
 
+- **0.11.6** — Form maps, column factories, string-enum state maps (parity with CLI/ESLint)
 - **0.11.2** — Static ternaries count as usages (`t(cond ? "A" : "B")`)
 - **0.11.1** — Faster coverage warnings; `ignoreKeys` unused-only (locale gaps stay)
 - **0.11.0** — Go to Translation, Hover, Completion (Phase 20)

@@ -38,6 +38,27 @@
   ]]></description>
 
   <change-notes><![CDATA[
+    <h3>0.11.6</h3>
+    <p>String enums used via <code>t(item.name)</code> / <code>t(Enum.Member)</code> count as used.</p>
+    <ul>
+      <li><code>useState</code> arrays updated with <code>WpNavbar.SENSITIVE_TERMS</code> resolve through <code>.map</code></li>
+      <li>Imported string enums resolve even through path aliases</li>
+      <li>Rebundled language server @ 0.11.5</li>
+    </ul>
+    <h3>0.11.5</h3>
+    <p>Column/factory helpers that take <code>t</code> inherit the caller namespace.</p>
+    <ul>
+      <li><code>usersColumns(t)</code> with <code>useTranslation("usersManagement")</code> — keys like <code>USER_NAME</code> resolve in that namespace</li>
+      <li>Fixes false <code>missing-key</code> on <code>t("…")</code> inside <code>(t: TFunction) =&gt; …</code> factories</li>
+      <li>Rebundled language server @ 0.11.4</li>
+    </ul>
+    <h3>0.11.4</h3>
+    <p>Form-field config labels via <code>t(field.label)</code> count as used.</p>
+    <ul>
+      <li>Static object-array maps (e.g. <code>userFormFields().map(f =&gt; t(f.label))</code>) resolve keys</li>
+      <li>Cross-file factories that return field configs are supported</li>
+      <li>Rebundled language server @ 0.11.3</li>
+    </ul>
     <h3>0.11.3</h3>
     <p>Static ternary keys count as used (no false unused warnings).</p>
     <ul>

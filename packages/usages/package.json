@@ -1,6 +1,6 @@
 {
   "name": "@i18n-doctor/usages",
-  "version": "0.10.3",
+  "version": "0.10.6",
   "description": "Translation key usage detection with source locations",
   "type": "module",
   "exports": {

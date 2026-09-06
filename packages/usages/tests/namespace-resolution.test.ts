@@ -173,4 +173,71 @@ export function Page() {
     const u = catalog.usages.find((x) => x.key === "hero.title");
     expect(u?.namespace).toBe("HomePage");
   });
+
+  it("resolves namespace for t() inside usersColumns(t) factory", async () => {
+    const root = await fixture({
+      "package.json": JSON.stringify({
+        dependencies: { "react-i18next": "14.0.0", i18next: "23.0.0" },
+      }),
+      "src/utils.ts": `
+import type { TFunction } from 'i18next';
+type ColDef = { headerName: string; field: string };
+export const usersColumns: (t: TFunction) => ColDef[] = t => [
+  { headerName: t("USER_NAME"), field: "username" },
+  { headerName: t("NAME"), field: "firstName" },
+  { headerName: t("LAST_NAME"), field: "lastName" },
+];
+`,
+      "src/UsersTable.tsx": `
+import { useTranslation } from 'react-i18next';
+import { usersColumns } from './utils';
+export function UsersTable() {
+  const { t } = useTranslation('usersManagement');
+  const columnDefs = [...usersColumns(t)];
+  return null;
+}
+`,
+    });
+    const catalog = await createUsageDetector().detect({
+      root,
+      useDetection: false,
+    });
+    const keys = catalog.usages.filter((u) =>
+      ["USER_NAME", "NAME", "LAST_NAME"].includes(u.key),
+    );
+    expect(keys).toHaveLength(3);
+    for (const u of keys) {
+      expect(u.namespace).toBe("usersManagement");
+      expect(u.namespaceResolved).toBe(true);
+    }
+  });
+
+  it("resolves namespace for typed (t: TFunction) arrow factory", async () => {
+    const root = await fixture({
+      "package.json": JSON.stringify({
+        dependencies: { "react-i18next": "14.0.0", i18next: "23.0.0" },
+      }),
+      "src/cols.ts": `
+import type { TFunction } from 'i18next';
+export const usersColumns = (t: TFunction) => [
+  { headerName: t("USER_NAME") },
+];
+`,
+      "src/Table.tsx": `
+import { useTranslation } from 'react-i18next';
+import { usersColumns } from './cols';
+export function Table() {
+  const { t } = useTranslation('usersManagement');
+  return usersColumns(t);
+}
+`,
+    });
+    const catalog = await createUsageDetector().detect({
+      root,
+      useDetection: false,
+    });
+    const u = catalog.usages.find((x) => x.key === "USER_NAME");
+    expect(u?.namespace).toBe("usersManagement");
+    expect(u?.namespaceResolved).toBe(true);
+  });
 });
