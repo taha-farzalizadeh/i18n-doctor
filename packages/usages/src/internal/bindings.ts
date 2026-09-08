@@ -111,8 +111,23 @@ export function buildFileBindings(
     if (!clause) {
       return;
     }
-    if (clause.name && (I18NEXT_MODULES.has(spec) || spec === "i18next")) {
+    if (
+      clause.name &&
+      (I18NEXT_MODULES.has(spec) ||
+        spec === "i18next" ||
+        // Project wrappers: `import i18n from "i18n/i18n"` / `@/i18n`
+        clause.name.text === "i18n" ||
+        clause.name.text === "i18next" ||
+        /(^|\/)i18n(\/|$)/i.test(spec))
+    ) {
       i18nObjects.add(clause.name.text);
+      if (
+        clause.name.text === "i18n" ||
+        clause.name.text === "i18next" ||
+        /(^|\/)i18n(\/|$)/i.test(spec)
+      ) {
+        hasI18nextImport = true;
+      }
     }
     if (clause.name && REACT_INTL_MODULES.has(spec)) {
       // default import uncommon
@@ -306,6 +321,8 @@ export function buildFileBindings(
  * Apply namespaces discovered at call sites (e.g. `usersColumns(t)` where
  * `t` comes from `useTranslation("usersManagement")`) onto translator
  * parameters in this file so `t("KEY")` inside the callee resolves.
+ *
+ * Also enriches object/store methods indexed by name (`odsDownload`).
  */
 export function enrichBindingsFromCallSites(
   bindings: FileBindingTable,
@@ -322,13 +339,14 @@ export function enrichBindingsFromCallSites(
   }
   const mutableScopes = scopes as ScopedTBinding[];
   const tFunctions = bindings.tFunctions as Map<string, TFunctionBinding>;
+  const fileRel = normalizeRelPath(relativePath);
 
   const apply = (
     name: string,
     paramName: string,
     body: ts.Node,
   ): void => {
-    const key = `${normalizeRelPath(relativePath)}#${name}`;
+    const key = `${fileRel}#${name}`;
     const namespaces = callSites.get(key);
     if (!namespaces || namespaces.length === 0) {
       return;
@@ -369,9 +387,83 @@ export function enrichBindingsFromCallSites(
       if (ts.isArrowFunction(init) || ts.isFunctionExpression(init)) {
         const param = firstTranslatorParamName(init);
         if (param && init.body) apply(decl.name.text, param, init.body);
+        // Factory body may return `{ method(t) {…} }` — enrich those too.
+        enrichObjectMethodsInExpression(init.body, apply);
+      } else if (ts.isObjectLiteralExpression(init)) {
+        enrichObjectMethodsInExpression(init, apply);
       }
     }
   }
+
+  // Methods indexed only by inner name (not the factory export name).
+  const visitMethods = (node: ts.Node): void => {
+    if (ts.isObjectLiteralExpression(node)) {
+      for (const prop of node.properties) {
+        if (
+          ts.isMethodDeclaration(prop) &&
+          prop.name &&
+          ts.isIdentifier(prop.name) &&
+          prop.body
+        ) {
+          const param = firstTranslatorParamName(prop);
+          if (param) apply(prop.name.text, param, prop.body);
+        }
+        if (
+          ts.isPropertyAssignment(prop) &&
+          prop.name &&
+          ts.isIdentifier(prop.name)
+        ) {
+          const fn = unwrapExpr(prop.initializer);
+          if (
+            (ts.isArrowFunction(fn) || ts.isFunctionExpression(fn)) &&
+            fn.body
+          ) {
+            const param = firstTranslatorParamName(fn);
+            if (param) apply(prop.name.text, param, fn.body);
+          }
+        }
+      }
+    }
+    ts.forEachChild(node, visitMethods);
+  };
+  visitMethods(sourceFile);
+}
+
+function enrichObjectMethodsInExpression(
+  body: ts.ConciseBody | ts.Expression,
+  apply: (name: string, paramName: string, body: ts.Node) => void,
+): void {
+  const visit = (node: ts.Node): void => {
+    if (ts.isObjectLiteralExpression(node)) {
+      for (const prop of node.properties) {
+        if (
+          ts.isMethodDeclaration(prop) &&
+          prop.name &&
+          ts.isIdentifier(prop.name) &&
+          prop.body
+        ) {
+          const param = firstTranslatorParamName(prop);
+          if (param) apply(prop.name.text, param, prop.body);
+        }
+        if (
+          ts.isPropertyAssignment(prop) &&
+          prop.name &&
+          ts.isIdentifier(prop.name)
+        ) {
+          const fn = unwrapExpr(prop.initializer);
+          if (
+            (ts.isArrowFunction(fn) || ts.isFunctionExpression(fn)) &&
+            fn.body
+          ) {
+            const param = firstTranslatorParamName(fn);
+            if (param) apply(prop.name.text, param, fn.body);
+          }
+        }
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(body);
 }
 
 function firstTranslatorParamName(

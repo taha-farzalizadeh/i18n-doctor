@@ -294,4 +294,217 @@ export function Form(translateReference?: string) {
       expect(u?.namespaceResolved).toBe(true);
     }
   });
+
+  it("resolves path-alias imports for translator callables", async () => {
+    const root = await fixture({
+      "package.json": JSON.stringify({
+        dependencies: { "react-i18next": "14.0.0", i18next: "23.0.0" },
+      }),
+      "tsconfig.json": JSON.stringify({
+        compilerOptions: {
+          baseUrl: ".",
+          paths: { "app/*": ["./src/app/*"] },
+        },
+      }),
+      "src/app/pages/wp/utils.ts": `
+import type { TFunction } from 'i18next';
+export const checkRepetitiveWpName = (name: string, t: TFunction) => {
+  return t("REPETITIVE_WP_NAME");
+};
+`,
+      "src/app/pages/wp/Drawer.tsx": `
+import { useTranslation } from 'react-i18next';
+import { checkRepetitiveWpName } from 'app/pages/wp/utils';
+export function Drawer() {
+  const { t } = useTranslation('work-profile');
+  checkRepetitiveWpName('x', t);
+  return null;
+}
+`,
+    });
+    const catalog = await createUsageDetector().detect({
+      root,
+      useDetection: false,
+    });
+    const u = catalog.usages.find((x) => x.key === "REPETITIVE_WP_NAME");
+    expect(u?.namespace).toBe("work-profile");
+    expect(u?.namespaceResolved).toBe(true);
+  });
+
+  it("resolves store/object method translator params (odsDownload)", async () => {
+    const root = await fixture({
+      "package.json": JSON.stringify({
+        dependencies: { "react-i18next": "14.0.0", i18next: "23.0.0" },
+      }),
+      "src/actions.ts": `
+import type { TFunction } from 'i18next';
+export const odsActions = () => ({
+  odsDownload: async (uuid: string, t: TFunction) => {
+    return t("DOWNLOAD_URL_NOT_FOUND");
+  },
+});
+`,
+      "src/Page.tsx": `
+import { useTranslation } from 'react-i18next';
+export function Page(odsDownload: (uuid: string, t: any) => Promise<string>) {
+  const { t } = useTranslation('etl');
+  void odsDownload('1', t);
+  return null;
+}
+`,
+    });
+    const catalog = await createUsageDetector().detect({
+      root,
+      useDetection: false,
+    });
+    const u = catalog.usages.find((x) => x.key === "DOWNLOAD_URL_NOT_FOUND");
+    expect(u?.namespace).toBe("etl");
+    expect(u?.namespaceResolved).toBe(true);
+  });
+
+  it("resolves renamed store selector deleteRowRawById → deleteRawRowById", async () => {
+    const root = await fixture({
+      "package.json": JSON.stringify({
+        dependencies: { "react-i18next": "14.0.0", i18next: "23.0.0" },
+      }),
+      "src/actions.ts": `
+import type { TFunction } from 'i18next';
+export const odsActions = () => ({
+  deleteRawRowById: async (rowId: string, t: TFunction) => {
+    return t("ERROR_REMOVE_FILE");
+  },
+});
+`,
+      "src/Store.tsx": `
+import { odsActions } from './actions';
+const actions = odsActions();
+export function useEtlStore(selector: (s: typeof actions) => any) {
+  return selector(actions);
+}
+`,
+      "src/Page.tsx": `
+import { useTranslation } from 'react-i18next';
+import { useEtlStore } from './Store';
+export function Page() {
+  const { t } = useTranslation('etl');
+  const deleteRowRawById = useEtlStore(state => state.deleteRawRowById);
+  void deleteRowRawById('1', t);
+  return null;
+}
+`,
+    });
+    const catalog = await createUsageDetector().detect({
+      root,
+      useDetection: false,
+    });
+    const u = catalog.usages.find((x) => x.key === "ERROR_REMOVE_FILE");
+    expect(u?.namespace).toBe("etl");
+    expect(u?.namespaceResolved).toBe(true);
+  });
+
+  it("resolves renamed store selector passed as a prop", async () => {
+    const root = await fixture({
+      "package.json": JSON.stringify({
+        dependencies: { "react-i18next": "14.0.0", i18next: "23.0.0" },
+      }),
+      "src/actions.ts": `
+import type { TFunction } from 'i18next';
+export const odsActions = () => ({
+  deleteRawRowById: async (rowId: string, t: TFunction) => {
+    return t("ERROR_REMOVE_FILE");
+  },
+});
+`,
+      "src/Parent.tsx": `
+import { useEtlStore } from './store-shim';
+export function Parent() {
+  const deleteRowRawById = useEtlStore(state => state.deleteRawRowById);
+  return <Child deleteRowRawById={deleteRowRawById} />;
+}
+`,
+      "src/store-shim.ts": `
+export function useEtlStore(selector: (s: any) => any) {
+  return selector({ deleteRawRowById: async () => {} });
+}
+`,
+      "src/Child.tsx": `
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
+export function Child({
+  deleteRowRawById,
+}: {
+  deleteRowRawById: (id: string, t: TFunction) => Promise<void>;
+}) {
+  const { t } = useTranslation('etl');
+  void deleteRowRawById('1', t);
+  return null;
+}
+`,
+    });
+    const catalog = await createUsageDetector().detect({
+      root,
+      useDetection: false,
+    });
+    const u = catalog.usages.find((x) => x.key === "ERROR_REMOVE_FILE");
+    expect(u?.namespace).toBe("etl");
+    expect(u?.namespaceResolved).toBe(true);
+  });
+
+  it("propagates namespace into nested schema(t) → dateSchema(t)", async () => {
+    const root = await fixture({
+      "package.json": JSON.stringify({
+        dependencies: { "react-i18next": "14.0.0", i18next: "23.0.0" },
+      }),
+      "src/validation.ts": `
+import type { TFunction } from 'i18next';
+const dateSchema = (t: TFunction) => ({
+  message: t("MONTH_RANGE"),
+});
+export const schema = (t: TFunction) => ({
+  start: dateSchema(t),
+  other: t("NON_NEGATIVE_NUMBER"),
+});
+`,
+      "src/Form.tsx": `
+import { useTranslation } from 'react-i18next';
+import { schema } from './validation';
+export function Form() {
+  const { t } = useTranslation('datasets');
+  return schema(t);
+}
+`,
+    });
+    const catalog = await createUsageDetector().detect({
+      root,
+      useDetection: false,
+    });
+    const month = catalog.usages.find((x) => x.key === "MONTH_RANGE");
+    expect(month?.namespace).toBe("datasets");
+    expect(month?.namespaceResolved).toBe(true);
+  });
+
+  it("resolves i18n.t('ns:key') from project i18n wrapper imports", async () => {
+    const root = await fixture({
+      "package.json": JSON.stringify({
+        dependencies: { i18next: "23.0.0" },
+      }),
+      "src/i18n/i18n.ts": `
+import i18next from 'i18next';
+export default i18next;
+`,
+      "src/Tabs.tsx": `
+import i18n from './i18n/i18n';
+export const tabs = [
+  { label: i18n.t("conditions:ADD_WORD_TAB") },
+];
+`,
+    });
+    const catalog = await createUsageDetector().detect({
+      root,
+      useDetection: false,
+    });
+    const u = catalog.usages.find((x) => x.key === "ADD_WORD_TAB");
+    expect(u?.namespace).toBe("conditions");
+    expect(u?.namespaceResolved).toBe(true);
+  });
 });

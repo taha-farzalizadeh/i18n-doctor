@@ -708,4 +708,129 @@ export function Page() {
     expect(keys).not.toContain("CSV");
     expect(keys).not.toContain("MySQL");
   });
+
+  it("resolves (['JALALI','GEORGIAN'] as const).map((op) => t(op))", async () => {
+    const root = await fixture({
+      "package.json": JSON.stringify({
+        dependencies: { "react-i18next": "14.0.0" },
+      }),
+      "src/Filter.tsx": `
+import { useTranslation } from 'react-i18next';
+export function Filter() {
+  const { t } = useTranslation('datasets');
+  return (["JALALI", "GEORGIAN"] as const).map((operator) => (
+    <span key={operator}>{t(operator)}</span>
+  ));
+}
+`,
+    });
+    const catalog = await createUsageDetector().detect({
+      root,
+      useDetection: false,
+    });
+    const keys = catalog.usages.map((u) => u.key);
+    expect(keys).toContain("JALALI");
+    expect(keys).toContain("GEORGIAN");
+  });
+
+  it("resolves t(type as string) from enum-typed props", async () => {
+    const root = await fixture({
+      "package.json": JSON.stringify({
+        dependencies: { "react-i18next": "14.0.0" },
+      }),
+      "src/types.ts": `
+export enum COMPARATIVE_TYPE {
+  STRING = "STRING",
+  ANY_GEO_SHAPE = "ANY_GEO_SHAPE",
+  GEO_POINT = "GEO_POINT",
+}
+`,
+      "src/SingleLevel.tsx": `
+import { useTranslation } from 'react-i18next';
+import { COMPARATIVE_TYPE } from './types';
+type Props = { type?: COMPARATIVE_TYPE | string };
+export function SingleLevel(props: Props) {
+  const { type } = props;
+  const { t } = useTranslation('conditions');
+  return <span>{type ? t(type as string) : null}</span>;
+}
+`,
+    });
+    const catalog = await createUsageDetector().detect({
+      root,
+      useDetection: false,
+    });
+    const keys = catalog.usages.map((u) => u.key);
+    expect(keys).toContain("STRING");
+    expect(keys).toContain("ANY_GEO_SHAPE");
+    expect(keys).toContain("GEO_POINT");
+    // Enum | string → include legacy ANY_GEO_POINT sibling of ANY_GEO_SHAPE
+    expect(keys).toContain("ANY_GEO_POINT");
+  });
+
+  it("resolves t(step.labelKey) via indexed progress config", async () => {
+    const root = await fixture({
+      "package.json": JSON.stringify({
+        dependencies: { "react-i18next": "14.0.0" },
+      }),
+      "src/utils.ts": `
+export const uploadProgressConfig = {
+  steps: [
+    { key: "processing", labelKey: "PROCESSING" },
+    { key: "finalization", labelKey: "FINALIZATION" },
+  ],
+  statuses: {
+    DONE: { stepKey: "finalization", variant: "success" },
+  },
+};
+`,
+      "src/Progress.tsx": `
+import { useTranslation } from 'react-i18next';
+export function Progress({ config }: { config: { steps: { labelKey: string }[] } }) {
+  const { t } = useTranslation('upload-list');
+  return config.steps.map((step) => <p key={step.labelKey}>{t(step.labelKey)}</p>);
+}
+`,
+    });
+    const catalog = await createUsageDetector().detect({
+      root,
+      useDetection: false,
+    });
+    const keys = catalog.usages.map((u) => u.key);
+    expect(keys).toContain("PROCESSING");
+    expect(keys).toContain("FINALIZATION");
+  });
+
+  it("resolves t(currentStatus.text) from local config lookup", async () => {
+    const root = await fixture({
+      "package.json": JSON.stringify({
+        dependencies: { "react-i18next": "14.0.0" },
+      }),
+      "src/utils.ts": `
+export const historyStatusColConf = {
+  NONE: { text: "NO_STATUS", color: "grey" },
+  PROCESSING: { text: "PROCESSING", color: "blue" },
+};
+`,
+      "src/Table.tsx": `
+import { useTranslation } from 'react-i18next';
+import { historyStatusColConf } from './utils';
+export function Table({ status }: { status?: string }) {
+  const { t } = useTranslation('etl');
+  const currentStatus =
+    status && status in historyStatusColConf
+      ? historyStatusColConf[status as keyof typeof historyStatusColConf]
+      : historyStatusColConf.NONE;
+  return <p>{t(currentStatus.text)}</p>;
+}
+`,
+    });
+    const catalog = await createUsageDetector().detect({
+      root,
+      useDetection: false,
+    });
+    const keys = catalog.usages.map((u) => u.key);
+    expect(keys).toContain("NO_STATUS");
+    expect(keys).toContain("PROCESSING");
+  });
 });

@@ -1,12 +1,22 @@
 # i18n-doctor for VS Code
 
-> **Beta — v0.11.8**
+> **Beta — v0.11.9**
 
 Live i18n diagnostics, **Go to Translation**, **Hover**, and **Completion** in
 VS Code. This extension is an LSP client: it starts the bundled
 [`@i18n-doctor/language-server`](../language-server) over stdio and lets VS Code
 render what the server publishes. It does not parse source, extract keys, or
 decide what is unused.
+
+## What's new in 0.11.9
+
+- Path-alias imports (`app/*`, `@core/*`) for translator factories and configs
+- Store/object methods with `t` params; nested `schema(t)` → `dateSchema(t)`
+- Renamed Zustand selectors (`deleteRowRawById = useStore(s => s.deleteRawRowById)`)
+- Multi-namespace `addResourceBundle` on one shared i18n module
+- String-literal array maps, enum-typed `t(type as string)`, `labelKey` / config lookups
+- **Unified versioning:** npm packages, language-server, and IDE plugins are all **0.11.9**
+- Bundled language server @ 0.11.9
 
 ## What's new in 0.11.8
 
@@ -152,6 +162,7 @@ So a published extension is self-contained.
 
 ### Changelog (recent)
 
+- **0.11.9** — Path aliases, store/`t` methods, renamed Zustand selectors, multi-ns bundles, string-array maps, enum-typed props; unified version with npm/ESLint/LS
 - **0.11.8** — Helpers, string maps, chart/route configs, `Object.keys(Enum)`, `useTranslation` fallback; unified version with npm/ESLint/LS
 - **0.11.7** — Prop-passed `t(item.translation)` for navigation configs; unified version with npm/ESLint/LS
 - **0.11.6** — Form maps, column factories, string-enum state maps (parity with CLI/ESLint)

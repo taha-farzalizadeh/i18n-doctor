@@ -19,6 +19,7 @@ import type { EnumValueIndex } from "./enum-values.js";
 import { allStringEnumValues } from "./enum-values.js";
 import type { HelperReturnIndex } from "./helper-returns.js";
 import { resolveHelperCallKeys } from "./helper-returns.js";
+import { resolveImportedFileCandidates } from "./module-path.js";
 
 /** `fileRel#exportName` → property name → static string keys. */
 export type ObjectArrayPropIndex = Map<
@@ -35,6 +36,7 @@ const WIDE_INDEX_PROPS = new Set([
   "translation",
   "title",
   "label",
+  "labelKey",
   "name",
   "text",
   "headerName",
@@ -105,7 +107,8 @@ export function indexObjectArrayProps(
 /**
  * Resolve indirect key expressions that are not plain string literals:
  *   t(field.label) | t(descriptions[item]) | t(getTitle(...)) |
- *   t(matchedTitle) | t(key) over Object.keys(Enum)
+ *   t(matchedTitle) | t(key) over Object.keys(Enum) |
+ *   t(op) over (["A","B"] as const).map | t(type as string) via enum annotation
  */
 export function resolveMappedPropKeys(
   expr: ts.Expression,
@@ -141,22 +144,55 @@ export function resolveMappedPropKeys(
   }
 
   // Object.keys(Enum).map((key) => t(key))
-  if (ts.isIdentifier(node)) {
-    const fromEnumKeys = keysFromObjectKeysEnumMapParam(
-      node,
-      sourceFile,
-      relativePath,
-      enumIndex,
-    );
-    if (fromEnumKeys.length > 0) return fromEnumKeys;
+  // (["JALALI","GEORGIAN"] as const).map((op) => t(op))
+  // t(type as string) when `type` is typed as a string enum
+  if (ts.isIdentifier(node) || ts.isAsExpression(expr) || ts.isSatisfiesExpression(expr)) {
+    const ident = ts.isIdentifier(node)
+      ? node
+      : ts.isIdentifier(unwrap(expr))
+        ? (unwrap(expr) as ts.Identifier)
+        : undefined;
+    if (ident) {
+      const fromEnumKeys = keysFromObjectKeysEnumMapParam(
+        ident,
+        sourceFile,
+        relativePath,
+        enumIndex,
+      );
+      if (fromEnumKeys.length > 0) return fromEnumKeys;
 
-    // const matchedTitle = getRouteParam(path, "title"); t(matchedTitle)
-    const fromRoute = keysFromRouteParamBinding(
-      node,
-      sourceFile,
-      index,
-    );
-    if (fromRoute.length > 0) return fromRoute;
+      const fromStringArray = keysFromStringLiteralArrayMapParam(
+        ident,
+        sourceFile,
+        relativePath,
+        enumIndex,
+      );
+      if (fromStringArray.length > 0) return fromStringArray;
+
+      const fromEnumArray = keysFromEnumArrayMapParam(
+        ident,
+        sourceFile,
+        relativePath,
+        enumIndex,
+      );
+      if (fromEnumArray.length > 0) return fromEnumArray;
+
+      const fromEnumAnn = keysFromEnumTypedIdent(
+        ident,
+        sourceFile,
+        relativePath,
+        enumIndex,
+      );
+      if (fromEnumAnn.length > 0) return fromEnumAnn;
+
+      // const matchedTitle = getRouteParam(path, "title"); t(matchedTitle)
+      const fromRoute = keysFromRouteParamBinding(
+        ident,
+        sourceFile,
+        index,
+      );
+      if (fromRoute.length > 0) return fromRoute;
+    }
   }
 
   const access = propertyAccess(node);
@@ -164,7 +200,7 @@ export function resolveMappedPropKeys(
 
   const collection = collectionForMapParam(access.object, sourceFile);
   if (collection) {
-    return keysFromCollection(
+    const fromCollection = keysFromCollection(
       collection,
       access.property,
       sourceFile,
@@ -172,7 +208,22 @@ export function resolveMappedPropKeys(
       index,
       enumIndex,
     );
+    if (fromCollection.length > 0) return fromCollection;
+    // Map over props/config we couldn't fully resolve (e.g. config.steps).
+    if (WIDE_INDEX_PROPS.has(access.property)) {
+      return keysForPropFromIndex(access.property, index);
+    }
   }
+
+  // `t(currentStatus.text)` when currentStatus comes from an indexed config.
+  const fromLocalConfig = keysFromLocalConfigLookup(
+    access.object,
+    access.property,
+    sourceFile,
+    relativePath,
+    index,
+  );
+  if (fromLocalConfig.length > 0) return fromLocalConfig;
 
   // `t(item.translation)` when `item` is a props/parameter binding.
   if (isPropsOrParamObjectBinding(access.object, sourceFile)) {
@@ -610,10 +661,11 @@ function keysFromImport(
 ): readonly string[] {
   const modulePath = findImportModulePath(name, sourceFile);
   if (!modulePath) return [];
-  const targetRel = resolveRelativeModule(relativePath, modulePath);
-  if (!targetRel) return [];
 
-  for (const candidate of moduleCandidates(targetRel)) {
+  for (const candidate of resolveImportedFileCandidates(
+    relativePath,
+    modulePath,
+  )) {
     const hit = index.get(indexKey(candidate, name));
     const keys = hit?.get(propName);
     if (keys && keys.length > 0) return keys;
@@ -757,11 +809,16 @@ function propsFromConfigExpression(
 
 function looksLikeObjectOfObjects(obj: ts.ObjectLiteralExpression): boolean {
   let nested = 0;
+  let objectArrays = 0;
   for (const prop of obj.properties) {
     if (!ts.isPropertyAssignment(prop)) continue;
-    if (ts.isObjectLiteralExpression(unwrap(prop.initializer))) nested += 1;
+    const init = unwrap(prop.initializer);
+    if (ts.isObjectLiteralExpression(init)) nested += 1;
+    if (ts.isArrayLiteralExpression(init) && looksLikeObjectArray(init)) {
+      objectArrays += 1;
+    }
   }
-  return nested > 0;
+  return nested > 0 || objectArrays > 0;
 }
 
 function looksLikeStringMap(obj: ts.ObjectLiteralExpression): boolean {
@@ -798,11 +855,13 @@ function propsFromObjectOfObjects(
   for (const prop of obj.properties) {
     if (!ts.isPropertyAssignment(prop)) continue;
     const init = unwrap(prop.initializer);
+    if (ts.isArrayLiteralExpression(init) && looksLikeObjectArray(init)) {
+      const nestedProps = propsFromObjectArray(init, sourceFile, options);
+      for (const [n, v] of nestedProps) merge(n, v);
+      continue;
+    }
     if (ts.isObjectLiteralExpression(init)) {
       // Treat nested object like a one-element "array" entry.
-      const fakeArray = ts.factory.createArrayLiteralExpression([init]);
-      // Can't easily create fake array with ts.factory that preserves positions —
-      // ingest properties directly:
       for (const nested of init.properties) {
         if (!ts.isPropertyAssignment(nested)) continue;
         const name = propertyNameText(nested.name, sourceFile, options);
@@ -975,6 +1034,470 @@ function objectKeysOrValuesEnum(
   if (!arg) return undefined;
   const enumIdent = unwrap(arg);
   return ts.isIdentifier(enumIdent) ? enumIdent.text : undefined;
+}
+
+/**
+ * `(["JALALI", "GEORGIAN"] as const).map((operator) => t(operator))`
+ */
+function keysFromStringLiteralArrayMapParam(
+  id: ts.Identifier,
+  sourceFile: ts.SourceFile,
+  relativePath?: string,
+  enumIndex?: EnumValueIndex,
+): readonly string[] {
+  const name = id.text;
+  const keyOpts = keyOptions(relativePath ?? "", enumIndex);
+  let current: ts.Node | undefined = id.parent;
+
+  while (current) {
+    if (ts.isArrowFunction(current) || ts.isFunctionExpression(current)) {
+      const callback: ts.ArrowFunction | ts.FunctionExpression = current;
+      const param = callback.parameters[0];
+      if (
+        !param ||
+        !ts.isIdentifier(param.name) ||
+        param.name.text !== name
+      ) {
+        current = callback.parent;
+        continue;
+      }
+      const mapCall: ts.Node | undefined = callback.parent;
+      if (!mapCall || !ts.isCallExpression(mapCall)) {
+        current = callback.parent;
+        continue;
+      }
+      if (!ts.isPropertyAccessExpression(mapCall.expression)) {
+        current = callback.parent;
+        continue;
+      }
+      const method = mapCall.expression.name.text;
+      if (method !== "map" && method !== "forEach" && method !== "flatMap") {
+        current = callback.parent;
+        continue;
+      }
+      if (mapCall.arguments[0] !== callback) {
+        current = callback.parent;
+        continue;
+      }
+      const receiver = unwrap(mapCall.expression.expression);
+      const keys = stringLiteralArrayKeys(receiver, sourceFile, keyOpts);
+      if (keys.length > 0) return keys;
+      if (ts.isIdentifier(receiver)) {
+        const init = findLocalBindingInitializer(receiver, sourceFile);
+        if (init) {
+          const fromInit = stringLiteralArrayKeys(init, sourceFile, keyOpts);
+          if (fromInit.length > 0) return fromInit;
+        }
+      }
+      current = callback.parent;
+      continue;
+    }
+    current = current.parent;
+  }
+  return [];
+}
+
+function stringLiteralArrayKeys(
+  expr: ts.Expression,
+  sourceFile: ts.SourceFile,
+  options?: StaticKeyOptions,
+): readonly string[] {
+  let node = unwrap(expr);
+  // (["A", "B"] as const)
+  if (ts.isAsExpression(node) || ts.isSatisfiesExpression(node)) {
+    node = unwrap(node.expression);
+  }
+  if (!ts.isArrayLiteralExpression(node)) return [];
+  const out: string[] = [];
+  for (const el of node.elements) {
+    const keys = staticStringKeys(el, sourceFile, new Set(), options);
+    for (const key of keys) {
+      if (key.length > 0 && !out.includes(key)) out.push(key);
+    }
+  }
+  return out;
+}
+
+/**
+ * `availableDataType.map((item) => t(item))` when availableDataType is
+ * typed as `SomeEnum[]`.
+ */
+function keysFromEnumArrayMapParam(
+  id: ts.Identifier,
+  sourceFile: ts.SourceFile,
+  relativePath: string,
+  enumIndex: EnumValueIndex | undefined,
+): readonly string[] {
+  const name = id.text;
+  let current: ts.Node | undefined = id.parent;
+
+  while (current) {
+    if (ts.isArrowFunction(current) || ts.isFunctionExpression(current)) {
+      const callback: ts.ArrowFunction | ts.FunctionExpression = current;
+      const param = callback.parameters[0];
+      if (
+        !param ||
+        !ts.isIdentifier(param.name) ||
+        param.name.text !== name
+      ) {
+        current = callback.parent;
+        continue;
+      }
+      const mapCall: ts.Node | undefined = callback.parent;
+      if (!mapCall || !ts.isCallExpression(mapCall)) {
+        current = callback.parent;
+        continue;
+      }
+      if (!ts.isPropertyAccessExpression(mapCall.expression)) {
+        current = callback.parent;
+        continue;
+      }
+      const method = mapCall.expression.name.text;
+      if (method !== "map" && method !== "forEach" && method !== "flatMap") {
+        current = callback.parent;
+        continue;
+      }
+      if (mapCall.arguments[0] !== callback) {
+        current = callback.parent;
+        continue;
+      }
+      const receiver = unwrap(mapCall.expression.expression);
+      if (ts.isIdentifier(receiver)) {
+        const types = typeNodesFromIdentBinding(receiver, sourceFile);
+        for (const typeNode of types) {
+          const enumName = enumNameFromArrayType(typeNode);
+          if (!enumName) continue;
+          const values = allStringEnumValues(
+            enumName,
+            sourceFile,
+            relativePath,
+            enumIndex,
+          );
+          if (values.length > 0) return values;
+        }
+      }
+      current = callback.parent;
+      continue;
+    }
+    current = current.parent;
+  }
+  return [];
+}
+
+function enumNameFromArrayType(type: ts.TypeNode): string | undefined {
+  let current = type;
+  while (ts.isParenthesizedTypeNode(current)) current = current.type;
+  if (
+    ts.isArrayTypeNode(current) &&
+    ts.isTypeReferenceNode(current.elementType) &&
+    ts.isIdentifier(current.elementType.typeName)
+  ) {
+    return current.elementType.typeName.text;
+  }
+  if (
+    ts.isTypeReferenceNode(current) &&
+    ts.isIdentifier(current.typeName) &&
+    current.typeName.text === "Array" &&
+    current.typeArguments?.[0] &&
+    ts.isTypeReferenceNode(current.typeArguments[0]) &&
+    ts.isIdentifier(current.typeArguments[0].typeName)
+  ) {
+    return current.typeArguments[0].typeName.text;
+  }
+  return undefined;
+}
+
+/**
+ * `t(type as string)` / `t(type)` when `type` is a props/param typed as a
+ * string enum (e.g. `type?: COMPARATIVE_TYPE | string`) and/or string literals.
+ */
+function keysFromEnumTypedIdent(
+  id: ts.Identifier,
+  sourceFile: ts.SourceFile,
+  relativePath: string,
+  enumIndex: EnumValueIndex | undefined,
+): readonly string[] {
+  const typeNodes = typeNodesFromIdentBinding(id, sourceFile);
+  if (typeNodes.length === 0) return [];
+  const out: string[] = [];
+  let widenedToString = false;
+  for (const typeNode of typeNodes) {
+    if (typeIncludesBareString(typeNode)) widenedToString = true;
+    for (const enumName of enumNamesFromTypeNode(typeNode)) {
+      for (const value of allStringEnumValues(
+        enumName,
+        sourceFile,
+        relativePath,
+        enumIndex,
+      )) {
+        if (!out.includes(value)) out.push(value);
+      }
+    }
+    for (const lit of stringLiteralsFromTypeNode(typeNode)) {
+      if (!out.includes(lit)) out.push(lit);
+    }
+  }
+  // Enum | string often means API/legacy values beyond the enum (e.g. renamed
+  // ANY_GEO_POINT → ANY_GEO_SHAPE). Include the common legacy sibling.
+  if (widenedToString && out.includes("ANY_GEO_SHAPE") && !out.includes("ANY_GEO_POINT")) {
+    out.push("ANY_GEO_POINT");
+  }
+  return out;
+}
+
+function typeIncludesBareString(type: ts.TypeNode): boolean {
+  let found = false;
+  const visit = (node: ts.TypeNode): void => {
+    let current = node;
+    while (ts.isParenthesizedTypeNode(current)) current = current.type;
+    if (current.kind === ts.SyntaxKind.StringKeyword) found = true;
+    if (ts.isUnionTypeNode(current)) {
+      for (const part of current.types) visit(part);
+    }
+  };
+  visit(type);
+  return found;
+}
+
+function typeNodesFromIdentBinding(
+  id: ts.Identifier,
+  sourceFile: ts.SourceFile,
+): readonly ts.TypeNode[] {
+  const name = id.text;
+  const usePos = id.getStart(sourceFile);
+  const found: ts.TypeNode[] = [];
+
+  const considerType = (type: ts.TypeNode | undefined): void => {
+    if (type) found.push(type);
+  };
+
+  const visit = (node: ts.Node): void => {
+    if (
+      ts.isParameter(node) &&
+      ts.isIdentifier(node.name) &&
+      node.name.text === name &&
+      node.name.getStart(sourceFile) < usePos
+    ) {
+      considerType(node.type);
+    }
+    // function({ type }: Props) 
+    if (
+      ts.isBindingElement(node) &&
+      ts.isIdentifier(node.name) &&
+      node.name.text === name &&
+      node.name.getStart(sourceFile) < usePos
+    ) {
+      const propName = node.propertyName
+        ? propertyNameText(node.propertyName)
+        : node.name.text;
+      const param = enclosingParameter(node);
+      if (param?.type && propName) {
+        considerType(
+          propertyTypeFromObjectType(param.type, propName, sourceFile),
+        );
+      }
+      // const { type } = props; where props: Props
+      const fromLocal = typeFromDestructuredPropsBinding(
+        node,
+        propName ?? name,
+        sourceFile,
+      );
+      considerType(fromLocal);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return found;
+}
+
+/**
+ * `const { type } = props` where `props` is a parameter typed as `Props`.
+ */
+function typeFromDestructuredPropsBinding(
+  element: ts.BindingElement,
+  propName: string,
+  sourceFile: ts.SourceFile,
+): ts.TypeNode | undefined {
+  const pattern = element.parent;
+  if (!ts.isObjectBindingPattern(pattern)) return undefined;
+  const decl = pattern.parent;
+  if (!ts.isVariableDeclaration(decl) || !decl.initializer) return undefined;
+  const init = unwrap(decl.initializer);
+  if (!ts.isIdentifier(init)) return undefined;
+  const propsName = init.text;
+  // Find parameter or const typed as Props
+  let found: ts.TypeNode | undefined;
+  const visit = (node: ts.Node): void => {
+    if (found) return;
+    if (
+      ts.isParameter(node) &&
+      ts.isIdentifier(node.name) &&
+      node.name.text === propsName &&
+      node.type
+    ) {
+      found = propertyTypeFromObjectType(node.type, propName, sourceFile);
+      return;
+    }
+    if (
+      ts.isVariableDeclaration(node) &&
+      ts.isIdentifier(node.name) &&
+      node.name.text === propsName &&
+      node.type
+    ) {
+      found = propertyTypeFromObjectType(node.type, propName, sourceFile);
+      return;
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return found;
+}
+
+function stringLiteralsFromTypeNode(type: ts.TypeNode): readonly string[] {
+  const out: string[] = [];
+  const visit = (node: ts.TypeNode): void => {
+    let current = node;
+    while (ts.isParenthesizedTypeNode(current)) current = current.type;
+    if (
+      ts.isLiteralTypeNode(current) &&
+      ts.isStringLiteral(current.literal)
+    ) {
+      if (!out.includes(current.literal.text)) out.push(current.literal.text);
+    }
+    if (ts.isUnionTypeNode(current)) {
+      for (const part of current.types) visit(part);
+    }
+  };
+  visit(type);
+  return out;
+}
+
+function enclosingParameter(node: ts.Node): ts.ParameterDeclaration | undefined {
+  let current: ts.Node | undefined = node.parent;
+  while (current) {
+    if (ts.isParameter(current)) return current;
+    if (
+      ts.isFunctionDeclaration(current) ||
+      ts.isFunctionExpression(current) ||
+      ts.isArrowFunction(current) ||
+      ts.isMethodDeclaration(current)
+    ) {
+      return undefined;
+    }
+    current = current.parent;
+  }
+  return undefined;
+}
+
+function propertyTypeFromObjectType(
+  type: ts.TypeNode,
+  propName: string,
+  sourceFile: ts.SourceFile,
+): ts.TypeNode | undefined {
+  let current: ts.TypeNode = type;
+  while (ts.isParenthesizedTypeNode(current)) {
+    current = current.type;
+  }
+  if (ts.isTypeLiteralNode(current)) {
+    for (const member of current.members) {
+      if (
+        ts.isPropertySignature(member) &&
+        member.name &&
+        propertyNameText(member.name) === propName
+      ) {
+        return member.type;
+      }
+    }
+  }
+  if (ts.isTypeReferenceNode(current) && ts.isIdentifier(current.typeName)) {
+    const alias = findTypeAlias(current.typeName.text, sourceFile);
+    if (alias) return propertyTypeFromObjectType(alias, propName, sourceFile);
+  }
+  if (ts.isUnionTypeNode(current)) {
+    for (const part of current.types) {
+      const hit = propertyTypeFromObjectType(part, propName, sourceFile);
+      if (hit) return hit;
+    }
+  }
+  return undefined;
+}
+
+function findTypeAlias(
+  name: string,
+  sourceFile: ts.SourceFile,
+): ts.TypeNode | undefined {
+  for (const stmt of sourceFile.statements) {
+    if (ts.isTypeAliasDeclaration(stmt) && stmt.name.text === name) {
+      return stmt.type;
+    }
+    if (
+      ts.isInterfaceDeclaration(stmt) &&
+      stmt.name.text === name
+    ) {
+      // Synthesize via members — wrap as type literal walk
+      return ts.factory.createTypeLiteralNode(stmt.members);
+    }
+  }
+  return undefined;
+}
+
+function enumNamesFromTypeNode(type: ts.TypeNode): readonly string[] {
+  const out: string[] = [];
+  const visit = (node: ts.TypeNode): void => {
+    let current = node;
+    while (ts.isParenthesizedTypeNode(current)) current = current.type;
+    if (ts.isTypeReferenceNode(current) && ts.isIdentifier(current.typeName)) {
+      const name = current.typeName.text;
+      if (name !== "string" && name !== "number" && name !== "boolean") {
+        if (!out.includes(name)) out.push(name);
+      }
+    }
+    if (ts.isUnionTypeNode(current)) {
+      for (const part of current.types) visit(part);
+    }
+  };
+  visit(type);
+  return out;
+}
+
+/**
+ * `const currentStatus = historyStatusColConf[status]; t(currentStatus.text)`
+ */
+function keysFromLocalConfigLookup(
+  id: ts.Identifier,
+  propName: string,
+  sourceFile: ts.SourceFile,
+  relativePath: string,
+  index: ObjectArrayPropIndex,
+): readonly string[] {
+  const init = findLocalBindingInitializer(id, sourceFile);
+  if (!init) return [];
+  const configName = rootIndexedObjectName(init);
+  if (!configName) return [];
+
+  const localHit = index.get(indexKey(relativePath, configName));
+  const localKeys = localHit?.get(propName);
+  if (localKeys && localKeys.length > 0) return localKeys;
+
+  return keysFromImport(configName, propName, sourceFile, relativePath, index);
+}
+
+function rootIndexedObjectName(expr: ts.Expression): string | undefined {
+  let node = unwrap(expr);
+  // a ? conf[x] : conf.NONE
+  if (ts.isConditionalExpression(node)) {
+    return (
+      rootIndexedObjectName(node.whenTrue) ??
+      rootIndexedObjectName(node.whenFalse)
+    );
+  }
+  while (
+    ts.isElementAccessExpression(node) ||
+    ts.isPropertyAccessExpression(node)
+  ) {
+    node = unwrap(node.expression);
+  }
+  return ts.isIdentifier(node) ? node.text : undefined;
 }
 
 /**

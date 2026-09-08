@@ -85,6 +85,11 @@ export interface DefinitionFact {
   readonly end?: number;
   readonly locale?: string;
   readonly namespace?: string;
+  /**
+   * Additional namespaces when the same resource file is registered under
+   * more than one (shared i18n modules).
+   */
+  readonly namespaces?: readonly string[];
   readonly confidence?: number;
 }
 

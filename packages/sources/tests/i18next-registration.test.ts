@@ -191,12 +191,12 @@ describe("i18next resource registration (Phase 013.5)", () => {
     expect(saves[0]?.fullKey).toBe("en::home::SAVE");
   });
 
-  it("warns on conflicting namespace registrations for one file", async () => {
+  it("attaches all namespaces when one file is registered under multiple", async () => {
     const root = await fixture({
       "package.json": JSON.stringify({
         dependencies: { i18next: "23.0.0" },
       }),
-      "src/i18n/en.ts": `export default { SAVE: "Save" };`,
+      "src/i18n/en.ts": `export default { SAVE: "Save", ROWS: "Rows" };`,
       "src/a.tsx": `
         import i18next from "i18next";
         import en from "./i18n/en";
@@ -214,12 +214,11 @@ describe("i18next resource registration (Phase 013.5)", () => {
       useDetection: false,
     });
     expect(
-      catalog.warnings.some((w) => w.code === "conflicting-resource-registration"),
+      catalog.warnings.some((w) => w.code === "multi-namespace-resource-registration"),
     ).toBe(true);
-    // First registration wins (deterministic by path sort: a.tsx before b.tsx)
-    expect(
-      catalog.keys.find((k) => k.key === "SAVE")?.namespace,
-    ).toBe("home");
+    const save = catalog.keys.find((k) => k.key === "SAVE");
+    expect(save?.namespaces?.slice().sort()).toEqual(["home", "settings"]);
+    expect(catalog.namespaces.slice().sort()).toEqual(["home", "settings"]);
   });
 
   it("supports large locale catalogs without exploding namespaces", async () => {

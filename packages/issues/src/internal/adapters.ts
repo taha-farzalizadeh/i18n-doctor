@@ -39,6 +39,7 @@ export function definitionFromKey(
     ...(key.location.end !== undefined ? { end: key.location.end } : {}),
     ...(key.locale !== undefined ? { locale: key.locale } : {}),
     ...(key.namespace !== undefined ? { namespace: key.namespace } : {}),
+    ...(key.namespaces !== undefined ? { namespaces: key.namespaces } : {}),
     confidence: key.confidence,
   };
 }

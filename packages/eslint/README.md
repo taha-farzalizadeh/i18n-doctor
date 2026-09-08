@@ -1,9 +1,15 @@
 # @i18n-doctor/eslint-plugin
 
-> **Beta — v0.11.8** (same version as CLI / language-server / IDE plugins)
+> **Beta — v0.11.9** (same version as CLI / language-server / IDE plugins)
 
 ESLint plugin that surfaces **i18n-doctor** findings in the editor and CI using the
 **same analyzer** as the CLI and language server.
+
+### What's new in 0.11.9
+
+Same analyzer as CLI **0.11.9**: path-alias translator factories, store/`t` methods,
+renamed Zustand selectors, multi-ns resource bundles, string-array maps, and
+enum-typed props.
 
 No second parser, locale extractor, or project scanner lives in this package — rules
 call the existing `@i18n-doctor/cli` pipeline once per ESLint run and map diagnostics

@@ -521,9 +521,10 @@ function buildCatalog(
   const locales = unique(
     sorted.map((s) => s.locale).filter((x): x is string => !!x),
   );
-  const namespaces = unique(
-    sorted.map((s) => s.namespace).filter((x): x is string => !!x),
-  );
+  const namespaces = unique([
+    ...sorted.map((s) => s.namespace).filter((x): x is string => !!x),
+    ...sorted.flatMap((s) => s.namespaces ?? []),
+  ]);
 
   const byFormat: Record<SourceFormat, number> = {
     json: 0,

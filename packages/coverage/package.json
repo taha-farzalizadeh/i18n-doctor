@@ -21,7 +21,7 @@
   },
   "dependencies": {
     "@i18n-doctor/context": "0.10.2",
-    "@i18n-doctor/sources": "0.10.2"
+    "@i18n-doctor/sources": "0.10.3"
   },
   "devDependencies": {
     "@types/node": "^22.13.10",

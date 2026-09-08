@@ -37,10 +37,15 @@ import {
   extractVueScripts,
   templateSupportedExtension,
 } from "./template-scan.js";
+import { setModuleResolveRoot } from "./module-path.js";
 import {
   collectTranslatorCallSiteNamespaces,
+  indexStoreSelectorAliases,
   indexTranslatorCallables,
+  mergeStoreSelectorAliases,
   mergeTranslatorCallSiteNamespaces,
+  propagateNestedTranslatorCallSites,
+  type StoreSelectorAliasIndex,
   type TranslatorCallSiteNamespaces,
   type TranslatorCallableIndex,
 } from "./translator-call-flow.js";
@@ -93,12 +98,14 @@ export async function collectUsages(input: {
   const dynamicUsages: DynamicTranslationUsage[] = [];
   const untranslatedLiterals: UntranslatedLiteral[] = [];
   let fileCount = 0;
+  setModuleResolveRoot(input.root);
 
   // Pre-index string enums, then object-array configs + translator callables + helpers.
   const enumIndex: EnumValueIndex = new Map();
   const objectArrayIndex: ObjectArrayPropIndex = new Map();
   const helperReturnIndex: HelperReturnIndex = new Map();
   const translatorCallableIndex: TranslatorCallableIndex = new Map();
+  const storeSelectorAliases: StoreSelectorAliasIndex = new Map();
   await mapPool(candidates, ANALYZE_CONCURRENCY, async (file) => {
     try {
       const read = await input.snapshot.content.read(file.fileId);
@@ -160,6 +167,10 @@ export async function collectUsages(input: {
             translatorCallableIndex,
             indexTranslatorCallables(parsed.sourceFile, file.relativePath),
           );
+          mergeStoreSelectorAliases(
+            storeSelectorAliases,
+            indexStoreSelectorAliases(parsed.sourceFile),
+          );
         }
         return;
       }
@@ -180,6 +191,10 @@ export async function collectUsages(input: {
       mergeTranslatorCallableIndex(
         translatorCallableIndex,
         indexTranslatorCallables(parsed.sourceFile, file.relativePath),
+      );
+      mergeStoreSelectorAliases(
+        storeSelectorAliases,
+        indexStoreSelectorAliases(parsed.sourceFile),
       );
     } catch {
       // Best-effort index; analysis below still runs.
@@ -209,6 +224,7 @@ export async function collectUsages(input: {
               relativePath,
               bindings,
               translatorCallableIndex,
+              storeSelectorAliases,
             ),
           );
         };
@@ -228,6 +244,44 @@ export async function collectUsages(input: {
           sourceText,
         });
         ingest(parsed.sourceFile, file.relativePath);
+      } catch {
+        // Best-effort.
+      }
+    });
+
+    // Propagate schema(t) → dateSchema(t) nested factories in the same file.
+    await mapPool(candidates, ANALYZE_CONCURRENCY, async (file) => {
+      try {
+        if (!SCRIPT_EXT.has(file.extension) && file.extension !== "vue") {
+          return;
+        }
+        const read = await input.snapshot.content.read(file.fileId);
+        if (!read.ok || read.bytes.byteLength > MAX_FILE_BYTES) return;
+        const sourceText = Buffer.from(read.bytes).toString("utf8");
+        const propagate = (sourceFile: ts.SourceFile, relativePath: string) => {
+          propagateNestedTranslatorCallSites(
+            sourceFile,
+            relativePath,
+            translatorCallableIndex,
+            translatorCallSites,
+          );
+        };
+        if (file.extension === "vue") {
+          for (const script of extractVueScripts(sourceText)) {
+            const parsed = engine.parse({
+              fileName: `${file.relativePath}.${script.lang}`,
+              sourceText: script.text,
+            });
+            propagate(parsed.sourceFile, file.relativePath);
+          }
+          return;
+        }
+        if (!isSupportedSourceFileName(file.relativePath)) return;
+        const parsed = engine.parse({
+          fileName: file.relativePath,
+          sourceText,
+        });
+        propagate(parsed.sourceFile, file.relativePath);
       } catch {
         // Best-effort.
       }

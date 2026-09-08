@@ -91,7 +91,16 @@ export function definitionMatchesUsage(
   if (usageNamespaces.length === 0) {
     return false;
   }
-  return usageNamespaces.includes(definition.namespace);
+  if (usageNamespaces.includes(definition.namespace)) {
+    return true;
+  }
+  // Shared resource modules registered under multiple namespaces.
+  if (definition.namespaces) {
+    for (const ns of definition.namespaces) {
+      if (usageNamespaces.includes(ns)) return true;
+    }
+  }
+  return false;
 }
 
 /**

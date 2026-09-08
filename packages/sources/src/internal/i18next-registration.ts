@@ -190,8 +190,9 @@ export async function scanI18nextRegistrations(input: {
  * Apply addResourceBundle / addResource file attributions onto discovered sources.
  * Registration namespace wins over path-inferred namespace for i18next co-located files.
  *
- * Deterministic: attributions are sorted; duplicate same file+locale+ns are folded;
- * conflicting namespaces for one file keep the first and emit a warning.
+ * When the same file is registered under multiple namespaces (e.g. `search` and
+ * `explore-header`), keep a single source and attach every registered namespace
+ * so matching treats a key as present/used for all of them.
  */
 export function applyResourceAttributions(
   sources: readonly TranslationSource[],
@@ -210,77 +211,95 @@ export function applyResourceAttributions(
       (a.locale ?? "").localeCompare(b.locale ?? ""),
   );
 
-  const byFile = new Map<string, ResourceFileAttribution>();
+  /** file → unique locale+namespace attributions */
+  const byFile = new Map<string, ResourceFileAttribution[]>();
   const seenExact = new Set<string>();
 
   for (const attr of sorted) {
     const fileKey = toPosix(attr.relativePath);
     const exact = `${fileKey}\0${attr.locale ?? "*"}\0${attr.namespace}`;
     if (seenExact.has(exact)) {
-      // Idempotent duplicate registration of the same bundle.
       continue;
     }
     seenExact.add(exact);
 
-    const prev = byFile.get(fileKey);
-    if (!prev) {
-      byFile.set(fileKey, attr);
-      continue;
-    }
-    if (prev.namespace !== attr.namespace || prev.locale !== attr.locale) {
-      warnings.push({
-        code: "conflicting-resource-registration",
-        message: `Resource file "${fileKey}" registered as ${prev.locale ?? "?"}:${prev.namespace} and ${attr.locale ?? "?"}:${attr.namespace}; keeping ${prev.locale ?? "?"}:${prev.namespace}`,
-        path: fileKey,
-      });
-    }
+    const list = byFile.get(fileKey) ?? [];
+    list.push(attr);
+    byFile.set(fileKey, list);
   }
 
   const next = sources.map((source) => {
-    const attr = byFile.get(toPosix(source.filePath));
-    if (!attr) {
+    const attrs = byFile.get(toPosix(source.filePath));
+    if (!attrs || attrs.length === 0) {
       return source;
     }
 
-    const namespace = attr.namespace;
-    const locale = attr.locale ?? source.locale;
-    if (source.namespace === namespace && source.locale === locale) {
-      return source;
+    if (attrs.length > 1) {
+      const nsList = attrs
+        .map((a) => `${a.locale ?? "?"}:${a.namespace}`)
+        .join(", ");
+      warnings.push({
+        code: "multi-namespace-resource-registration",
+        message: `Resource file "${toPosix(source.filePath)}" registered under multiple namespaces (${nsList}); keys match any of them.`,
+        path: toPosix(source.filePath),
+      });
     }
+
+    // Prefer an attribution whose locale matches the source when possible.
+    const primary =
+      attrs.find((a) => a.locale && a.locale === source.locale) ?? attrs[0]!;
+    const allNamespaces = uniqueStrings(attrs.map((a) => a.namespace));
+    const locale = primary.locale ?? source.locale;
+    const namespace = primary.namespace;
 
     const evidence = [
       ...source.evidence,
-      attr.evidence,
-      `registration ns='${namespace}' from ${attr.registrationFile}`,
+      primary.evidence,
+      `registration ns='${allNamespaces.join("|")}' from ${attrs
+        .map((a) => a.registrationFile)
+        .filter((v, i, arr) => arr.indexOf(v) === i)
+        .join(", ")}`,
     ];
 
     return {
       ...source,
       ...(locale !== undefined ? { locale } : {}),
       namespace,
+      ...(allNamespaces.length > 1 ? { namespaces: allNamespaces } : {}),
       kind:
         source.kind === "unknown" || source.kind === "embedded-object"
           ? "i18next-resources"
           : source.kind,
       confidence: Math.min(
         1,
-        Math.round(Math.max(source.confidence, attr.confidence) * 1000) / 1000,
+        Math.round(Math.max(source.confidence, primary.confidence) * 1000) /
+          1000,
       ),
       evidence,
       keys: source.keys.map((key) => ({
         ...key,
         ...(locale !== undefined ? { locale } : {}),
         namespace,
+        ...(allNamespaces.length > 1 ? { namespaces: allNamespaces } : {}),
         fullKey: `${locale ?? "*"}::${namespace}::${key.key}`,
         confidence: Math.min(
           1,
-          Math.round(Math.max(key.confidence, attr.confidence) * 1000) / 1000,
+          Math.round(Math.max(key.confidence, primary.confidence) * 1000) /
+            1000,
         ),
       })),
     };
   });
 
   return { sources: next, warnings };
+}
+
+function uniqueStrings(values: readonly string[]): string[] {
+  const out: string[] = [];
+  for (const value of values) {
+    if (!out.includes(value)) out.push(value);
+  }
+  return out;
 }
 
 type Hit =

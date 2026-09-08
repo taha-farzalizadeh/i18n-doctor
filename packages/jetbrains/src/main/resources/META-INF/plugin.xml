@@ -38,6 +38,16 @@
   ]]></description>
 
   <change-notes><![CDATA[
+    <h3>0.11.9</h3>
+    <p>Props-<code>t</code> / path-alias / multi-namespace usage fixes for fewer false unused and missing keys.</p>
+    <ul>
+      <li>Path-alias imports (<code>app/*</code>, <code>@core/*</code>) for translator factories</li>
+      <li>Store/object methods with <code>t</code>; renamed Zustand selectors</li>
+      <li>Multi-namespace <code>addResourceBundle</code> on one shared module</li>
+      <li>String-literal array maps, enum-typed <code>t(type as string)</code>, <code>labelKey</code> lookups</li>
+      <li>npm / ESLint / language-server / JetBrains / VS Code all at <b>0.11.9</b></li>
+      <li>Rebundled language server @ 0.11.9</li>
+    </ul>
     <h3>0.11.8</h3>
     <p>Broader static key resolution: helpers, string maps, chart/route configs, enum Object.keys, and useTranslation fallbacks.</p>
     <ul>

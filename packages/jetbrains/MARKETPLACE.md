@@ -106,7 +106,7 @@ Marketplace accepts HTML. Copy everything between the markers:
   <li>CLI: <code>npx i18n-doctor check</code></li>
 </ul>
 
-<p><i>Beta v0.10.2 — please report issues on GitHub.</i></p>
+<p><i>Beta v0.11.9 — please report issues on GitHub.</i></p>
 <!-- END MARKETPLACE DESCRIPTION -->
 ```
 
@@ -160,6 +160,21 @@ Capture from `npm run runIde -w i18n-doctor-jetbrains` + `examples/demo-project`
 
 - Use channel **default** for public releases.
 - Use channel **eap** only if you intentionally ship pre-releases.
+
+## Change notes (0.11.9)
+
+```html
+<h3>0.11.9</h3>
+<p>Props-<code>t</code> / path-alias / multi-namespace usage fixes for fewer false unused and missing keys.</p>
+<ul>
+  <li>Path-alias imports (<code>app/*</code>, <code>@core/*</code>) for translator factories</li>
+  <li>Store/object methods with <code>t</code>; renamed Zustand selectors</li>
+  <li>Multi-namespace <code>addResourceBundle</code> on one shared module</li>
+  <li>String-literal array maps, enum-typed <code>t(type as string)</code>, <code>labelKey</code> lookups</li>
+  <li>npm / ESLint / language-server / JetBrains / VS Code all at <b>0.11.9</b></li>
+  <li>Rebundled language server @ 0.11.9</li>
+</ul>
+```
 
 ## Change notes (0.11.8)
 

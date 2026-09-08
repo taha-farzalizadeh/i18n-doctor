@@ -4,6 +4,7 @@
  */
 
 import ts from "typescript";
+import { resolveImportedFileCandidates } from "./module-path.js";
 
 /** `fileRel#EnumName` → member name → string value. */
 export type EnumValueIndex = Map<string, ReadonlyMap<string, string>>;
@@ -77,6 +78,7 @@ export function allStringEnumValues(
     return [];
   }
 
+  // Path-alias imports: match by enum name across the index.
   const suffix = `#${enumName}`;
   for (const [key, members] of enumIndex) {
     if (!key.endsWith(suffix)) continue;

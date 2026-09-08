@@ -30,6 +30,11 @@ export interface TranslationKeyDefinition {
   readonly locale?: string;
   readonly namespace?: string;
   /**
+   * When the same resource module is registered under multiple namespaces,
+   * every registered ns is listed here (primary remains `namespace`).
+   */
+  readonly namespaces?: readonly string[];
+  /**
    * Stable identity: `${locale ?? "*"}::${namespace ?? "*"}::${key}`.
    * Always populated by the detector; optional for backward-compatible callers.
    */
@@ -66,6 +71,11 @@ export interface TranslationSource {
   readonly kind: SourceKind;
   readonly locale?: string;
   readonly namespace?: string;
+  /**
+   * All namespaces this module is registered under (addResourceBundle), when
+   * more than one. Primary for display/path remains `namespace`.
+   */
+  readonly namespaces?: readonly string[];
   /** Detected library hint when available (e.g. i18next, next-intl). */
   readonly libraryHint?: string;
   readonly confidence: Confidence;
