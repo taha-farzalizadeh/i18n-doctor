@@ -110,12 +110,16 @@ export const vueI18nUsageDetector: LibraryUsageDetector = {
 
       if (endsWithProperty(node.expression, "t")) {
         const root = rootIdentifier(node.expression);
+        // Only claim i18n.t when this file actually uses vue-i18n. Project
+        // wrappers (`import i18n from "i18n/i18n"`) register i18nObjects for
+        // i18next and must not emit a second un-namespaced usage here.
         if (
           root &&
           (root === "i18n" || bindings.i18nObjects.has(root)) &&
-          // Avoid stealing i18next i18n.t when both present — prefer vue only if vue imported
           (fileImportsLibrary(bindings, VUE_I18N_MODULES) ||
-            !fileImportsLibrary(bindings, new Set(["i18next", "react-i18next"])))
+            [...bindings.tFunctions.values()].some(
+              (b) => b.library === "vue-i18n",
+            ))
         ) {
           pushKeys({
             library: "vue-i18n",

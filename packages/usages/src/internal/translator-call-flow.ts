@@ -19,7 +19,12 @@ import { indexKey } from "./object-array-props.js";
 
 export type TranslatorCallableIndex = Map<
   string,
-  { paramIndex: number; paramName: string }
+  {
+    paramIndex: number;
+    paramName: string;
+    /** `fn({ t })` / `fn(params: { t: TFunction })` instead of a direct `t` arg. */
+    objectProp?: string;
+  }
 >;
 
 /** `fileRel#exportName` → namespaces observed at call sites. */
@@ -172,11 +177,13 @@ export function collectTranslatorCallSiteNamespaces(
           const info = index.get(key);
           if (!info) continue;
           const arg = node.arguments[info.paramIndex];
-          if (!arg || !ts.isIdentifier(arg)) continue;
+          if (!arg) continue;
+          const tIdent = translatorArgIdentifier(arg, info.objectProp);
+          if (!tIdent) continue;
           const binding = resolveTFunction(
             bindings,
-            arg.text,
-            arg.getStart(sourceFile),
+            tIdent.text,
+            tIdent.getStart(sourceFile),
           );
           if (!binding?.namespace && !binding?.namespaces?.length) continue;
           mergeNamespaces(out, key, bindingNamespaces(binding));
@@ -187,6 +194,30 @@ export function collectTranslatorCallSiteNamespaces(
   };
   visit(sourceFile);
   return out;
+}
+
+function translatorArgIdentifier(
+  arg: ts.Expression,
+  objectProp: string | undefined,
+): ts.Identifier | undefined {
+  const node = unwrap(arg);
+  if (!objectProp) {
+    return ts.isIdentifier(node) ? node : undefined;
+  }
+  if (!ts.isObjectLiteralExpression(node)) return undefined;
+  for (const prop of node.properties) {
+    if (ts.isShorthandPropertyAssignment(prop) && prop.name.text === objectProp) {
+      return prop.name;
+    }
+    if (
+      ts.isPropertyAssignment(prop) &&
+      propertyNameText(prop.name) === objectProp
+    ) {
+      const init = unwrap(prop.initializer);
+      return ts.isIdentifier(init) ? init : undefined;
+    }
+  }
+  return undefined;
 }
 
 /**
@@ -301,17 +332,62 @@ function mergeNamespaces(
 
 function translatorParamInfo(
   fn: ts.SignatureDeclaration,
-): { paramIndex: number; paramName: string } | undefined {
+):
+  | { paramIndex: number; paramName: string; objectProp?: string }
+  | undefined {
   for (let i = 0; i < fn.parameters.length; i += 1) {
     const param = fn.parameters[i]!;
     if (!ts.isIdentifier(param.name)) continue;
     const name = param.name.text;
-    if (!TRANSLATOR_NAMES.has(name)) continue;
-    if (param.type && !looksLikeTranslatorType(param.type)) continue;
-    // Untyped `t` still counts — call-site flow is what supplies the namespace.
-    return { paramIndex: i, paramName: name };
+    if (TRANSLATOR_NAMES.has(name)) {
+      if (param.type && !looksLikeTranslatorType(param.type)) continue;
+      // Untyped `t` still counts — call-site flow is what supplies the namespace.
+      return { paramIndex: i, paramName: name };
+    }
+  }
+
+  // `fn(params: { t: TFunction })` / `fn(options: BuildFilterPayloadParams)`
+  for (let i = 0; i < fn.parameters.length; i += 1) {
+    const param = fn.parameters[i]!;
+    if (!ts.isIdentifier(param.name) || !param.type) continue;
+    if (!typeHasTranslatorProp(param.type)) continue;
+    return {
+      paramIndex: i,
+      paramName: "t",
+      objectProp: "t",
+    };
   }
   return undefined;
+}
+
+function typeHasTranslatorProp(type: ts.TypeNode): boolean {
+  let current: ts.TypeNode = type;
+  while (ts.isParenthesizedTypeNode(current) || ts.isTypeOperatorNode(current)) {
+    if (ts.isParenthesizedTypeNode(current)) current = current.type;
+    else return false;
+  }
+  if (ts.isTypeLiteralNode(current)) {
+    for (const member of current.members) {
+      if (
+        ts.isPropertySignature(member) &&
+        member.name &&
+        ts.isIdentifier(member.name) &&
+        TRANSLATOR_NAMES.has(member.name.text)
+      ) {
+        if (!member.type || looksLikeTranslatorType(member.type)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+  // Named type alias / interface: BuildFilterPayloadParams — accept when the
+  // type name suggests a params bag (caller still must pass `{ t }`).
+  if (ts.isTypeReferenceNode(current) && ts.isIdentifier(current.typeName)) {
+    const name = current.typeName.text;
+    return /Params|Options|Args|Config|Props$/i.test(name) || name.includes("Payload");
+  }
+  return false;
 }
 
 function translatorParamInfoFromExpression(

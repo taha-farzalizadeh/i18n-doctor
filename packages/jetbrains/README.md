@@ -16,6 +16,8 @@ is unused.
 - Renamed Zustand selectors (`deleteRowRawById = useStore(s => s.deleteRawRowById)`)
 - Multi-namespace `addResourceBundle` on one shared i18n module
 - String-literal array maps, enum-typed `t(type as string)`, `labelKey` / config lookups
+- `i18n.t("KEY", { ns })`, JSX `Object.keys(Enum)` → child `t(item)`, enum helper arrays
+- `buildPayload({ t })` namespace flow; `t(data.actionType)` / nested enum property access
 - **Unified versioning:** npm packages, language-server, and IDE plugins are all **0.11.9**
 - Bundled language server @ 0.11.9
 

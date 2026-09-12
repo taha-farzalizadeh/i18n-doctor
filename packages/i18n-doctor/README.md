@@ -13,6 +13,8 @@ Works with **React**, **Vue**, **Angular**, **Next.js**, **Nuxt**, **i18next**, 
 - Store/object methods with `t` params; renamed Zustand selectors
 - Multi-namespace `addResourceBundle` on one shared i18n module
 - String-literal array maps, enum-typed `t(type as string)`, `labelKey` / config lookups
+- `i18n.t("KEY", { ns })`, JSX `Object.keys(Enum)` → child `t(item)`, enum helper arrays
+- `buildPayload({ t })` namespace flow; `t(data.actionType)` / nested enum property access
 
 ---
 

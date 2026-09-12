@@ -19,7 +19,11 @@ helpers used by the issue engine:
 - Store/object methods with `t` params (`odsDownload(uuid, t)`)
 - Renamed Zustand selectors (`deleteRowRawById = useStore(s => s.deleteRawRowById)`)
 - Nested factories (`schema(t)` → `dateSchema(t)`)
-- Project `i18n` wrappers (`import i18n from "i18n/…"` + `i18n.t("ns:key")`)
+- Project `i18n` wrappers (`import i18n from "i18n/…"` + `i18n.t("ns:key")` / `{ ns }`)
+- JSX `Object.keys(Enum)` props into child `t(item)` maps
+- Helpers returning enum-member arrays (`cols.map(col => t(col))`)
+- Object-param translators (`fn({ t })` inherits call-site namespace)
+- Enum-typed property access (`t(data.actionType)` / `t(node.data.actionType)`)
 - `useTranslation(ref || "ns")` fallback namespace
 - Dynamic key fragments (for soft unused hints)
 - Untranslated UI literals (JSX text / common attributes)

@@ -8,8 +8,9 @@ ESLint plugin that surfaces **i18n-doctor** findings in the editor and CI using 
 ### What's new in 0.11.9
 
 Same analyzer as CLI **0.11.9**: path-alias translator factories, store/`t` methods,
-renamed Zustand selectors, multi-ns resource bundles, string-array maps, and
-enum-typed props.
+renamed Zustand selectors, multi-ns resource bundles, string-array maps,
+enum-typed props, JSX `Object.keys(Enum)` → child maps, enum helper arrays,
+`i18n.t(…, { ns })`, `fn({ t })` namespace flow, and `t(data.actionType)`.
 
 No second parser, locale extractor, or project scanner lives in this package — rules
 call the existing `@i18n-doctor/cli` pipeline once per ESLint run and map diagnostics

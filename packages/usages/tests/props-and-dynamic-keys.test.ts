@@ -833,4 +833,142 @@ export function Table({ status }: { status?: string }) {
     expect(keys).toContain("NO_STATUS");
     expect(keys).toContain("PROCESSING");
   });
+
+  it("resolves Object.keys(Enum) passed as JSX prop into child t(item)", async () => {
+    const root = await fixture({
+      "package.json": JSON.stringify({
+        dependencies: { "react-i18next": "14.0.0" },
+      }),
+      "src/types.ts": `
+export enum ActionCategory {
+  DATASET = "DATASET",
+  COLUMN = "COLUMN",
+}
+`,
+      "src/DWTab.tsx": `
+import { useTranslation } from 'react-i18next';
+export default function DWTab({ categories }: { categories: string[] }) {
+  const { t } = useTranslation('data-workbench');
+  return categories.map((item) => <button key={item}>{t(item)}</button>);
+}
+`,
+      "src/Actions.tsx": `
+import DWTab from './DWTab';
+import { ActionCategory } from './types';
+export function Actions() {
+  return <DWTab categories={Object.keys(ActionCategory)} />;
+}
+`,
+    });
+    const catalog = await createUsageDetector().detect({
+      root,
+      useDetection: false,
+    });
+    const keys = catalog.usages.map((u) => u.key);
+    expect(keys).toContain("DATASET");
+    expect(keys).toContain("COLUMN");
+  });
+
+  it("resolves cols.map(t) when cols comes from helper returning enum members", async () => {
+    const root = await fixture({
+      "package.json": JSON.stringify({
+        dependencies: { "react-i18next": "14.0.0" },
+      }),
+      "src/types.ts": `
+export enum IPropertyType {
+  STRING = "STRING",
+  BOOLEAN = "BOOLEAN",
+  INTEGER = "INTEGER",
+  DOUBLE = "DOUBLE",
+  DATE_TIME = "DATE_TIME",
+}
+`,
+      "src/utils.ts": `
+import { IPropertyType } from './types';
+export const typeConvertor = (currentType: IPropertyType): IPropertyType[] => {
+  switch (currentType) {
+    case IPropertyType.STRING:
+      return [
+        IPropertyType.INTEGER,
+        IPropertyType.DOUBLE,
+        IPropertyType.BOOLEAN,
+        IPropertyType.DATE_TIME,
+      ];
+    default:
+      return [IPropertyType.STRING];
+  }
+};
+`,
+      "src/ChangeType.tsx": `
+import { useTranslation } from 'react-i18next';
+import { IPropertyType } from './types';
+import { typeConvertor } from './utils';
+export function ChangeType({ type }: { type: IPropertyType }) {
+  const { t } = useTranslation('data-workbench');
+  const cols = typeConvertor(type);
+  return cols.map((col) => <option key={col}>{t(col)}</option>);
+}
+`,
+    });
+    const catalog = await createUsageDetector().detect({
+      root,
+      useDetection: false,
+    });
+    const keys = catalog.usages.map((u) => u.key);
+    expect(keys).toContain("BOOLEAN");
+    expect(keys).toContain("INTEGER");
+    expect(keys).toContain("DOUBLE");
+    expect(keys).toContain("DATE_TIME");
+    expect(keys).toContain("STRING");
+  });
+
+  it("resolves t(node.data.actionType) and t(data.actionType) from ActionType enum", async () => {
+    const root = await fixture({
+      "package.json": JSON.stringify({
+        dependencies: { "react-i18next": "14.0.0" },
+      }),
+      "src/types.ts": `
+export enum ActionType {
+  REMOVE_BLANK = "REMOVE_BLANK",
+  REMOVE_DUPLICATE = "REMOVE_DUPLICATE",
+  APPEND = "APPEND",
+  FILTER = "FILTER",
+}
+export type IActionNode = {
+  actionType: ActionType;
+  resultElementId: number;
+};
+export type IActionFlowNode = {
+  data: IActionNode;
+};
+`,
+      "src/Chip.tsx": `
+import { useTranslation } from 'react-i18next';
+import type { IActionFlowNode } from './types';
+export function PipelineChip({ node }: { node: IActionFlowNode }) {
+  const { t } = useTranslation('data-workbench');
+  return <span>{t(node.data.actionType)}</span>;
+}
+`,
+      "src/ActionNode.tsx": `
+import { useTranslation } from 'react-i18next';
+import type { IActionNode } from './types';
+type NodeProps<T> = { data: T };
+export function ActionNode(props: NodeProps<IActionNode>) {
+  const { data } = props;
+  const { t } = useTranslation('data-workbench');
+  return <p>{t(data.actionType)}</p>;
+}
+`,
+    });
+    const catalog = await createUsageDetector().detect({
+      root,
+      useDetection: false,
+    });
+    const keys = catalog.usages.map((u) => u.key);
+    expect(keys).toContain("REMOVE_BLANK");
+    expect(keys).toContain("REMOVE_DUPLICATE");
+    expect(keys).toContain("APPEND");
+    expect(keys).toContain("FILTER");
+  });
 });

@@ -171,6 +171,8 @@ Capture from `npm run runIde -w i18n-doctor-jetbrains` + `examples/demo-project`
   <li>Store/object methods with <code>t</code>; renamed Zustand selectors</li>
   <li>Multi-namespace <code>addResourceBundle</code> on one shared module</li>
   <li>String-literal array maps, enum-typed <code>t(type as string)</code>, <code>labelKey</code> lookups</li>
+  <li><code>i18n.t("KEY", { ns })</code>, JSX <code>Object.keys(Enum)</code> → child <code>t(item)</code>, enum helper arrays</li>
+  <li><code>fn({ t })</code> namespace flow; <code>t(data.actionType)</code> / nested enum property access</li>
   <li>npm / ESLint / language-server / JetBrains / VS Code all at <b>0.11.9</b></li>
   <li>Rebundled language server @ 0.11.9</li>
 </ul>

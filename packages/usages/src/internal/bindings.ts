@@ -475,6 +475,20 @@ function firstTranslatorParamName(
       return param.name.text;
     }
   }
+  // `fn(params: { t: TFunction })` / `fn(params: SomeParams)` — enrich `t` in body
+  for (const param of fn.parameters) {
+    if (!param.type) continue;
+    const text = param.type.getText();
+    if (
+      /TFunction|TranslateFunction|Translator/i.test(text) &&
+      (/\bt\b/.test(text) || /Params|Options|Args|Config|Props|Payload/i.test(text))
+    ) {
+      return "t";
+    }
+    if (/Params|Options|Args|Config|Props$/i.test(text) || text.includes("Payload")) {
+      return "t";
+    }
+  }
   return undefined;
 }
 

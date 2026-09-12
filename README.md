@@ -408,7 +408,12 @@ All user-facing packages and IDE plugins ship as **0.11.9**.
 - Renamed Zustand selectors (`const deleteRowRawById = useStore(s => s.deleteRawRowById)`)
 - Multi-namespace `addResourceBundle` on one file (shared explore-header/search bundles)
 - String-literal array maps, enum-typed `t(type as string)`, `labelKey` / local config lookups
-- Project `i18n` wrappers: `import i18n from "i18n/…"` + `i18n.t("ns:key")`
+- Project `i18n` wrappers: `import i18n from "i18n/…"` + `i18n.t("ns:key")` / `i18n.t("KEY", { ns })`
+- `Object.keys(Enum)` passed as JSX props into child `t(item)` maps
+- Helpers that return enum-member arrays (`cols = typeConvertor(…); cols.map(t)`)
+- Object-param translators: `buildPayload({ t })` inherits call-site namespace
+- Enum-typed property access: `t(data.actionType)` / `t(node.data.actionType)`
+- vue-i18n detector no longer steals project `i18n.t` (avoids false missing without `ns`)
 
 ### 0.11.8 — broader static key resolution (2026-09)
 

@@ -117,6 +117,7 @@ export function resolveMappedPropKeys(
   index: ObjectArrayPropIndex,
   enumIndex?: EnumValueIndex,
   helperIndex?: HelperReturnIndex,
+  jsxEnumPropIndex?: JsxEnumPropIndex,
 ): readonly string[] {
   const node = unwrap(expr);
 
@@ -127,6 +128,7 @@ export function resolveMappedPropKeys(
       sourceFile,
       relativePath,
       helperIndex,
+      enumIndex,
     );
     if (fromHelper.length > 0) return fromHelper;
   }
@@ -146,6 +148,8 @@ export function resolveMappedPropKeys(
   // Object.keys(Enum).map((key) => t(key))
   // (["JALALI","GEORGIAN"] as const).map((op) => t(op))
   // t(type as string) when `type` is typed as a string enum
+  // categories.map(item => t(item)) when categories={Object.keys(Enum)}
+  // cols.map(col => t(col)) when cols = typeConvertor(...) returning enum members
   if (ts.isIdentifier(node) || ts.isAsExpression(expr) || ts.isSatisfiesExpression(expr)) {
     const ident = ts.isIdentifier(node)
       ? node
@@ -158,6 +162,7 @@ export function resolveMappedPropKeys(
         sourceFile,
         relativePath,
         enumIndex,
+        jsxEnumPropIndex,
       );
       if (fromEnumKeys.length > 0) return fromEnumKeys;
 
@@ -176,6 +181,15 @@ export function resolveMappedPropKeys(
         enumIndex,
       );
       if (fromEnumArray.length > 0) return fromEnumArray;
+
+      const fromHelperMap = keysFromHelperResultMapParam(
+        ident,
+        sourceFile,
+        relativePath,
+        helperIndex,
+        enumIndex,
+      );
+      if (fromHelperMap.length > 0) return fromHelperMap;
 
       const fromEnumAnn = keysFromEnumTypedIdent(
         ident,
@@ -196,7 +210,17 @@ export function resolveMappedPropKeys(
   }
 
   const access = propertyAccess(node);
-  if (!access) return [];
+  if (!access) {
+    // Nested: t(node.data.actionType) — not a single-level access.
+    const fromNestedEnum = keysFromEnumTypedPropertyAccess(
+      node,
+      sourceFile,
+      relativePath,
+      enumIndex,
+    );
+    if (fromNestedEnum.length > 0) return fromNestedEnum;
+    return [];
+  }
 
   const collection = collectionForMapParam(access.object, sourceFile);
   if (collection) {
@@ -229,6 +253,15 @@ export function resolveMappedPropKeys(
   if (isPropsOrParamObjectBinding(access.object, sourceFile)) {
     return keysForPropFromIndex(access.property, index);
   }
+
+  // `t(data.actionType)` when actionType is a string enum (ActionType).
+  const fromEnumProp = keysFromEnumTypedPropertyAccess(
+    node,
+    sourceFile,
+    relativePath,
+    enumIndex,
+  );
+  if (fromEnumProp.length > 0) return fromEnumProp;
 
   return [];
 }
@@ -747,6 +780,159 @@ function propertyAccess(
   return undefined;
 }
 
+/**
+ * `node.data.actionType` → root `node`, properties `["data", "actionType"]`.
+ */
+function propertyAccessChain(
+  expr: ts.Expression,
+): { root: ts.Identifier; properties: readonly string[] } | undefined {
+  const properties: string[] = [];
+  let current: ts.Expression = unwrap(expr);
+
+  while (
+    ts.isPropertyAccessExpression(current) ||
+    (ts.isElementAccessExpression(current) &&
+      current.argumentExpression &&
+      (ts.isStringLiteral(current.argumentExpression) ||
+        ts.isNoSubstitutionTemplateLiteral(current.argumentExpression)))
+  ) {
+    if (ts.isPropertyAccessExpression(current)) {
+      properties.unshift(current.name.text);
+      current = unwrap(current.expression);
+      continue;
+    }
+    properties.unshift(
+      (current.argumentExpression as ts.StringLiteral | ts.NoSubstitutionTemplateLiteral)
+        .text,
+    );
+    current = unwrap(current.expression);
+  }
+
+  if (!ts.isIdentifier(current) || properties.length === 0) return undefined;
+  return { root: current, properties };
+}
+
+/**
+ * `t(data.actionType)` / `t(node.data.actionType)` when the leaf property is a
+ * string enum (e.g. `actionType: ActionType`).
+ */
+function keysFromEnumTypedPropertyAccess(
+  expr: ts.Expression,
+  sourceFile: ts.SourceFile,
+  relativePath: string,
+  enumIndex: EnumValueIndex | undefined,
+): readonly string[] {
+  const chain = propertyAccessChain(expr);
+  if (!chain) return [];
+  const leaf = chain.properties[chain.properties.length - 1];
+  if (!leaf) return [];
+
+  // Walk declared types from the root binding when possible.
+  let typeNodes = [
+    ...typeNodesFromIdentBinding(chain.root, sourceFile),
+    ...typeNodesFromGenericDataBinding(chain.root, sourceFile),
+  ];
+  for (const prop of chain.properties) {
+    if (typeNodes.length === 0) break;
+    const next: ts.TypeNode[] = [];
+    for (const typeNode of typeNodes) {
+      const hit = propertyTypeFromObjectType(typeNode, prop, sourceFile);
+      if (hit) next.push(hit);
+    }
+    typeNodes = next;
+  }
+
+  const out: string[] = [];
+  for (const typeNode of typeNodes) {
+    for (const enumName of enumNamesFromTypeNode(typeNode)) {
+      for (const value of allStringEnumValues(
+        enumName,
+        sourceFile,
+        relativePath,
+        enumIndex,
+      )) {
+        if (!out.includes(value)) out.push(value);
+      }
+    }
+    for (const lit of stringLiteralsFromTypeNode(typeNode)) {
+      if (!out.includes(lit)) out.push(lit);
+    }
+  }
+  if (out.length > 0) return out;
+
+  // Fallback: actionType → ActionType when that string enum exists in the project.
+  // Skip bare `type` / non-enumish names to avoid t(newValue.type) false positives.
+  if (!isEnumishPropName(leaf)) return [];
+  const enumName = leaf.charAt(0).toUpperCase() + leaf.slice(1);
+  return allStringEnumValues(enumName, sourceFile, relativePath, enumIndex);
+}
+
+/** Props that commonly hold string-enum translation keys. */
+function isEnumishPropName(prop: string): boolean {
+  return (
+    /(Type|Status|Kind|Mode|Category|State|Action)$/.test(prop) &&
+    prop !== "type"
+  );
+}
+
+/**
+ * `const { data } = props` where `props: NodeProps<IActionNode>` — treat the
+ * first type argument as the type of `data`.
+ */
+function typeNodesFromGenericDataBinding(
+  id: ts.Identifier,
+  sourceFile: ts.SourceFile,
+): readonly ts.TypeNode[] {
+  if (id.text !== "data") return [];
+  const name = id.text;
+  const usePos = id.getStart(sourceFile);
+  const found: ts.TypeNode[] = [];
+
+  const visit = (node: ts.Node): void => {
+    if (
+      ts.isBindingElement(node) &&
+      ts.isIdentifier(node.name) &&
+      node.name.text === name &&
+      node.name.getStart(sourceFile) < usePos
+    ) {
+      const pattern = node.parent;
+      if (!ts.isObjectBindingPattern(pattern)) return;
+      const decl = pattern.parent;
+      if (!ts.isVariableDeclaration(decl) || !decl.initializer) return;
+      const init = unwrap(decl.initializer);
+      if (!ts.isIdentifier(init)) return;
+      // props: NodeProps<IActionNode> or NodeProps<IActionNode & …>
+      const propsTypes = typeNodesFromIdentBinding(init, sourceFile);
+      for (const typeNode of propsTypes) {
+        const dataType = firstTypeArgument(typeNode);
+        if (dataType) found.push(dataType);
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return found;
+}
+
+function firstTypeArgument(type: ts.TypeNode): ts.TypeNode | undefined {
+  let current = type;
+  while (ts.isParenthesizedTypeNode(current)) current = current.type;
+  if (
+    ts.isTypeReferenceNode(current) &&
+    current.typeArguments &&
+    current.typeArguments.length > 0
+  ) {
+    return current.typeArguments[0];
+  }
+  if (ts.isIntersectionTypeNode(current) || ts.isUnionTypeNode(current)) {
+    for (const part of current.types) {
+      const hit = firstTypeArgument(part);
+      if (hit) return hit;
+    }
+  }
+  return undefined;
+}
+
 function objectArrayFromExpression(
   expr: ts.Expression,
   sourceFile: ts.SourceFile,
@@ -955,14 +1141,143 @@ function stringMapValuesForIdent(
   return localHit?.get(STRING_MAP_VALUES) ?? [];
 }
 
+/** `fileRel#propName` → enum string values from JSX `prop={Object.keys(Enum)}`. */
+export type JsxEnumPropIndex = Map<string, readonly string[]>;
+
+export function jsxEnumPropKey(fileRel: string, propName: string): string {
+  return `${normalizeRel(fileRel)}#${propName}`;
+}
+
+export function mergeJsxEnumPropIndex(
+  target: JsxEnumPropIndex,
+  source: JsxEnumPropIndex,
+): void {
+  for (const [key, values] of source) {
+    const prev = target.get(key) ?? [];
+    const merged = [...prev];
+    for (const v of values) {
+      if (!merged.includes(v)) merged.push(v);
+    }
+    target.set(key, merged);
+  }
+}
+
+/**
+ * Index JSX/call-site props that pass `Object.keys(Enum)` / `Object.values(Enum)`
+ * into a child component, so the child can resolve `categories.map(item => t(item))`.
+ */
+export function indexJsxObjectKeysEnumProps(
+  sourceFile: ts.SourceFile,
+  relativePath: string,
+  enumIndex?: EnumValueIndex,
+): JsxEnumPropIndex {
+  const out: JsxEnumPropIndex = new Map();
+
+  const visit = (node: ts.Node): void => {
+    if (ts.isJsxSelfClosingElement(node) || ts.isJsxOpeningElement(node)) {
+      indexJsxElementEnumProps(node, sourceFile, relativePath, enumIndex, out);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return out;
+}
+
+function indexJsxElementEnumProps(
+  element: ts.JsxSelfClosingElement | ts.JsxOpeningElement,
+  sourceFile: ts.SourceFile,
+  relativePath: string,
+  enumIndex: EnumValueIndex | undefined,
+  out: JsxEnumPropIndex,
+): void {
+  const tag = element.tagName;
+  if (!ts.isIdentifier(tag)) return;
+  const targets = resolveComponentFileCandidates(tag.text, sourceFile, relativePath);
+  if (targets.length === 0) return;
+
+  for (const attr of element.attributes.properties) {
+    if (!ts.isJsxAttribute(attr) || !attr.initializer) continue;
+    const propName = ts.isIdentifier(attr.name)
+      ? attr.name.text
+      : undefined;
+    if (!propName) continue;
+
+    let expr: ts.Expression | undefined;
+    if (ts.isJsxExpression(attr.initializer) && attr.initializer.expression) {
+      expr = attr.initializer.expression;
+    }
+    if (!expr) continue;
+
+    const enumName = objectKeysOrValuesEnum(unwrap(expr));
+    if (!enumName) continue;
+    const values = allStringEnumValues(
+      enumName,
+      sourceFile,
+      relativePath,
+      enumIndex,
+    );
+    if (values.length === 0) continue;
+
+    for (const target of targets) {
+      const key = jsxEnumPropKey(target, propName);
+      const prev = out.get(key) ?? [];
+      const merged = [...prev];
+      for (const v of values) {
+        if (!merged.includes(v)) merged.push(v);
+      }
+      out.set(key, merged);
+    }
+  }
+}
+
+function resolveComponentFileCandidates(
+  localName: string,
+  sourceFile: ts.SourceFile,
+  relativePath: string,
+): readonly string[] {
+  const modulePath = findImportModulePathForName(localName, sourceFile);
+  if (!modulePath) {
+    // Same-file component: `<DWTab …>` declared in this file.
+    return [normalizeRel(relativePath)];
+  }
+  return resolveImportedFileCandidates(relativePath, modulePath);
+}
+
+function findImportModulePathForName(
+  localName: string,
+  sourceFile: ts.SourceFile,
+): string | undefined {
+  for (const stmt of sourceFile.statements) {
+    if (!ts.isImportDeclaration(stmt) || !stmt.importClause) continue;
+    if (!ts.isStringLiteral(stmt.moduleSpecifier)) continue;
+    if (
+      stmt.importClause.name &&
+      stmt.importClause.name.text === localName
+    ) {
+      return stmt.moduleSpecifier.text;
+    }
+    const named = stmt.importClause.namedBindings;
+    if (named && ts.isNamedImports(named)) {
+      for (const el of named.elements) {
+        if (el.name.text === localName) {
+          return stmt.moduleSpecifier.text;
+        }
+      }
+    }
+  }
+  return undefined;
+}
+
 /**
  * `Object.keys(Enum).map((key) => t(key))` / `Object.values(Enum).map(...)`.
+ * Also: prop-passed `categories={Object.keys(Enum)}` → child `categories.map(t)`.
  */
 function keysFromObjectKeysEnumMapParam(
   id: ts.Identifier,
   sourceFile: ts.SourceFile,
   relativePath: string,
   enumIndex: EnumValueIndex | undefined,
+  jsxEnumPropIndex?: JsxEnumPropIndex,
 ): readonly string[] {
   const name = id.text;
   let current: ts.Node | undefined = id.parent;
@@ -999,20 +1314,189 @@ function keysFromObjectKeysEnumMapParam(
       }
       const receiver = unwrap(mapCall.expression.expression);
       const enumName = objectKeysOrValuesEnum(receiver);
-      if (!enumName) {
-        current = callback.parent;
-        continue;
+      if (enumName) {
+        return allStringEnumValues(
+          enumName,
+          sourceFile,
+          relativePath,
+          enumIndex,
+        );
       }
-      return allStringEnumValues(
+
+      // const categories = Object.keys(Enum); categories.map(...)
+      if (ts.isIdentifier(receiver)) {
+        const fromLocal = keysFromLocalObjectKeysBinding(
+          receiver,
+          sourceFile,
+          relativePath,
+          enumIndex,
+        );
+        if (fromLocal.length > 0) return fromLocal;
+
+        if (jsxEnumPropIndex) {
+          const fromProp = jsxEnumPropIndex.get(
+            jsxEnumPropKey(relativePath, receiver.text),
+          );
+          if (fromProp && fromProp.length > 0) return fromProp;
+        }
+      }
+      current = callback.parent;
+      continue;
+    }
+    current = current.parent;
+  }
+  return [];
+}
+
+function keysFromLocalObjectKeysBinding(
+  id: ts.Identifier,
+  sourceFile: ts.SourceFile,
+  relativePath: string,
+  enumIndex: EnumValueIndex | undefined,
+): readonly string[] {
+  const name = id.text;
+  const usePos = id.getStart(sourceFile);
+  let best: { declPos: number; values: readonly string[] } | undefined;
+
+  const visit = (node: ts.Node): void => {
+    if (
+      ts.isVariableDeclaration(node) &&
+      ts.isIdentifier(node.name) &&
+      node.name.text === name &&
+      node.initializer
+    ) {
+      const declPos = node.name.getStart(sourceFile);
+      if (declPos >= usePos) return;
+      const enumName = objectKeysOrValuesEnum(unwrap(node.initializer));
+      if (!enumName) return;
+      const values = allStringEnumValues(
         enumName,
         sourceFile,
         relativePath,
         enumIndex,
       );
+      if (values.length === 0) return;
+      if (!best || declPos > best.declPos) {
+        best = { declPos, values };
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return best?.values ?? [];
+}
+
+/**
+ * `const cols = typeConvertor(...); cols.map(col => t(col))`
+ */
+function keysFromHelperResultMapParam(
+  id: ts.Identifier,
+  sourceFile: ts.SourceFile,
+  relativePath: string,
+  helperIndex: HelperReturnIndex | undefined,
+  enumIndex: EnumValueIndex | undefined,
+): readonly string[] {
+  if (!helperIndex) return [];
+  const name = id.text;
+  let current: ts.Node | undefined = id.parent;
+
+  while (current) {
+    if (ts.isArrowFunction(current) || ts.isFunctionExpression(current)) {
+      const callback: ts.ArrowFunction | ts.FunctionExpression = current;
+      const param = callback.parameters[0];
+      if (
+        !param ||
+        !ts.isIdentifier(param.name) ||
+        param.name.text !== name
+      ) {
+        current = callback.parent;
+        continue;
+      }
+      const mapCall: ts.Node | undefined = callback.parent;
+      if (!mapCall || !ts.isCallExpression(mapCall)) {
+        current = callback.parent;
+        continue;
+      }
+      if (!ts.isPropertyAccessExpression(mapCall.expression)) {
+        current = callback.parent;
+        continue;
+      }
+      const method = mapCall.expression.name.text;
+      if (method !== "map" && method !== "forEach" && method !== "flatMap") {
+        current = callback.parent;
+        continue;
+      }
+      if (mapCall.arguments[0] !== callback) {
+        current = callback.parent;
+        continue;
+      }
+      const receiver = unwrap(mapCall.expression.expression);
+      if (ts.isCallExpression(receiver)) {
+        const fromCall = resolveHelperCallKeys(
+          receiver,
+          sourceFile,
+          relativePath,
+          helperIndex,
+          enumIndex,
+        );
+        if (fromCall.length > 0) return fromCall;
+      }
+      if (ts.isIdentifier(receiver)) {
+        const fromBinding = keysFromHelperBoundIdent(
+          receiver,
+          sourceFile,
+          relativePath,
+          helperIndex,
+          enumIndex,
+        );
+        if (fromBinding.length > 0) return fromBinding;
+      }
+      current = callback.parent;
+      continue;
     }
     current = current.parent;
   }
   return [];
+}
+
+function keysFromHelperBoundIdent(
+  id: ts.Identifier,
+  sourceFile: ts.SourceFile,
+  relativePath: string,
+  helperIndex: HelperReturnIndex,
+  enumIndex: EnumValueIndex | undefined,
+): readonly string[] {
+  const name = id.text;
+  const usePos = id.getStart(sourceFile);
+  let best: { declPos: number; values: readonly string[] } | undefined;
+
+  const visit = (node: ts.Node): void => {
+    if (
+      ts.isVariableDeclaration(node) &&
+      ts.isIdentifier(node.name) &&
+      node.name.text === name &&
+      node.initializer
+    ) {
+      const declPos = node.name.getStart(sourceFile);
+      if (declPos >= usePos) return;
+      const init = unwrap(node.initializer);
+      if (!ts.isCallExpression(init)) return;
+      const values = resolveHelperCallKeys(
+        init,
+        sourceFile,
+        relativePath,
+        helperIndex,
+        enumIndex,
+      );
+      if (values.length === 0) return;
+      if (!best || declPos > best.declPos) {
+        best = { declPos, values };
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return best?.values ?? [];
 }
 
 function objectKeysOrValuesEnum(
@@ -1412,8 +1896,16 @@ function propertyTypeFromObjectType(
   if (ts.isTypeReferenceNode(current) && ts.isIdentifier(current.typeName)) {
     const alias = findTypeAlias(current.typeName.text, sourceFile);
     if (alias) return propertyTypeFromObjectType(alias, propName, sourceFile);
+    // React Flow / similar: Node<DataType> — `.data` is the first type arg.
+    if (
+      propName === "data" &&
+      current.typeArguments &&
+      current.typeArguments.length > 0
+    ) {
+      return current.typeArguments[0];
+    }
   }
-  if (ts.isUnionTypeNode(current)) {
+  if (ts.isIntersectionTypeNode(current) || ts.isUnionTypeNode(current)) {
     for (const part of current.types) {
       const hit = propertyTypeFromObjectType(part, propName, sourceFile);
       if (hit) return hit;

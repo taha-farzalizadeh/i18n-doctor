@@ -15,6 +15,8 @@ decide what is unused.
 - Renamed Zustand selectors (`deleteRowRawById = useStore(s => s.deleteRawRowById)`)
 - Multi-namespace `addResourceBundle` on one shared i18n module
 - String-literal array maps, enum-typed `t(type as string)`, `labelKey` / config lookups
+- `i18n.t("KEY", { ns })`, JSX `Object.keys(Enum)` → child `t(item)`, enum helper arrays
+- `buildPayload({ t })` namespace flow; `t(data.actionType)` / nested enum property access
 - **Unified versioning:** npm packages, language-server, and IDE plugins are all **0.11.9**
 - Bundled language server @ 0.11.9
 
@@ -162,7 +164,7 @@ So a published extension is self-contained.
 
 ### Changelog (recent)
 
-- **0.11.9** — Path aliases, store/`t` methods, renamed Zustand selectors, multi-ns bundles, string-array maps, enum-typed props; unified version with npm/ESLint/LS
+- **0.11.9** — Path aliases, store/`t`, multi-ns, enum maps/props, JSX `Object.keys(Enum)`, `i18n.t({ ns })`, `fn({ t })`, `t(data.actionType)`; unified with npm/ESLint/LS
 - **0.11.8** — Helpers, string maps, chart/route configs, `Object.keys(Enum)`, `useTranslation` fallback; unified version with npm/ESLint/LS
 - **0.11.7** — Prop-passed `t(item.translation)` for navigation configs; unified version with npm/ESLint/LS
 - **0.11.6** — Form maps, column factories, string-enum state maps (parity with CLI/ESLint)

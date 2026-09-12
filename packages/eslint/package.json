@@ -22,8 +22,8 @@
   "dependencies": {
     "@i18n-doctor/cli": "0.11.9",
     "@i18n-doctor/config": "0.10.2",
-    "@i18n-doctor/coverage": "0.10.3",
-    "@i18n-doctor/issues": "0.10.3",
+    "@i18n-doctor/coverage": "0.10.4",
+    "@i18n-doctor/issues": "0.10.4",
     "@eslint/json": "^0.13.2"
   },
   "peerDependencies": {

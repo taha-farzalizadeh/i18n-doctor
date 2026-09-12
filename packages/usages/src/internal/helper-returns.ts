@@ -1,10 +1,14 @@
 /**
  * Index helpers that only return static string literals (switch / if / return)
  * so `t(getTitleByStatusType(variant))` can mark those keys as used.
+ *
+ * Also indexes helpers that return arrays of static strings / string-enum
+ * members, e.g. `return [IPropertyType.BOOLEAN, IPropertyType.STRING]`.
  */
 
 import ts from "typescript";
-import { staticStringKeys } from "./ast-helpers.js";
+import { staticStringKeys, type StaticKeyOptions } from "./ast-helpers.js";
+import type { EnumValueIndex } from "./enum-values.js";
 
 /** `fileRel#fnName` → static string return values. */
 export type HelperReturnIndex = Map<string, readonly string[]>;
@@ -16,13 +20,18 @@ export function helperIndexKey(fileRel: string, name: string): string {
 export function indexHelperStringReturns(
   sourceFile: ts.SourceFile,
   relativePath: string,
+  enumIndex?: EnumValueIndex,
 ): HelperReturnIndex {
   const out: HelperReturnIndex = new Map();
   const fileRel = normalizeRel(relativePath);
+  const keyOpts: StaticKeyOptions = {
+    relativePath,
+    ...(enumIndex ? { enumIndex } : {}),
+  };
 
   for (const stmt of sourceFile.statements) {
     if (ts.isFunctionDeclaration(stmt) && stmt.name && stmt.body) {
-      const keys = collectStaticStringReturns(stmt, sourceFile);
+      const keys = collectStaticStringReturns(stmt, sourceFile, keyOpts);
       if (keys.length > 0) {
         out.set(helperIndexKey(fileRel, stmt.name.text), keys);
       }
@@ -35,7 +44,7 @@ export function indexHelperStringReturns(
       if (!ts.isArrowFunction(init) && !ts.isFunctionExpression(init)) {
         continue;
       }
-      const keys = collectStaticStringReturns(init, sourceFile);
+      const keys = collectStaticStringReturns(init, sourceFile, keyOpts);
       if (keys.length > 0) {
         out.set(helperIndexKey(fileRel, decl.name.text), keys);
       }
@@ -62,13 +71,19 @@ export function resolveHelperCallKeys(
   sourceFile: ts.SourceFile,
   relativePath: string,
   index: HelperReturnIndex,
+  enumIndex?: EnumValueIndex,
 ): readonly string[] {
   const call = unwrap(expr);
   if (!ts.isCallExpression(call)) return [];
   const callee = unwrap(call.expression);
   if (!ts.isIdentifier(callee)) return [];
 
-  const local = findLocalHelperReturns(callee.text, sourceFile);
+  const keyOpts: StaticKeyOptions | undefined = enumIndex
+    ? { relativePath, enumIndex }
+    : relativePath
+      ? { relativePath }
+      : undefined;
+  const local = findLocalHelperReturns(callee.text, sourceFile, keyOpts);
   if (local.length > 0) return local;
 
   const fromIndex = index.get(helperIndexKey(relativePath, callee.text));
@@ -98,11 +113,13 @@ export function resolveHelperCallKeys(
 
 /**
  * All return expressions in a function must resolve to static strings
- * (or empty string). Any dynamic return → no keys (conservative).
+ * (or empty string), including arrays of static strings / enum members.
+ * Any dynamic return → no keys (conservative).
  */
 export function collectStaticStringReturns(
   fn: ts.FunctionLikeDeclaration,
   sourceFile: ts.SourceFile,
+  keyOpts?: StaticKeyOptions,
 ): readonly string[] {
   if (!fn.body) return [];
 
@@ -136,17 +153,9 @@ export function collectStaticStringReturns(
 
   const out: string[] = [];
   for (const expr of returns) {
-    const keys = staticStringKeys(expr, sourceFile);
+    const keys = staticKeysFromReturnExpr(expr, sourceFile, keyOpts);
     // Empty return / `return ""` / `return` → allow (default branch).
-    if (keys.length === 0) {
-      const text = unwrap(expr);
-      if (
-        (ts.isStringLiteral(text) ||
-          ts.isNoSubstitutionTemplateLiteral(text)) &&
-        text.text === ""
-      ) {
-        continue;
-      }
+    if (keys === undefined) {
       return [];
     }
     for (const key of keys) {
@@ -156,13 +165,52 @@ export function collectStaticStringReturns(
   return out;
 }
 
+/**
+ * `undefined` = dynamic / unresolvable (abort helper).
+ * Empty array = explicitly empty contribution (e.g. `return ""`).
+ */
+function staticKeysFromReturnExpr(
+  expr: ts.Expression,
+  sourceFile: ts.SourceFile,
+  keyOpts?: StaticKeyOptions,
+): readonly string[] | undefined {
+  const node = unwrap(expr);
+
+  if (ts.isArrayLiteralExpression(node)) {
+    const out: string[] = [];
+    for (const el of node.elements) {
+      if (ts.isSpreadElement(el)) return undefined;
+      const keys = staticStringKeys(el, sourceFile, new Set(), keyOpts);
+      if (keys.length === 0) return undefined;
+      for (const key of keys) {
+        if (key.length > 0 && !out.includes(key)) out.push(key);
+      }
+    }
+    return out;
+  }
+
+  const keys = staticStringKeys(node, sourceFile, new Set(), keyOpts);
+  if (keys.length === 0) {
+    if (
+      (ts.isStringLiteral(node) ||
+        ts.isNoSubstitutionTemplateLiteral(node)) &&
+      node.text === ""
+    ) {
+      return [];
+    }
+    return undefined;
+  }
+  return keys;
+}
+
 function findLocalHelperReturns(
   name: string,
   sourceFile: ts.SourceFile,
+  keyOpts?: StaticKeyOptions,
 ): readonly string[] {
   for (const stmt of sourceFile.statements) {
     if (ts.isFunctionDeclaration(stmt) && stmt.name?.text === name) {
-      return collectStaticStringReturns(stmt, sourceFile);
+      return collectStaticStringReturns(stmt, sourceFile, keyOpts);
     }
     if (ts.isVariableStatement(stmt)) {
       for (const decl of stmt.declarationList.declarations) {
@@ -173,7 +221,7 @@ function findLocalHelperReturns(
         ) {
           const init = unwrap(decl.initializer);
           if (ts.isArrowFunction(init) || ts.isFunctionExpression(init)) {
-            return collectStaticStringReturns(init, sourceFile);
+            return collectStaticStringReturns(init, sourceFile, keyOpts);
           }
         }
       }

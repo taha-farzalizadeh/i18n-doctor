@@ -20,6 +20,9 @@ import { LIBRARY_USAGE_DETECTORS } from "./detectors/index.js";
 import { offsetUsages, resolveAbsolutePath } from "./location.js";
 import {
   indexObjectArrayProps,
+  indexJsxObjectKeysEnumProps,
+  mergeJsxEnumPropIndex,
+  type JsxEnumPropIndex,
   type ObjectArrayPropIndex,
 } from "./object-array-props.js";
 import {
@@ -104,6 +107,7 @@ export async function collectUsages(input: {
   const enumIndex: EnumValueIndex = new Map();
   const objectArrayIndex: ObjectArrayPropIndex = new Map();
   const helperReturnIndex: HelperReturnIndex = new Map();
+  const jsxEnumPropIndex: JsxEnumPropIndex = new Map();
   const translatorCallableIndex: TranslatorCallableIndex = new Map();
   const storeSelectorAliases: StoreSelectorAliasIndex = new Map();
   await mapPool(candidates, ANALYZE_CONCURRENCY, async (file) => {
@@ -161,7 +165,19 @@ export async function collectUsages(input: {
           );
           mergeHelperReturnIndex(
             helperReturnIndex,
-            indexHelperStringReturns(parsed.sourceFile, file.relativePath),
+            indexHelperStringReturns(
+              parsed.sourceFile,
+              file.relativePath,
+              enumIndex,
+            ),
+          );
+          mergeJsxEnumPropIndex(
+            jsxEnumPropIndex,
+            indexJsxObjectKeysEnumProps(
+              parsed.sourceFile,
+              file.relativePath,
+              enumIndex,
+            ),
           );
           mergeTranslatorCallableIndex(
             translatorCallableIndex,
@@ -186,7 +202,19 @@ export async function collectUsages(input: {
       );
       mergeHelperReturnIndex(
         helperReturnIndex,
-        indexHelperStringReturns(parsed.sourceFile, file.relativePath),
+        indexHelperStringReturns(
+          parsed.sourceFile,
+          file.relativePath,
+          enumIndex,
+        ),
+      );
+      mergeJsxEnumPropIndex(
+        jsxEnumPropIndex,
+        indexJsxObjectKeysEnumProps(
+          parsed.sourceFile,
+          file.relativePath,
+          enumIndex,
+        ),
       );
       mergeTranslatorCallableIndex(
         translatorCallableIndex,
@@ -341,6 +369,7 @@ export async function collectUsages(input: {
               objectArrayIndex,
               enumIndex,
               helperReturnIndex,
+              jsxEnumPropIndex,
               translatorCallSites,
             });
           const shifted = offsetUsages(scriptUsages, sourceText, script.offset);
@@ -402,6 +431,7 @@ export async function collectUsages(input: {
           objectArrayIndex,
           enumIndex,
           helperReturnIndex,
+          jsxEnumPropIndex,
           translatorCallSites,
         });
       usages.push(...scriptUsages);
@@ -448,6 +478,7 @@ function analyzeScript(input: {
   objectArrayIndex: ObjectArrayPropIndex;
   enumIndex: EnumValueIndex;
   helperReturnIndex: HelperReturnIndex;
+  jsxEnumPropIndex: JsxEnumPropIndex;
   translatorCallSites: TranslatorCallSiteNamespaces;
 }): {
   usages: TranslationUsage[];
@@ -505,6 +536,7 @@ function analyzeScript(input: {
     index: input.objectArrayIndex,
     enumIndex: input.enumIndex,
     helperIndex: input.helperReturnIndex,
+    jsxEnumPropIndex: input.jsxEnumPropIndex,
   })) {
     if (usage.confidence < input.minConfidence) {
       continue;

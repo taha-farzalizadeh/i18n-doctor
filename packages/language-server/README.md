@@ -10,7 +10,9 @@ own.
 ### What's new in 0.11.9
 
 Bundled with analyzer **0.11.9** (path aliases, store/`t` flow, multi-ns bundles,
-string-array maps, enum-typed props). `SERVER_VERSION` is **0.11.9**.
+string-array maps, enum-typed props, JSX `Object.keys(Enum)` child maps, enum
+helper arrays, `i18n.t(…, { ns })`, `fn({ t })`, `t(data.actionType)`).
+`SERVER_VERSION` is **0.11.9**.
 
 ```
 IDE → LSP → language-server → analyzer + translation-index → diagnostics / definition / hover / completion

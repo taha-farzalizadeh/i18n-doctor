@@ -63,22 +63,30 @@ export function allStringEnumValues(
   if (!enumIndex || !relativePath) return [];
 
   const modulePath = findImportModulePath(enumName, sourceFile);
-  if (!modulePath) {
-    const members = enumIndex.get(enumIndexKey(relativePath, enumName));
-    return members ? [...members.values()] : [];
-  }
-
-  if (modulePath.startsWith(".")) {
+  if (modulePath?.startsWith(".")) {
     const targetRel = resolveRelativeModule(relativePath, modulePath);
-    if (!targetRel) return [];
-    for (const candidate of moduleCandidates(targetRel)) {
+    if (targetRel) {
+      for (const candidate of moduleCandidates(targetRel)) {
+        const members = enumIndex.get(enumIndexKey(candidate, enumName));
+        if (members && members.size > 0) return [...members.values()];
+      }
+    }
+  } else if (modulePath) {
+    // Path-alias import of the enum itself — try candidates, then name match.
+    for (const candidate of resolveImportedFileCandidates(
+      relativePath,
+      modulePath,
+    )) {
       const members = enumIndex.get(enumIndexKey(candidate, enumName));
       if (members && members.size > 0) return [...members.values()];
     }
-    return [];
+  } else {
+    const members = enumIndex.get(enumIndexKey(relativePath, enumName));
+    if (members && members.size > 0) return [...members.values()];
   }
 
-  // Path-alias imports: match by enum name across the index.
+  // Project-wide / type-only usage: `actionType: ActionType` without importing
+  // the enum value — match by enum name across the index.
   const suffix = `#${enumName}`;
   for (const [key, members] of enumIndex) {
     if (!key.endsWith(suffix)) continue;

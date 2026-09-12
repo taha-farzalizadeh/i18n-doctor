@@ -25,7 +25,7 @@
   "dependencies": {
     "@i18n-doctor/config": "0.10.2",
     "@i18n-doctor/context": "0.10.2",
-    "@i18n-doctor/coverage": "0.10.3",
+    "@i18n-doctor/coverage": "0.10.4",
     "@i18n-doctor/detect": "0.10.2",
     "@i18n-doctor/issues": "0.10.4",
     "@i18n-doctor/scanner": "0.10.2",

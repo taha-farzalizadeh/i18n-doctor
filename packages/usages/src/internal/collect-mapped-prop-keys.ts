@@ -17,6 +17,7 @@ import { isI18nextFamily, isIntlObject } from "./bindings.js";
 import { locationOf } from "./location.js";
 import {
   resolveMappedPropKeys,
+  type JsxEnumPropIndex,
   type ObjectArrayPropIndex,
 } from "./object-array-props.js";
 import type { EnumValueIndex } from "./enum-values.js";
@@ -37,6 +38,7 @@ export function collectMappedPropUsages(input: {
   index: ObjectArrayPropIndex;
   enumIndex?: EnumValueIndex;
   helperIndex?: HelperReturnIndex;
+  jsxEnumPropIndex?: JsxEnumPropIndex;
 }): TranslationUsage[] {
   const found: TranslationUsage[] = [];
   const seen = new Set<string>();
@@ -65,6 +67,7 @@ export function collectMappedPropUsages(input: {
       input.index,
       input.enumIndex,
       input.helperIndex,
+      input.jsxEnumPropIndex,
     );
     // Cross-file string enums resolve via staticKeys + member access
     // (detectors lack the enum index). Other indirect patterns use the index.

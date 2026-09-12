@@ -507,4 +507,69 @@ export const tabs = [
     expect(u?.namespace).toBe("conditions");
     expect(u?.namespaceResolved).toBe(true);
   });
+
+  it("resolves i18n.t('KEY', { ns }) from project wrapper without vue duplicate", async () => {
+    const root = await fixture({
+      "package.json": JSON.stringify({
+        dependencies: { i18next: "23.0.0" },
+      }),
+      "src/i18n/i18n.ts": `
+import i18next from 'i18next';
+export default i18next;
+`,
+      "src/store.ts": `
+import i18n from './i18n/i18n';
+export function fail() {
+  return i18n.t("TRY_AGAIN", { ns: "data-workbench" });
+}
+`,
+    });
+    const catalog = await createUsageDetector().detect({
+      root,
+      useDetection: false,
+    });
+    const hits = catalog.usages.filter((x) => x.key === "TRY_AGAIN");
+    expect(hits.length).toBe(1);
+    expect(hits[0]?.namespace).toBe("data-workbench");
+    expect(hits[0]?.namespaceResolved).toBe(true);
+    expect(hits[0]?.library).not.toBe("vue-i18n");
+  });
+
+  it("flows namespace through buildPayload({ t }) object params", async () => {
+    const root = await fixture({
+      "package.json": JSON.stringify({
+        dependencies: { "react-i18next": "14.0.0", i18next: "23.0.0" },
+      }),
+      "src/buildFilterPayload.ts": `
+import type { TFunction } from 'i18next';
+type BuildFilterPayloadParams = {
+  t: TFunction;
+};
+function processDateBetweenFilter(t: TFunction) {
+  return t("END_DATE_LESS_THAN_START_DATE");
+}
+export const buildFilterPayload = (params: BuildFilterPayloadParams) => {
+  const { t } = params;
+  return processDateBetweenFilter(t);
+};
+`,
+      "src/Filter.tsx": `
+import { useTranslation } from 'react-i18next';
+import { buildFilterPayload } from './buildFilterPayload';
+export function Filter() {
+  const { t } = useTranslation('data-workbench');
+  return buildFilterPayload({ t });
+}
+`,
+    });
+    const catalog = await createUsageDetector().detect({
+      root,
+      useDetection: false,
+    });
+    const u = catalog.usages.find(
+      (x) => x.key === "END_DATE_LESS_THAN_START_DATE",
+    );
+    expect(u?.namespace).toBe("data-workbench");
+    expect(u?.namespaceResolved).toBe(true);
+  });
 });
