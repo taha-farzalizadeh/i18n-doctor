@@ -1,11 +1,14 @@
 # @i18n-doctor/cli
 
-> **Beta — v0.11.9** · [GitHub](https://github.com/taha-farzalizadeh/i18n-doctor) · [Issues](https://github.com/taha-farzalizadeh/i18n-doctor/issues)
+> **Beta — v0.11.11** · [GitHub](https://github.com/taha-farzalizadeh/i18n-doctor) · [Issues](https://github.com/taha-farzalizadeh/i18n-doctor/issues)
 
 Static localization analysis for JavaScript and TypeScript projects.  
 Finds **unused**, **missing**, **duplicate** translation keys, and **untranslated** hardcoded UI text — without executing your code.
 
-## What's new in 0.11.9
+## What's new in 0.11.11
+
+- Inline i18next `resources` maps: same key in `en`/`fa` is **not** a duplicate
+- Nested `translation` objects under locale maps are not double-extracted
 
 - Path-alias imports (`app/*`, `@core/*`) for translator factories and configs
 - Store/object methods with `t` params; renamed Zustand selectors

@@ -1,6 +1,6 @@
 # i18n-doctor for JetBrains (WebStorm)
 
-> **Beta — v0.11.9**
+> **Beta — v0.11.11**
 
 Live i18n diagnostics, **Go to Translation**, **Hover**, and **Completion** in
 WebStorm and other JetBrains IDEs that ship the platform LSP API. This plugin is
@@ -9,7 +9,10 @@ a **thin LSP client**: it starts the bundled
 render LSP results. It does **not** parse source, extract keys, or decide what
 is unused.
 
-## What's new in 0.11.9
+## What's new in 0.11.11
+
+- Inline i18next `resources` maps: same key in `en`/`fa` is **not** a duplicate
+- Nested `translation` objects under locale maps are not double-extracted
 
 - Path-alias imports (`app/*`, `@core/*`) for translator factories and configs
 - Store/object methods with `t` params; nested `schema(t)` → `dateSchema(t)`
@@ -19,7 +22,7 @@ is unused.
 - `i18n.t("KEY", { ns })`, JSX `Object.keys(Enum)` → child `t(item)`, enum helper arrays
 - `buildPayload({ t })` namespace flow; `t(data.actionType)` / nested enum property access
 - **Unified versioning:** npm packages, language-server, and IDE plugins are all **0.11.9**
-- Bundled language server @ 0.11.9
+- Bundled language server @ 0.11.11
 
 ## What's new in 0.11.8
 
@@ -195,7 +198,7 @@ npm run runIde -w i18n-doctor-jetbrains   # sandboxed WebStorm + demo project
 npm test -w i18n-doctor-jetbrains
 ```
 
-Current release version is **`0.11.9`** — bump it before every Marketplace
+Current release version is **`0.11.11`** — bump it before every Marketplace
 upload (see [PUBLISHING.md](./PUBLISHING.md)). Listing copy:
 [MARKETPLACE.md](./MARKETPLACE.md).
 

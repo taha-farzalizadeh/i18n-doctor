@@ -1,18 +1,21 @@
 # @i18n-doctor/language-server
 
-> **Beta — v0.11.9** (same version as CLI / ESLint / IDE plugins)
+> **Beta — v0.11.11** (same version as CLI / ESLint / IDE plugins)
 
 Live i18n diagnostics plus **Go to Translation**, **Hover**, and **Completion**
 in any LSP-compatible editor. The server is an adapter: it translates
 i18n-doctor analysis into LSP features and does no independent parsing of its
 own.
 
-### What's new in 0.11.9
+### What's new in 0.11.11
 
-Bundled with analyzer **0.11.9** (path aliases, store/`t` flow, multi-ns bundles,
+- Inline i18next `resources` maps: same key in `en`/`fa` is **not** a duplicate
+- Nested `translation` objects under locale maps are not double-extracted
+
+Bundled with analyzer **0.11.11** (path aliases, store/`t` flow, multi-ns bundles,
 string-array maps, enum-typed props, JSX `Object.keys(Enum)` child maps, enum
 helper arrays, `i18n.t(…, { ns })`, `fn({ t })`, `t(data.actionType)`).
-`SERVER_VERSION` is **0.11.9**.
+`SERVER_VERSION` is **0.11.11**.
 
 ```
 IDE → LSP → language-server → analyzer + translation-index → diagnostics / definition / hover / completion

@@ -1,13 +1,16 @@
 # @i18n-doctor/eslint-plugin
 
-> **Beta — v0.11.9** (same version as CLI / language-server / IDE plugins)
+> **Beta — v0.11.11** (same version as CLI / language-server / IDE plugins)
 
 ESLint plugin that surfaces **i18n-doctor** findings in the editor and CI using the
 **same analyzer** as the CLI and language server.
 
-### What's new in 0.11.9
+### What's new in 0.11.11
 
-Same analyzer as CLI **0.11.9**: path-alias translator factories, store/`t` methods,
+- Inline i18next `resources` maps: same key in `en`/`fa` is **not** a duplicate
+- Nested `translation` objects under locale maps are not double-extracted
+
+Same analyzer as CLI **0.11.11**: path-alias translator factories, store/`t` methods,
 renamed Zustand selectors, multi-ns resource bundles, string-array maps,
 enum-typed props, JSX `Object.keys(Enum)` → child maps, enum helper arrays,
 `i18n.t(…, { ns })`, `fn({ t })` namespace flow, and `t(data.actionType)`.

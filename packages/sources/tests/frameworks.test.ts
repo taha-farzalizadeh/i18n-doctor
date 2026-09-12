@@ -34,6 +34,41 @@ describe("framework translation sources", () => {
     expect(enCommon?.keys.some((k) => k.key === "ok")).toBe(true);
   });
 
+  it("does not duplicate keys across locales in init-style resources maps", async () => {
+    const root = await fixture({
+      "package.json": JSON.stringify({
+        dependencies: { i18next: "23.0.0" },
+      }),
+      "src/i18n.js": `
+        import i18n from "i18next";
+        const resources = {
+          en: {
+            translation: {
+              UNABLE_TO_PROCESS: "Process Failed"
+            }
+          },
+          fa: {
+            translation: {
+              UNABLE_TO_PROCESS: "Failed"
+            }
+          }
+        };
+        i18n.init({ resources, lng: "fa", keySeparator: false });
+        export default i18n;
+      `,
+    });
+    const catalog = await createSourceDetector().discover({
+      root,
+      useDetection: false,
+    });
+    const keys = catalog.keys.filter((k) => k.key === "UNABLE_TO_PROCESS");
+    expect(keys).toHaveLength(2);
+    expect(keys.map((k) => k.locale).sort()).toEqual(["en", "fa"]);
+    expect(keys.every((k) => k.namespace === "translation")).toBe(true);
+    // No locale-less copies from nested `translation:` property extraction.
+    expect(keys.every((k) => !!k.locale)).toBe(true);
+  });
+
   it("next-intl message files", async () => {
     const root = await fixture({
       "package.json": JSON.stringify({

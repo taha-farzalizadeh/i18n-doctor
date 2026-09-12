@@ -1,6 +1,6 @@
 # i18n-doctor
 
-> **Beta — v0.11.9**
+> **Beta — v0.11.11**
 > This is an early release. APIs may change, edge cases exist, and your feedback matters. See [Contributing](#contributing) to help shape the project.
 
 Static localization analysis for JavaScript and TypeScript projects. Finds unused, missing, and duplicate translation keys — and hardcoded UI text that never goes through translation — without executing your code.
@@ -399,6 +399,23 @@ If something doesn't work on your project, please open an issue. That's exactly 
 
 ## Changelog (recent)
 
+### 0.11.11 — no false duplicates across locales in resources maps (2026-09)
+
+All user-facing packages and IDE plugins ship as **0.11.11**.
+
+- Inline i18next `resources = { en: { translation: {…} }, fa: {…} }` no longer flags the same key as duplicate across locales
+- Nested `translation` / `messages` objects under locale maps are not re-extracted without locale
+
+### 0.11.10 — JSX enum props, ns options, actionType (2026-09)
+
+All user-facing packages and IDE plugins ship as **0.11.10**.
+
+- `i18n.t("KEY", { ns })` without vue-i18n false missings
+- JSX `Object.keys(Enum)` → child `t(item)` maps
+- Helpers returning enum-member arrays (`cols.map(t)`)
+- Object-param translators: `fn({ t })` inherits call-site namespace
+- Enum-typed property access: `t(data.actionType)` / `t(node.data.actionType)`
+
 ### 0.11.9 — props-t / path-alias / multi-ns usage fixes (2026-09)
 
 All user-facing packages and IDE plugins ship as **0.11.9**.
@@ -408,12 +425,7 @@ All user-facing packages and IDE plugins ship as **0.11.9**.
 - Renamed Zustand selectors (`const deleteRowRawById = useStore(s => s.deleteRawRowById)`)
 - Multi-namespace `addResourceBundle` on one file (shared explore-header/search bundles)
 - String-literal array maps, enum-typed `t(type as string)`, `labelKey` / local config lookups
-- Project `i18n` wrappers: `import i18n from "i18n/…"` + `i18n.t("ns:key")` / `i18n.t("KEY", { ns })`
-- `Object.keys(Enum)` passed as JSX props into child `t(item)` maps
-- Helpers that return enum-member arrays (`cols = typeConvertor(…); cols.map(t)`)
-- Object-param translators: `buildPayload({ t })` inherits call-site namespace
-- Enum-typed property access: `t(data.actionType)` / `t(node.data.actionType)`
-- vue-i18n detector no longer steals project `i18n.t` (avoids false missing without `ns`)
+- Project `i18n` wrappers: `import i18n from "i18n/…"` + `i18n.t("ns:key")`
 
 ### 0.11.8 — broader static key resolution (2026-09)
 

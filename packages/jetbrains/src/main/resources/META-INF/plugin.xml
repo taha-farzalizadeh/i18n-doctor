@@ -38,6 +38,22 @@
   ]]></description>
 
   <change-notes><![CDATA[
+            <h3>0.11.11</h3>
+    <p>No false duplicate-key when the same translation exists in multiple locales inside an inline <code>resources</code> map.</p>
+    <ul>
+      <li>Nested <code>translation</code> under <code>en</code>/<code>fa</code> is not re-extracted without locale</li>
+      <li>npm / ESLint / language-server / JetBrains / VS Code all at <b>0.11.11</b></li>
+      <li>Rebundled language server @ 0.11.11</li>
+    </ul>
+    <h3>0.11.10</h3>
+    <p>Fewer false unused/missing keys for enum props, namespaced <code>i18n.t</code>, and object-param translators.</p>
+    <ul>
+      <li><code>i18n.t("KEY", { ns })</code> without vue-i18n false missings</li>
+      <li>JSX <code>Object.keys(Enum)</code> → child <code>t(item)</code>; enum helper arrays</li>
+      <li><code>fn({ t })</code> namespace flow; <code>t(data.actionType)</code></li>
+      <li>npm / ESLint / language-server / JetBrains / VS Code all at <b>0.11.10</b></li>
+      <li>Rebundled language server @ 0.11.10</li>
+    </ul>
     <h3>0.11.9</h3>
     <p>Props-<code>t</code> / path-alias / multi-namespace usage fixes for fewer false unused and missing keys.</p>
     <ul>

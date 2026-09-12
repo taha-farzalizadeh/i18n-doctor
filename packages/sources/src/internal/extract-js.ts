@@ -283,14 +283,17 @@ function collectTargets(sourceFile: ts.SourceFile): TargetHit[] {
     }
 
     // { messages: { ... } } property
+    // Skip `translation` / `messages` nested under i18next resources locale maps:
+    //   resources = { en: { translation: { KEY: "…" } }, fa: { translation: { KEY: "…" } } }
+    // Those are expanded from the outer locale map; extracting them again without
+    // locale causes false duplicate-key issues across en/fa.
     if (ts.isPropertyAssignment(node)) {
       const key = propertyNameText(node.name);
       if (key && MESSAGE_PROP_NAMES.has(key)) {
-        add(
-          unwrapObjectLiteral(node.initializer),
-          key,
-          `property '${key}'`,
-        );
+        const obj = unwrapObjectLiteral(node.initializer);
+        if (obj && !isNestedUnderLocaleResourceMap(obj)) {
+          add(obj, key, `property '${key}'`);
+        }
       }
     }
 
@@ -518,8 +521,52 @@ function isCoveredByExisting(
     if (s < 0 || e < 0) {
       return false;
     }
-    return s <= cStart && e >= cEnd && (s !== cStart || e !== cEnd);
+    // Same object already emitted (resources expand vs nested translation prop).
+    if (s === cStart && e === cEnd) {
+      return true;
+    }
+    return s <= cStart && e >= cEnd;
   });
+}
+
+/**
+ * True when `obj` is `resources[locale].translation` / `.messages` style nesting
+ * under a locale-keyed map (i18next init resources).
+ */
+function isNestedUnderLocaleResourceMap(
+  obj: ts.ObjectLiteralExpression,
+): boolean {
+  const prop = obj.parent;
+  if (!prop || !ts.isPropertyAssignment(prop)) {
+    return false;
+  }
+  const localeBag = prop.parent;
+  if (!localeBag || !ts.isObjectLiteralExpression(localeBag)) {
+    return false;
+  }
+  const localeProp = localeBag.parent;
+  if (!localeProp || !ts.isPropertyAssignment(localeProp)) {
+    return false;
+  }
+  const localeName = propertyNameText(localeProp.name);
+  if (!localeName || !looksLikeLocale(localeName, "loose")) {
+    return false;
+  }
+  const resourcesObj = localeProp.parent;
+  if (!resourcesObj || !ts.isObjectLiteralExpression(resourcesObj)) {
+    return false;
+  }
+  const topKeys: string[] = [];
+  for (const p of resourcesObj.properties) {
+    if (!ts.isPropertyAssignment(p) && !ts.isShorthandPropertyAssignment(p)) {
+      continue;
+    }
+    const name = ts.isPropertyAssignment(p)
+      ? propertyNameText(p.name)
+      : p.name.text;
+    if (name) topKeys.push(name);
+  }
+  return looksLikeLocaleMap(topKeys);
 }
 
 /**

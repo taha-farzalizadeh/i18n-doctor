@@ -106,7 +106,7 @@ Marketplace accepts HTML. Copy everything between the markers:
   <li>CLI: <code>npx i18n-doctor check</code></li>
 </ul>
 
-<p><i>Beta v0.11.9 — please report issues on GitHub.</i></p>
+<p><i>Beta v0.11.11 — please report issues on GitHub.</i></p>
 <!-- END MARKETPLACE DESCRIPTION -->
 ```
 
@@ -161,10 +161,52 @@ Capture from `npm run runIde -w i18n-doctor-jetbrains` + `examples/demo-project`
 - Use channel **default** for public releases.
 - Use channel **eap** only if you intentionally ship pre-releases.
 
+## Change notes (0.11.11)
+
+```html
+<h3>0.11.11</h3>
+<p>No false duplicate-key when the same translation exists in multiple locales inside an inline <code>resources</code> map.</p>
+<ul>
+  <li>Nested <code>translation</code> under <code>en</code>/<code>fa</code> is not re-extracted without locale</li>
+  <li>npm / ESLint / language-server / JetBrains / VS Code all at <b>0.11.11</b></li>
+  <li>Rebundled language server @ 0.11.11</li>
+</ul>
+```
+
+## Change notes (0.11.10)
+
+```html
+    <h3>0.11.11</h3>
+    <p>No false duplicate-key when the same translation exists in multiple locales inside an inline <code>resources</code> map.</p>
+    <ul>
+      <li>Nested <code>translation</code> under <code>en</code>/<code>fa</code> is not re-extracted without locale</li>
+      <li>npm / ESLint / language-server / JetBrains / VS Code all at <b>0.11.11</b></li>
+      <li>Rebundled language server @ 0.11.11</li>
+    </ul>
+    <h3>0.11.10</h3>
+<p>Fewer false unused/missing keys for enum props, namespaced <code>i18n.t</code>, and object-param translators.</p>
+<ul>
+  <li><code>i18n.t("KEY", { ns })</code> without vue-i18n false missings</li>
+  <li>JSX <code>Object.keys(Enum)</code> → child <code>t(item)</code>; enum helper arrays</li>
+  <li><code>fn({ t })</code> namespace flow; <code>t(data.actionType)</code></li>
+  <li>npm / ESLint / language-server / JetBrains / VS Code all at <b>0.11.11</b></li>
+  <li>Rebundled language server @ 0.11.11</li>
+</ul>
+```
+
 ## Change notes (0.11.9)
 
 ```html
-<h3>0.11.9</h3>
+    <h3>0.11.10</h3>
+    <p>Fewer false unused/missing keys for enum props, namespaced <code>i18n.t</code>, and object-param translators.</p>
+    <ul>
+      <li><code>i18n.t("KEY", { ns })</code> without vue-i18n false missings</li>
+      <li>JSX <code>Object.keys(Enum)</code> → child <code>t(item)</code>; enum helper arrays</li>
+      <li><code>fn({ t })</code> namespace flow; <code>t(data.actionType)</code></li>
+      <li>npm / ESLint / language-server / JetBrains / VS Code all at <b>0.11.11</b></li>
+      <li>Rebundled language server @ 0.11.11</li>
+    </ul>
+    <h3>0.11.9</h3>
 <p>Props-<code>t</code> / path-alias / multi-namespace usage fixes for fewer false unused and missing keys.</p>
 <ul>
   <li>Path-alias imports (<code>app/*</code>, <code>@core/*</code>) for translator factories</li>
@@ -173,8 +215,8 @@ Capture from `npm run runIde -w i18n-doctor-jetbrains` + `examples/demo-project`
   <li>String-literal array maps, enum-typed <code>t(type as string)</code>, <code>labelKey</code> lookups</li>
   <li><code>i18n.t("KEY", { ns })</code>, JSX <code>Object.keys(Enum)</code> → child <code>t(item)</code>, enum helper arrays</li>
   <li><code>fn({ t })</code> namespace flow; <code>t(data.actionType)</code> / nested enum property access</li>
-  <li>npm / ESLint / language-server / JetBrains / VS Code all at <b>0.11.9</b></li>
-  <li>Rebundled language server @ 0.11.9</li>
+  <li>npm / ESLint / language-server / JetBrains / VS Code all at <b>0.11.11</b></li>
+  <li>Rebundled language server @ 0.11.11</li>
 </ul>
 ```
 

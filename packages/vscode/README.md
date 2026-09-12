@@ -1,6 +1,6 @@
 # i18n-doctor for VS Code
 
-> **Beta — v0.11.9**
+> **Beta — v0.11.11**
 
 Live i18n diagnostics, **Go to Translation**, **Hover**, and **Completion** in
 VS Code. This extension is an LSP client: it starts the bundled
@@ -8,7 +8,10 @@ VS Code. This extension is an LSP client: it starts the bundled
 render what the server publishes. It does not parse source, extract keys, or
 decide what is unused.
 
-## What's new in 0.11.9
+## What's new in 0.11.11
+
+- Inline i18next `resources` maps: same key in `en`/`fa` is **not** a duplicate
+- Nested `translation` objects under locale maps are not double-extracted
 
 - Path-alias imports (`app/*`, `@core/*`) for translator factories and configs
 - Store/object methods with `t` params; nested `schema(t)` → `dateSchema(t)`
@@ -18,7 +21,7 @@ decide what is unused.
 - `i18n.t("KEY", { ns })`, JSX `Object.keys(Enum)` → child `t(item)`, enum helper arrays
 - `buildPayload({ t })` namespace flow; `t(data.actionType)` / nested enum property access
 - **Unified versioning:** npm packages, language-server, and IDE plugins are all **0.11.9**
-- Bundled language server @ 0.11.9
+- Bundled language server @ 0.11.11
 
 ## What's new in 0.11.8
 
@@ -164,6 +167,8 @@ So a published extension is self-contained.
 
 ### Changelog (recent)
 
+- **0.11.11** — No false duplicate-key across locales in inline i18next `resources` maps
+- **0.11.10** — `i18n.t({ ns })`, JSX `Object.keys(Enum)`, enum helper arrays, `fn({ t })`, `t(data.actionType)`
 - **0.11.9** — Path aliases, store/`t`, multi-ns, enum maps/props, JSX `Object.keys(Enum)`, `i18n.t({ ns })`, `fn({ t })`, `t(data.actionType)`; unified with npm/ESLint/LS
 - **0.11.8** — Helpers, string maps, chart/route configs, `Object.keys(Enum)`, `useTranslation` fallback; unified version with npm/ESLint/LS
 - **0.11.7** — Prop-passed `t(item.translation)` for navigation configs; unified version with npm/ESLint/LS

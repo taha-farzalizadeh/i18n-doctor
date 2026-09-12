@@ -1,13 +1,16 @@
 # i18n-doctor
 
-> **Beta — v0.11.9**
+> **Beta — v0.11.11**
 
 Static localization analysis for JavaScript and TypeScript projects.  
 Finds **unused**, **missing**, and **duplicate** translation keys — without executing your code.
 
 Works with **React**, **Vue**, **Angular**, **Next.js**, **Nuxt**, **i18next**, **react-intl**, **vue-i18n**, **next-intl**, **Lingui**, and more.
 
-### What's new in 0.11.9
+### What's new in 0.11.11
+
+- Inline i18next `resources` maps: same key in `en`/`fa` is **not** a duplicate
+- Nested `translation` objects under locale maps are not double-extracted
 
 - Path-alias imports (`app/*`, `@core/*`) for translator factories and configs
 - Store/object methods with `t` params; renamed Zustand selectors
@@ -287,7 +290,7 @@ Package: [@i18n-doctor/eslint-plugin](https://www.npmjs.com/package/@i18n-doctor
 
 ## Beta
 
-This is v0.11.9 — a beta release. Core analysis works on real projects but edge cases exist.
+This is v0.11.11 — a beta release. Core analysis works on real projects but edge cases exist.
 Prop-passed `t`, static key concat, static ternaries, soft dynamic-unused hints, and untranslated UI text are supported.
 Bug reports and contributions are very welcome.
 
