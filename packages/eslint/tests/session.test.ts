@@ -107,4 +107,78 @@ export function App() { const { t } = useTranslation(); return t("used"); }`,
     expect(second.issues.some((i) => i.key === "SERVER_USER")).toBe(false);
     expect(second.issues.some((i) => i.key === "farewell")).toBe(true);
   });
+
+  it("rebuilds when a locale catalog file changes on disk", async () => {
+    resetAnalysisSessions();
+    ensureWorkerBuilt();
+    const fs = await import("node:fs");
+    const root = writeFixture({
+      "package.json": jsonString({
+        name: "session-locale-invalidate",
+        dependencies: { i18next: "^23.0.0", "react-i18next": "^14.0.0" },
+      }),
+      "locales/en.json": jsonString({
+        hello: "Hello",
+        orphan: "Unused",
+      }),
+      "src/App.tsx": `import { useTranslation } from "react-i18next";
+export function App() { const { t } = useTranslation(); return t("hello"); }`,
+    });
+
+    const first = getAnalysisSession({
+      cwd: root,
+      filename: path.join(root, "locales/en.json"),
+    });
+    expect(first.issues.some((i) => i.key === "orphan")).toBe(true);
+
+    await new Promise((r) => setTimeout(r, 20));
+    fs.writeFileSync(
+      path.join(root, "locales/en.json"),
+      jsonString({ hello: "Hello" }),
+    );
+
+    const second = getAnalysisSession({
+      cwd: root,
+      filename: path.join(root, "locales/en.json"),
+    });
+    expect(second).not.toBe(first);
+    expect(second.issues.some((i) => i.key === "orphan")).toBe(false);
+  });
+
+  it("rebuilds when the linted buffer overlay changes (unsaved edit)", () => {
+    resetAnalysisSessions();
+    ensureWorkerBuilt();
+    const root = writeFixture({
+      "package.json": jsonString({
+        name: "session-overlay-invalidate",
+        dependencies: { i18next: "^23.0.0", "react-i18next": "^14.0.0" },
+      }),
+      "locales/en.json": jsonString({
+        hello: "Hello",
+        orphan: "Unused",
+      }),
+      "src/App.tsx": `import { useTranslation } from "react-i18next";
+export function App() { const { t } = useTranslation(); return t("hello"); }`,
+    });
+
+    const localePath = path.join(root, "locales/en.json");
+    const first = getAnalysisSession({
+      cwd: root,
+      filename: localePath,
+      readFile: (absolute) =>
+        absolute === localePath
+          ? jsonString({ hello: "Hello", orphan: "Unused" })
+          : undefined,
+    });
+    expect(first.issues.some((i) => i.key === "orphan")).toBe(true);
+
+    const second = getAnalysisSession({
+      cwd: root,
+      filename: localePath,
+      readFile: (absolute) =>
+        absolute === localePath ? jsonString({ hello: "Hello" }) : undefined,
+    });
+    expect(second).not.toBe(first);
+    expect(second.issues.some((i) => i.key === "orphan")).toBe(false);
+  });
 });

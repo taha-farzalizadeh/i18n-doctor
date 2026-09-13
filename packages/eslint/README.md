@@ -1,9 +1,16 @@
 # @i18n-doctor/eslint-plugin
 
-> **Beta — v0.11.11** (same version as CLI / language-server / IDE plugins)
+> **Beta — v0.11.13** (same version as CLI / language-server / IDE plugins)
 
 ESLint plugin that surfaces **i18n-doctor** findings in the editor and CI using the
 **same analyzer** as the CLI and language server.
+
+### What's new in 0.11.13
+
+- Locale/catalog overlay invalidation so unsaved key deletes refresh unused diagnostics
+- Stale key-range guards (no wrong-key underlines after buffer shifts)
+- Same analyzer as CLI **0.11.13**: live unused updates, factory configs, `useMemo` menus,
+  remapped labels, prefixed `FILTER_OPERATOR_*` templates
 
 ### What's new in 0.11.11
 

@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import path from "node:path";
 import {
   analyzeScope,
   discoverProject,
@@ -11,6 +12,7 @@ import {
   type CoverageResult,
 } from "@i18n-doctor/coverage";
 import type { Issue } from "@i18n-doctor/issues";
+import { createOverlayFileSystemFromReadFile } from "./overlay-fs.js";
 
 export interface RunProjectAnalysisOptions {
   readonly cwd: string;
@@ -23,6 +25,8 @@ export interface AnalysisSessionSnapshot {
   readonly issues: readonly Issue[];
   readonly coverage: CoverageResult | undefined;
   readonly analyzeScopeCalls: number;
+  /** Absolute paths of translation catalog files (for cache invalidation). */
+  readonly catalogPaths: readonly string[];
 }
 
 export async function runProjectAnalysis(
@@ -38,15 +42,23 @@ export async function runProjectAnalysis(
   const rootConfig = resolver.resolve({ root });
   const scopes = resolveAnalysisScopes(resolver, rootConfig, { root });
 
-  const readFile =
-    options.readFile ??
-    ((absolutePath: string): string | undefined => {
-      try {
-        return fs.readFileSync(absolutePath, "utf8");
-      } catch {
-        return undefined;
+  const diskRead = (absolutePath: string): string | undefined => {
+    try {
+      return fs.readFileSync(absolutePath, "utf8");
+    } catch {
+      return undefined;
+    }
+  };
+  const readFile = options.readFile
+    ? (absolutePath: string): string | undefined => {
+        const overlay = options.readFile!(absolutePath);
+        return overlay !== undefined ? overlay : diskRead(absolutePath);
       }
-    });
+    : diskRead;
+
+  const fsPort = options.readFile
+    ? createOverlayFileSystemFromReadFile(readFile)
+    : undefined;
 
   const partialResults = [];
   let analyzeScopeCalls = 0;
@@ -59,7 +71,10 @@ export async function runProjectAnalysis(
     analyzeScopeCalls += 1;
     const result = await analyzeScope({
       scope,
-      io: { readFile },
+      io: {
+        readFile,
+        ...(fsPort ? { fs: fsPort } : {}),
+      },
     });
     partialResults.push(result.analysis);
     lastSourceCatalog = result.sourceCatalog;
@@ -71,11 +86,20 @@ export async function runProjectAnalysis(
     ? analyzeCoverage(rootConfig, lastSourceCatalog, defaultLocale)
     : undefined;
 
+  const catalogPaths = uniquePaths(
+    (lastSourceCatalog?.sources ?? []).map((source) =>
+      path.isAbsolute(source.filePath)
+        ? source.filePath
+        : path.join(lastSourceCatalog!.root, source.filePath),
+    ),
+  );
+
   return {
     root,
     issues: merged.issues,
     coverage,
     analyzeScopeCalls,
+    catalogPaths,
   };
 }
 
@@ -97,4 +121,8 @@ function analyzeCoverage(
   } catch {
     return undefined;
   }
+}
+
+function uniquePaths(paths: readonly string[]): readonly string[] {
+  return [...new Set(paths.map((p) => path.resolve(p)))].sort();
 }

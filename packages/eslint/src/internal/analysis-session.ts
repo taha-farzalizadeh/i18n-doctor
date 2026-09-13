@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -13,7 +14,7 @@ export { runProjectAnalysis } from "./run-project-analysis.js";
 
 interface SessionEntry {
   readonly snapshot: AnalysisSessionSnapshot;
-  /** Fingerprint of config / locale inputs so edits invalidate the cache. */
+  /** Fingerprint of config / catalog / buffer inputs so edits invalidate. */
   readonly fingerprint: string;
 }
 
@@ -31,7 +32,6 @@ const CONFIG_CANDIDATES = [
   "i18n-doctor.config.json",
   "package.json",
 ] as const;
-
 function resolveWorkerScript(): string {
   const here = path.dirname(fileURLToPath(import.meta.url));
   const besideInternal = path.join(here, "..", "analysis-worker.js");
@@ -60,9 +60,16 @@ export function getAnalysisSession(
     pathArg: options.filename,
   });
   const key = project.root;
-  const fingerprint = projectFingerprint(project.root);
-
+  const absoluteFile = path.resolve(options.filename);
+  const overlayText = options.readFile?.(absoluteFile);
   const existing = sessions.get(key);
+  const fingerprint = projectFingerprint({
+    root: project.root,
+    filename: absoluteFile,
+    overlayText,
+    catalogPaths: existing?.snapshot.catalogPaths,
+  });
+
   if (existing && existing.fingerprint === fingerprint) {
     return existing.snapshot;
   }
@@ -70,14 +77,20 @@ export function getAnalysisSession(
   workerInvocations += 1;
   ensureWorkerBuilt();
 
-  const result = spawnSync(
-    process.execPath,
-    [workerScript, options.cwd, options.filename],
-    {
-      encoding: "utf8",
-      maxBuffer: 64 * 1024 * 1024,
-    },
-  );
+  const overlays: Record<string, string> = {};
+  if (overlayText !== undefined) {
+    overlays[absoluteFile] = overlayText;
+  }
+
+  const result = spawnSync(process.execPath, [workerScript], {
+    encoding: "utf8",
+    maxBuffer: 64 * 1024 * 1024,
+    input: JSON.stringify({
+      cwd: options.cwd,
+      filename: absoluteFile,
+      overlays,
+    }),
+  });
 
   if (result.error) {
     throw result.error;
@@ -90,27 +103,77 @@ export function getAnalysisSession(
   }
 
   const snapshot = JSON.parse(result.stdout) as AnalysisSessionSnapshot;
-  sessions.set(key, { snapshot, fingerprint });
+  const nextFingerprint = projectFingerprint({
+    root: project.root,
+    filename: absoluteFile,
+    overlayText,
+    catalogPaths: snapshot.catalogPaths,
+  });
+  sessions.set(key, { snapshot, fingerprint: nextFingerprint });
   return snapshot;
 }
 
 /**
- * Cheap invalidation signal for the ESLint process-lifetime cache.
- * Config file edits (and package.json `"i18n-doctor"` field) change mtime
- * so the next lint run rebuilds the snapshot without requiring a process restart.
+ * Invalidation signal for the ESLint process-lifetime cache.
+ * Config edits, catalog file mtime/size, and unsaved locale buffer contents
+ * all force a fresh analysis so unused-key ranges stay correct.
  */
-function projectFingerprint(root: string): string {
+function projectFingerprint(input: {
+  readonly root: string;
+  readonly filename: string;
+  readonly overlayText?: string | undefined;
+  readonly catalogPaths?: readonly string[] | undefined;
+}): string {
   const parts: string[] = [];
   for (const name of CONFIG_CANDIDATES) {
-    const absolute = path.join(root, name);
-    try {
-      const stat = fs.statSync(absolute);
-      parts.push(`${name}:${stat.mtimeMs}:${stat.size}`);
-    } catch {
-      parts.push(`${name}:missing`);
-    }
+    const absolute = path.join(input.root, name);
+    parts.push(fileFingerprint(name, absolute));
   }
+
+  const catalogPaths = (input.catalogPaths ?? []).map((p) => path.resolve(p));
+  for (const absolute of [...catalogPaths].sort()) {
+    const relative = path.relative(input.root, absolute) || absolute;
+    parts.push(fileFingerprint(relative, absolute));
+  }
+
+  const absoluteFile = path.resolve(input.filename);
+  const ext = path.extname(absoluteFile).toLowerCase();
+  const isLocaleResource =
+    ext === ".json" || ext === ".yaml" || ext === ".yml";
+  const isKnownCatalog = catalogPaths.some((p) => pathsEqual(p, absoluteFile));
+
+  // Unsaved locale/catalog edits must invalidate. Matching-disk overlays must
+  // not — otherwise linting a .json mid-run busts the shared project cache.
+  if (
+    input.overlayText !== undefined &&
+    (isLocaleResource || isKnownCatalog) &&
+    overlayDiffersFromDisk(absoluteFile, input.overlayText)
+  ) {
+    parts.push(`overlay:${hashText(input.overlayText)}`);
+  }
+
   return parts.join("|");
+}
+
+function fileFingerprint(label: string, absolute: string): string {
+  try {
+    const stat = fs.statSync(absolute);
+    return `${label}:${stat.mtimeMs}:${stat.size}`;
+  } catch {
+    return `${label}:missing`;
+  }
+}
+
+function overlayDiffersFromDisk(absolute: string, overlayText: string): boolean {
+  try {
+    return fs.readFileSync(absolute, "utf8") !== overlayText;
+  } catch {
+    return true;
+  }
+}
+
+function hashText(text: string): string {
+  return createHash("sha1").update(text).digest("hex").slice(0, 16);
 }
 
 export function fileMatchesIssuePath(

@@ -1,9 +1,15 @@
 # @i18n-doctor/cli
 
-> **Beta — v0.11.11** · [GitHub](https://github.com/taha-farzalizadeh/i18n-doctor) · [Issues](https://github.com/taha-farzalizadeh/i18n-doctor/issues)
+> **Beta — v0.11.13** · [GitHub](https://github.com/taha-farzalizadeh/i18n-doctor) · [Issues](https://github.com/taha-farzalizadeh/i18n-doctor/issues)
 
 Static localization analysis for JavaScript and TypeScript projects.  
 Finds **unused**, **missing**, **duplicate** translation keys, and **untranslated** hardcoded UI text — without executing your code.
+
+## What's new in 0.11.13
+
+- Live unused-key updates: deleting one unused key keeps remaining underlines (no long rescan gap)
+- Broader static usages: factory configs, `useMemo` menus, remapped labels, prefixed `FILTER_OPERATOR_*` templates
+- Assigned-then-returned enum arrays; JSX helper prop indexing after helpers
 
 ## What's new in 0.11.11
 

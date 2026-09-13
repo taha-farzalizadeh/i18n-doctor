@@ -175,6 +175,98 @@ export const Login = () => t("auth.login");
 });
 
 describe("locale file changes", () => {
+  it("keeps later unused keys when an earlier unused key is deleted", async () => {
+    const catalog = json({
+      NOT_EQUAL_IN_ARRAY: "Not equal in array",
+      LIKE: "Like",
+      LIKE_IN_ARRAY: "Like in array",
+    });
+    const root = await fixture(
+      flatProject({
+        "locales/en.json": catalog,
+        "src/Login.tsx": `import { t } from "i18next";\nexport const L = () => t("LIKE");\n`,
+      }),
+    );
+    const h = harness(root);
+    await h.start();
+    await h.open("locales/en.json", catalog);
+
+    expect(
+      find(
+        h.diagnosticsFor("locales/en.json"),
+        "unused-key",
+        "NOT_EQUAL_IN_ARRAY",
+      ),
+    ).toBeDefined();
+    expect(
+      find(h.diagnosticsFor("locales/en.json"), "unused-key", "LIKE_IN_ARRAY"),
+    ).toBeDefined();
+
+    const next = json({
+      LIKE: "Like",
+      LIKE_IN_ARRAY: "Like in array",
+    });
+    const started = Date.now();
+    await h.change("locales/en.json", next, 2);
+    const elapsed = Date.now() - started;
+
+    expect(
+      find(
+        h.diagnosticsFor("locales/en.json"),
+        "unused-key",
+        "NOT_EQUAL_IN_ARRAY",
+      ),
+    ).toBeUndefined();
+    const remaining = find(
+      h.diagnosticsFor("locales/en.json"),
+      "unused-key",
+      "LIKE_IN_ARRAY",
+    );
+    expect(remaining).toBeDefined();
+    expect(underlined(next, remaining!)).toBe('"LIKE_IN_ARRAY"');
+    expect(elapsed).toBeLessThan(3_000);
+  });
+
+  it("drops an unused key quickly and keeps underlines on remaining keys", async () => {
+    const catalog = json({
+      auth: { login: "Login", logout: "Log out", orphan: "Unused" },
+    });
+    const root = await fixture(
+      flatProject({
+        "locales/en.json": catalog,
+        "src/Login.tsx": `import { t } from "i18next";\nexport const L = () => t("auth.login");\n`,
+      }),
+    );
+    const h = harness(root);
+    await h.start();
+    await h.open("locales/en.json", catalog);
+
+    expect(
+      find(h.diagnosticsFor("locales/en.json"), "unused-key", "auth.orphan"),
+    ).toBeDefined();
+    expect(
+      find(h.diagnosticsFor("locales/en.json"), "unused-key", "auth.logout"),
+    ).toBeDefined();
+
+    const next = json({ auth: { login: "Login", logout: "Log out" } });
+    const started = Date.now();
+    await h.change("locales/en.json", next, 2);
+    const elapsed = Date.now() - started;
+
+    expect(
+      find(h.diagnosticsFor("locales/en.json"), "unused-key", "auth.orphan"),
+    ).toBeUndefined();
+    const logout = find(
+      h.diagnosticsFor("locales/en.json"),
+      "unused-key",
+      "auth.logout",
+    );
+    expect(logout).toBeDefined();
+    expect(underlined(next, logout!)).toBe('"logout"');
+    // Incremental catalog refresh should not need a full project rescan.
+    expect(elapsed).toBeLessThan(5_000);
+  });
+
   it("clears missing-translation once the other locale catches up", async () => {
     const root = await fixture(
       flatProject({

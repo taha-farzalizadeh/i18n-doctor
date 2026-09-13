@@ -79,6 +79,7 @@ export function toRange(
   } = {},
 ): Range | undefined {
   const text = options.text;
+  const key = options.key;
 
   if (
     text !== undefined &&
@@ -88,10 +89,15 @@ export function toRange(
     span.end >= span.start &&
     span.end <= text.length
   ) {
-    return {
-      start: positionAtOffset(text, span.start),
-      end: positionAtOffset(text, span.end),
-    };
+    const slice = text.slice(span.start, span.end);
+    // When we know the catalog key, reject offsets that no longer cover it
+    // (stale analysis remapped onto a shifted buffer → wrong key/value).
+    if (!key || sliceIncludesKey(slice, key)) {
+      return {
+        start: positionAtOffset(text, span.start),
+        end: positionAtOffset(text, span.end),
+      };
+    }
   }
 
   if (!Number.isInteger(span.line) || span.line < 1) return undefined;
@@ -110,12 +116,22 @@ export function toRange(
       line: span.endLine - 1,
       character: span.endColumn - 1,
     };
-    return clampRange({ start, end }, text);
+    const ranged = clampRange({ start, end }, text);
+    if (text !== undefined && key) {
+      const lines = text.split(/\r\n|\r|\n/);
+      const lineText = lines[ranged.start.line] ?? "";
+      const slice = lineText.slice(ranged.start.character, ranged.end.character);
+      if (!sliceIncludesKey(slice, key)) {
+        const located = locateKeyOnLine(text, start, key);
+        if (located) return located;
+      }
+    }
+    return ranged;
   }
 
   // Only a start position: underline the key literal when we can see the line.
-  if (text !== undefined && options.key) {
-    const located = locateKeyOnLine(text, start, options.key);
+  if (text !== undefined && key) {
+    const located = locateKeyOnLine(text, start, key);
     if (located) return located;
   }
 
@@ -451,12 +467,33 @@ function locateKeyOnLine(
   if (line === undefined) return undefined;
 
   const from = Math.max(0, Math.min(start.character, line.length));
-  const index = line.indexOf(key, from);
-  if (index === -1) return undefined;
-  return {
-    start: { line: start.line, character: index },
-    end: { line: start.line, character: index + key.length },
-  };
+  // Prefer property-key forms so values like "Log out" do not steal "out".
+  const patterns = [`"${key}"`, `'${key}'`, key];
+  for (const pattern of patterns) {
+    const index = line.indexOf(pattern, from);
+    if (index === -1) continue;
+    // For quoted forms, underline the key inside the quotes.
+    if (pattern.length > key.length) {
+      return {
+        start: { line: start.line, character: index + 1 },
+        end: { line: start.line, character: index + 1 + key.length },
+      };
+    }
+    return {
+      start: { line: start.line, character: index },
+      end: { line: start.line, character: index + key.length },
+    };
+  }
+  return undefined;
+}
+
+function sliceIncludesKey(slice: string, key: string): boolean {
+  return (
+    slice.includes(`"${key}"`) ||
+    slice.includes(`'${key}'`) ||
+    slice === key ||
+    slice.includes(key)
+  );
 }
 
 /** Keeps a range inside the document so clients never receive bad positions. */

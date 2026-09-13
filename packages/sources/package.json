@@ -1,6 +1,6 @@
 {
   "name": "@i18n-doctor/sources",
-  "version": "0.10.4",
+  "version": "0.10.5",
   "description": "Translation source detection and key catalog extraction",
   "type": "module",
   "exports": {

@@ -30,6 +30,9 @@ export {
 
 export { formatCatalogReport } from "./internal/format-report.js";
 
+export { refreshResourceFilesInCatalog } from "./internal/refresh-file.js";
+export type { RefreshResourceFilesInput } from "./internal/refresh-file.js";
+
 export {
   buildFullKey,
   entriesFromCatalog,

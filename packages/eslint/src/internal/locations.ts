@@ -61,6 +61,8 @@ export function positionAtOffset(
  * Best available range for an analyzer location.
  *
  * Precedence: UTF-16 offsets → explicit end line/column → key literal on line.
+ * When `key` is set, reject offsets that no longer cover that key (stale
+ * analysis remapped onto a shifted buffer → wrong key/value underline).
  */
 export function toEslintLocation(
   span: SourceSpan,
@@ -70,6 +72,7 @@ export function toEslintLocation(
   } = {},
 ): EslintSourceLocation | undefined {
   const text = options.text;
+  const key = options.key;
 
   if (
     text !== undefined &&
@@ -79,9 +82,12 @@ export function toEslintLocation(
     span.end >= span.start &&
     span.end <= text.length
   ) {
-    const start = positionAtOffset(text, span.start);
-    const end = positionAtOffset(text, span.end);
-    return toEslintLoc(start, end, text);
+    const slice = text.slice(span.start, span.end);
+    if (!key || sliceIncludesKey(slice, key)) {
+      const start = positionAtOffset(text, span.start);
+      const end = positionAtOffset(text, span.end);
+      return toEslintLoc(start, end, text);
+    }
   }
 
   if (!Number.isInteger(span.line) || span.line < 1) return undefined;
@@ -97,17 +103,27 @@ export function toEslintLocation(
     span.endColumn >= 1 &&
     !(span.endLine === span.line && span.endColumn < span.column)
   ) {
-    return clampEslintLoc(
+    const ranged = clampEslintLoc(
       {
         start: { line: startLine, column: startColumn },
         end: { line: span.endLine, column: span.endColumn - 1 },
       },
       text,
     );
+    if (text !== undefined && key) {
+      const lines = text.split(/\r\n|\r|\n/);
+      const lineText = lines[ranged.start.line - 1] ?? "";
+      const slice = lineText.slice(ranged.start.column, ranged.end.column);
+      if (!sliceIncludesKey(slice, key)) {
+        const located = locateKeyOnLine(text, startLine, startColumn, key);
+        if (located) return located;
+      }
+    }
+    return ranged;
   }
 
-  if (text !== undefined && options.key) {
-    const located = locateKeyOnLine(text, startLine, startColumn, options.key);
+  if (text !== undefined && key) {
+    const located = locateKeyOnLine(text, startLine, startColumn, key);
     if (located) return located;
   }
 
@@ -141,23 +157,52 @@ function locateKeyOnLine(
   key: string,
 ): EslintSourceLocation | undefined {
   const lines = text.split(/\r\n|\r|\n/);
-  const line = lines[lineNumber - 1];
-  if (line === undefined) return undefined;
+  const patterns = [`"${key}"`, `'${key}'`, key];
 
-  const from = Math.max(0, Math.min(fromColumn, line.length));
-  const index = line.indexOf(key, from);
-  if (index === -1) {
-    const fallback = line.indexOf(key);
-    if (fallback === -1) return undefined;
-    return {
-      start: { line: lineNumber, column: fallback },
-      end: { line: lineNumber, column: fallback + key.length },
-    };
-  }
-  return {
-    start: { line: lineNumber, column: index },
-    end: { line: lineNumber, column: index + key.length },
+  const searchLine = (
+    line: string | undefined,
+    lineNo: number,
+    from: number,
+  ): EslintSourceLocation | undefined => {
+    if (line === undefined) return undefined;
+    const startAt = Math.max(0, Math.min(from, line.length));
+    for (const pattern of patterns) {
+      let index = line.indexOf(pattern, startAt);
+      if (index === -1) index = line.indexOf(pattern);
+      if (index === -1) continue;
+      if (pattern.length > key.length) {
+        return {
+          start: { line: lineNo, column: index + 1 },
+          end: { line: lineNo, column: index + 1 + key.length },
+        };
+      }
+      return {
+        start: { line: lineNo, column: index },
+        end: { line: lineNo, column: index + key.length },
+      };
+    }
+    return undefined;
   };
+
+  const onLine = searchLine(lines[lineNumber - 1], lineNumber, fromColumn);
+  if (onLine) return onLine;
+
+  // Stale line numbers after edits: search the whole file for the key form.
+  for (let i = 0; i < lines.length; i += 1) {
+    if (i === lineNumber - 1) continue;
+    const hit = searchLine(lines[i], i + 1, 0);
+    if (hit) return hit;
+  }
+  return undefined;
+}
+
+function sliceIncludesKey(slice: string, key: string): boolean {
+  return (
+    slice.includes(`"${key}"`) ||
+    slice.includes(`'${key}'`) ||
+    slice === key ||
+    slice.includes(key)
+  );
 }
 
 function clampEslintLoc(

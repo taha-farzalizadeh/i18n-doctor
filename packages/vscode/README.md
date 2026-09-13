@@ -1,12 +1,20 @@
 # i18n-doctor for VS Code
 
-> **Beta — v0.11.11**
+> **Beta — v0.11.13**
 
 Live i18n diagnostics, **Go to Translation**, **Hover**, and **Completion** in
 VS Code. This extension is an LSP client: it starts the bundled
 [`@i18n-doctor/language-server`](../language-server) over stdio and lets VS Code
 render what the server publishes. It does not parse source, extract keys, or
 decide what is unused.
+
+## What's new in 0.11.13
+
+- Deleting an unused catalog key keeps remaining unused underlines (no ~15s gap)
+- Incremental JSON/YAML locale refresh; key-range guards against wrong underlines
+- Factory configs, `useMemo` menus, remapped operators, prefixed `FILTER_OPERATOR_*` templates
+- **Unified versioning:** npm packages, language-server, and IDE plugins are all **0.11.13**
+- Bundled language server @ 0.11.13
 
 ## What's new in 0.11.11
 
@@ -20,7 +28,6 @@ decide what is unused.
 - String-literal array maps, enum-typed `t(type as string)`, `labelKey` / config lookups
 - `i18n.t("KEY", { ns })`, JSX `Object.keys(Enum)` → child `t(item)`, enum helper arrays
 - `buildPayload({ t })` namespace flow; `t(data.actionType)` / nested enum property access
-- **Unified versioning:** npm packages, language-server, and IDE plugins are all **0.11.9**
 - Bundled language server @ 0.11.11
 
 ## What's new in 0.11.8
@@ -167,6 +174,7 @@ So a published extension is self-contained.
 
 ### Changelog (recent)
 
+- **0.11.13** — Live unused-key updates; incremental locale refresh; broader static usages
 - **0.11.11** — No false duplicate-key across locales in inline i18next `resources` maps
 - **0.11.10** — `i18n.t({ ns })`, JSX `Object.keys(Enum)`, enum helper arrays, `fn({ t })`, `t(data.actionType)`
 - **0.11.9** — Path aliases, store/`t`, multi-ns, enum maps/props, JSX `Object.keys(Enum)`, `i18n.t({ ns })`, `fn({ t })`, `t(data.actionType)`; unified with npm/ESLint/LS

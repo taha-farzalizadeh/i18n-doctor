@@ -61,6 +61,11 @@ export interface ScopeCacheEntry {
   /** Set when the last analysis attempt failed; kept for logging only. */
   lastError?: string;
   dirty: Invalidation;
+  /**
+   * Absolute paths of catalog files that dirtied sources since the last
+   * successful analysis. Used for incremental JSON/YAML refresh.
+   */
+  pendingSourcePaths?: Set<string>;
 }
 
 export interface AnalysisCache {
@@ -174,6 +179,15 @@ export function createAnalysisCache(options?: {
       for (const value of entries.values()) {
         if (!isWithin(value.scopeRoot, absolutePath, platform)) continue;
         apply(value, invalidation);
+        // Track catalog-only edits for incremental refresh.
+        if (invalidation.sources && !invalidation.usages && !invalidation.config) {
+          if (!value.pendingSourcePaths) {
+            value.pendingSourcePaths = new Set();
+          }
+          value.pendingSourcePaths.add(path.resolve(absolutePath));
+        } else if (invalidation.usages || invalidation.config) {
+          delete value.pendingSourcePaths;
+        }
         matched = true;
       }
       // A file outside every known scope (or before the first analysis)

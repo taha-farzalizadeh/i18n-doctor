@@ -971,4 +971,198 @@ export function ActionNode(props: NodeProps<IActionNode>) {
     expect(keys).toContain("APPEND");
     expect(keys).toContain("FILTER");
   });
+
+  it("resolves t(toolboxIcons()[mode]!.tooltip) from factory object-of-objects", async () => {
+    const root = await fixture({
+      "package.json": JSON.stringify({
+        dependencies: { "react-i18next": "14.0.0" },
+      }),
+      "src/toolboxConfig.tsx": `
+export const toolboxIcons = () => ({
+  draw_polygon: { tooltip: "POLYGON", component: null },
+  draw_line: { tooltip: "LINE", component: null },
+  draw_circle: { tooltip: "CIRCLE", component: null },
+});
+`,
+      "src/DrawToolbox.tsx": `
+import { useTranslation } from 'react-i18next';
+import { toolboxIcons } from './toolboxConfig';
+export function DrawToolbox({ mode }: { mode: 'draw_polygon' }) {
+  const { t } = useTranslation('mapDraw');
+  return <span>{t(toolboxIcons()[mode]!.tooltip)}</span>;
+}
+`,
+    });
+    const catalog = await createUsageDetector().detect({
+      root,
+      useDetection: false,
+    });
+    const keys = catalog.usages.map((u) => u.key);
+    expect(keys).toContain("POLYGON");
+    expect(keys).toContain("LINE");
+    expect(keys).toContain("CIRCLE");
+  });
+
+  it("resolves t(menu.name) from useMemo object-array configs", async () => {
+    const root = await fixture({
+      "package.json": JSON.stringify({
+        dependencies: { "react-i18next": "14.0.0" },
+      }),
+      "src/Header.tsx": `
+import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+export function Header() {
+  const { t } = useTranslation('conditions');
+  const headerMenuItems = useMemo(() => [
+    { name: "COPY", handleClick: () => {} },
+    { name: "SAVE_AS_FILE", handleClick: () => {} },
+    { name: "RESET", handleClick: () => {} },
+  ], []);
+  return headerMenuItems.map((menu) => <span key={menu.name}>{t(menu.name)}</span>);
+}
+`,
+    });
+    const catalog = await createUsageDetector().detect({
+      root,
+      useDetection: false,
+    });
+    const keys = catalog.usages.map((u) => u.key);
+    expect(keys).toContain("COPY");
+    expect(keys).toContain("SAVE_AS_FILE");
+    expect(keys).toContain("RESET");
+  });
+
+  it("resolves t(label) from helper enum arrays and remapped operator labels", async () => {
+    const root = await fixture({
+      "package.json": JSON.stringify({
+        dependencies: { "react-i18next": "14.0.0" },
+      }),
+      "src/types.ts": `
+export enum PROPERTY_OPERATOR {
+  EQUALS = "EQUALS",
+  DATE_RANGE = "DATE_RANGE",
+  GREATER_THAN = "GREATER_THAN",
+  LESS_THAN = "LESS_THAN",
+}
+export enum COMPARATIVE_TYPE {
+  ANY_DATE_TIME = "ANY_DATE_TIME",
+  DATE_TIME = "DATE_TIME",
+  BOOLEAN = "BOOLEAN",
+}
+`,
+      "src/utils.ts": `
+import { COMPARATIVE_TYPE, PROPERTY_OPERATOR } from './types';
+export const returnOperatorByType = (type: COMPARATIVE_TYPE): PROPERTY_OPERATOR[] => {
+  let validOperators: PROPERTY_OPERATOR[];
+  switch (type) {
+    case COMPARATIVE_TYPE.BOOLEAN:
+      validOperators = [PROPERTY_OPERATOR.EQUALS];
+      break;
+    case COMPARATIVE_TYPE.ANY_DATE_TIME:
+    case COMPARATIVE_TYPE.DATE_TIME:
+      validOperators = [
+        PROPERTY_OPERATOR.DATE_RANGE,
+        PROPERTY_OPERATOR.GREATER_THAN,
+        PROPERTY_OPERATOR.LESS_THAN,
+      ];
+      break;
+    default:
+      validOperators = [PROPERTY_OPERATOR.EQUALS];
+      break;
+  }
+  return validOperators;
+};
+`,
+      "src/Operator.tsx": `
+import { useTranslation } from 'react-i18next';
+import { COMPARATIVE_TYPE, PROPERTY_OPERATOR } from './types';
+import { returnOperatorByType } from './utils';
+export function Operator({ comparativeType }: { comparativeType: COMPARATIVE_TYPE }) {
+  const { t } = useTranslation('conditions');
+  return returnOperatorByType(comparativeType).map((item, index) => {
+    const isDateType =
+      comparativeType === COMPARATIVE_TYPE.ANY_DATE_TIME ||
+      comparativeType === COMPARATIVE_TYPE.DATE_TIME;
+    const dateOperatorLabels = {
+      [PROPERTY_OPERATOR.GREATER_THAN]: "AFTER_DATE",
+      [PROPERTY_OPERATOR.LESS_THAN]: "BEFORE_DATE",
+    };
+    const label = isDateType && dateOperatorLabels[item]
+      ? dateOperatorLabels[item]
+      : item;
+    return <option key={index} value={item}>{t(label)}</option>;
+  });
+}
+`,
+    });
+    const catalog = await createUsageDetector().detect({
+      root,
+      useDetection: false,
+    });
+    const keys = catalog.usages.map((u) => u.key);
+    expect(keys).toContain("DATE_RANGE");
+    expect(keys).toContain("EQUALS");
+    expect(keys).toContain("GREATER_THAN");
+    expect(keys).toContain("LESS_THAN");
+    expect(keys).toContain("AFTER_DATE");
+    expect(keys).toContain("BEFORE_DATE");
+  });
+
+  it("resolves t(`PREFIX_${op}`) from helper arrays passed as JSX props", async () => {
+    const root = await fixture({
+      "package.json": JSON.stringify({
+        dependencies: { "react-i18next": "14.0.0" },
+      }),
+      "src/types.ts": `
+export enum NumberFilterOperator {
+  EQUAL = "EQUAL",
+  GREATER_THAN = "GREATER_THAN",
+  LESS_THAN = "LESS_THAN",
+}
+export enum IPropertyType {
+  INTEGER = "INTEGER",
+  STRING = "STRING",
+}
+`,
+      "src/utils.ts": `
+import { IPropertyType, NumberFilterOperator } from './types';
+export const getOperatorsByFieldType = (fieldType: IPropertyType) => {
+  if (fieldType === IPropertyType.INTEGER) {
+    return [
+      NumberFilterOperator.GREATER_THAN,
+      NumberFilterOperator.LESS_THAN,
+      NumberFilterOperator.EQUAL,
+    ];
+  }
+  return [NumberFilterOperator.EQUAL];
+};
+`,
+      "src/OperatorSelect.tsx": `
+import { useTranslation } from 'react-i18next';
+export function OperatorSelect({ operators }: { operators: string[] }) {
+  const { t } = useTranslation('data-workbench');
+  return operators.map((operator) => (
+    <option key={operator} value={operator}>{t(\`FILTER_OPERATOR_\${operator}\`)}</option>
+  ));
+}
+`,
+      "src/FilterCard.tsx": `
+import { IPropertyType } from './types';
+import { getOperatorsByFieldType } from './utils';
+import { OperatorSelect } from './OperatorSelect';
+export function FilterCard({ fieldType }: { fieldType: IPropertyType }) {
+  const operators = getOperatorsByFieldType(fieldType);
+  return <OperatorSelect operators={operators} />;
+}
+`,
+    });
+    const catalog = await createUsageDetector().detect({
+      root,
+      useDetection: false,
+    });
+    const keys = catalog.usages.map((u) => u.key);
+    expect(keys).toContain("FILTER_OPERATOR_EQUAL");
+    expect(keys).toContain("FILTER_OPERATOR_GREATER_THAN");
+    expect(keys).toContain("FILTER_OPERATOR_LESS_THAN");
+  });
 });

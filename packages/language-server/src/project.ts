@@ -29,6 +29,7 @@ import {
 import type { FileSystemPort } from "@i18n-doctor/scanner";
 import {
   createSourceDetector,
+  refreshResourceFilesInCatalog,
   type TranslationCatalog,
 } from "@i18n-doctor/sources";
 import {
@@ -272,11 +273,125 @@ export function createProject(options: ProjectOptions): Project {
               ...(io.readDir ? { readDir: io.readDir } : {}),
             };
 
-            // Locale edits: refresh catalogs + coverage first and publish a
-            // partial result so missing-translation does not wait on the
-            // slower usage/issue pass.
+            const pendingPaths = entry.pendingSourcePaths
+              ? [...entry.pendingSourcePaths]
+              : [];
+            delete entry.pendingSourcePaths;
+
+            // Locale JSON/YAML edits: re-extract only the touched files. Do this
+            // even when usages are also dirty — otherwise a prior component edit
+            // forces a multi-second full rediscovery and unused underlines vanish
+            // until that finishes (~10–20s on large apps).
             let refreshedSources: TranslationCatalog | undefined;
-            if (dirty.sources && config.coverage) {
+            let usedIncrementalSources = false;
+            if (
+              dirty.sources &&
+              !dirty.config &&
+              entry.sourceCatalog &&
+              pendingPaths.length > 0 &&
+              io.readFile
+            ) {
+              const patched = refreshResourceFilesInCatalog({
+                catalog: entry.sourceCatalog,
+                absolutePaths: pendingPaths,
+                readFile: io.readFile,
+                minConfidence: scope.minConfidence,
+              });
+              if (patched) {
+                refreshedSources = patched;
+                usedIncrementalSources = true;
+                entry.sourceCatalog = patched;
+                logger.debug(
+                  `incremental catalog refresh for ${scopeRoot} (${pendingPaths.length} file(s))`,
+                );
+              }
+            }
+
+            // Fast path: incremental sources + any warm usage catalog → rematch
+            // issues immediately so unused underlines do not vanish for the
+            // duration of a full usage rescan. If usages are also dirty we still
+            // continue below to refresh them.
+            let publishedIncrementalIssues = false;
+            if (
+              usedIncrementalSources &&
+              refreshedSources &&
+              entry.usageCatalog
+            ) {
+              const quick = await analyzeScope({
+                scope,
+                ...(libraryHints ? { libraryHints } : {}),
+                limits,
+                useDetection: true,
+                io: ioPorts,
+                sourceCatalog: refreshedSources,
+                usageCatalog: entry.usageCatalog,
+                ...(signal ? { signal } : {}),
+              });
+
+              entry.sourceCatalog = quick.sourceCatalog;
+              entry.analysis = quick.analysis;
+              delete entry.lastError;
+
+              const preferredLocales = quick.context.effective.defaultLocale
+                ? [quick.context.effective.defaultLocale]
+                : [];
+              const matchContext = matchContextFromOptions({
+                matchNamespace: true,
+                ...(quick.context.effective.defaultNS !== undefined
+                  ? { defaultNS: quick.context.effective.defaultNS }
+                  : {}),
+                ...(quick.context.effective.fallbackNS !== undefined
+                  ? { fallbackNS: quick.context.effective.fallbackNS }
+                  : {}),
+              });
+              entry.matchContext = matchContext;
+              entry.preferredLocales = preferredLocales;
+              entry.translationIndex = buildTranslationIndex(
+                quick.sourceCatalog,
+                {
+                  matchContext,
+                  preferredLocales,
+                },
+              );
+
+              const coverage = config.coverage
+                ? analyzeCoverage(
+                    scope,
+                    quick.sourceCatalog,
+                    quick.context.effective.defaultLocale,
+                    logger,
+                  )
+                : undefined;
+              if (coverage) entry.coverage = coverage;
+              else delete entry.coverage;
+
+              if (onPartial) {
+                const early: LocatedDiagnostic[] = [];
+                collectScopeDiagnostics(entry, early, diagnosticContext);
+                onPartial(early);
+              }
+              publishedIncrementalIssues = true;
+
+              if (!dirty.usages) {
+                entry.usageCatalog = quick.usageCatalog;
+                entry.dirty = { sources: false, usages: false, config: false };
+                logger.debug(
+                  `analyzed ${scopeRoot}: ${quick.analysis.issues.length} issues ` +
+                    `(sources=incremental, usages=cached)`,
+                );
+              }
+            }
+
+            if (!(publishedIncrementalIssues && !dirty.usages)) {
+            // Locale edits without a warm incremental patch: refresh catalogs
+            // first. Prefer publishing full issue+coverage diagnostics when
+            // usages are cached — never coverage-only (that clears unused).
+            let finishedWithCachedUsages = false;
+            if (
+              dirty.sources &&
+              !dirty.config &&
+              !usedIncrementalSources
+            ) {
               refreshedSources = await createSourceDetector().discover({
                 root: scopeRoot,
                 useDetection: true,
@@ -288,22 +403,101 @@ export function createProject(options: ProjectOptions): Project {
               throwIfCancelled(signal);
 
               entry.sourceCatalog = refreshedSources;
-              const earlyCoverage = analyzeCoverage(
-                scope,
-                refreshedSources,
-                entry.preferredLocales?.[0],
-                logger,
-              );
+
+              if (!dirty.usages && entry.usageCatalog) {
+                const earlyResult = await analyzeScope({
+                  scope,
+                  ...(libraryHints ? { libraryHints } : {}),
+                  limits,
+                  useDetection: true,
+                  io: ioPorts,
+                  sourceCatalog: refreshedSources,
+                  usageCatalog: entry.usageCatalog,
+                  ...(signal ? { signal } : {}),
+                });
+                entry.sourceCatalog = earlyResult.sourceCatalog;
+                entry.usageCatalog = earlyResult.usageCatalog;
+                entry.analysis = earlyResult.analysis;
+                delete entry.lastError;
+
+                const preferredLocales = earlyResult.context.effective
+                  .defaultLocale
+                  ? [earlyResult.context.effective.defaultLocale]
+                  : [];
+                const matchContext = matchContextFromOptions({
+                  matchNamespace: true,
+                  ...(earlyResult.context.effective.defaultNS !== undefined
+                    ? { defaultNS: earlyResult.context.effective.defaultNS }
+                    : {}),
+                  ...(earlyResult.context.effective.fallbackNS !== undefined
+                    ? { fallbackNS: earlyResult.context.effective.fallbackNS }
+                    : {}),
+                });
+                entry.matchContext = matchContext;
+                entry.preferredLocales = preferredLocales;
+                entry.translationIndex = buildTranslationIndex(
+                  earlyResult.sourceCatalog,
+                  {
+                    matchContext,
+                    preferredLocales,
+                  },
+                );
+
+                const coverage = config.coverage
+                  ? analyzeCoverage(
+                      scope,
+                      earlyResult.sourceCatalog,
+                      earlyResult.context.effective.defaultLocale,
+                      logger,
+                    )
+                  : undefined;
+                if (coverage) entry.coverage = coverage;
+                else delete entry.coverage;
+
+                entry.dirty = { sources: false, usages: false, config: false };
+                finishedWithCachedUsages = true;
+                logger.debug(
+                  `analyzed ${scopeRoot}: ${earlyResult.analysis.issues.length} issues ` +
+                    `(sources=fresh, usages=cached)`,
+                );
+
+                if (onPartial) {
+                  const early: LocatedDiagnostic[] = [];
+                  collectScopeDiagnostics(entry, early, diagnosticContext);
+                  onPartial(early);
+                }
+              } else if (config.coverage) {
+                const earlyCoverage = analyzeCoverage(
+                  scope,
+                  refreshedSources,
+                  entry.preferredLocales?.[0],
+                  logger,
+                );
+                if (earlyCoverage) entry.coverage = earlyCoverage;
+                else delete entry.coverage;
+                // Only publish coverage-only when there is no prior analysis to
+                // wipe (first load). Otherwise unused underlines disappear until
+                // the usage pass finishes.
+                if (onPartial && entry.coverage && !entry.analysis) {
+                  onPartial(
+                    coverageToDiagnostics(entry.coverage, diagnosticContext),
+                  );
+                }
+              }
+            } else if (usedIncrementalSources && refreshedSources) {
+              const earlyCoverage = config.coverage
+                ? analyzeCoverage(
+                    scope,
+                    refreshedSources,
+                    entry.preferredLocales?.[0],
+                    logger,
+                  )
+                : undefined;
               if (earlyCoverage) entry.coverage = earlyCoverage;
               else delete entry.coverage;
-
-              if (onPartial && entry.analysis) {
-                const partial: LocatedDiagnostic[] = [];
-                collectScopeDiagnostics(entry, partial, diagnosticContext);
-                onPartial(partial);
-              }
             }
 
+            if (!finishedWithCachedUsages) {
             const result = await analyzeScope({
               scope,
               ...(libraryHints ? { libraryHints } : {}),
@@ -363,8 +557,10 @@ export function createProject(options: ProjectOptions): Project {
             entry.dirty = { sources: false, usages: false, config: false };
             logger.debug(
               `analyzed ${scopeRoot}: ${result.analysis.issues.length} issues ` +
-                `(sources=${dirty.sources ? "fresh" : "cached"}, usages=${dirty.usages ? "fresh" : "cached"})`,
+                `(sources=${dirty.sources ? (usedIncrementalSources ? "incremental" : "fresh") : "cached"}, usages=${dirty.usages ? "fresh" : "cached"})`,
             );
+            }
+            }
           } catch (error) {
             if (error instanceof AnalysisCancelledError) throw error;
             // Keep the previous result for this scope so the editor does not

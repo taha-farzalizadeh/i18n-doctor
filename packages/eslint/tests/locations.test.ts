@@ -37,6 +37,41 @@ describe("locations", () => {
     expect(diagnostic?.messageId).toBe("missingKey");
     expect(RULE_MESSAGES.missingKey).toContain("{{key}}");
   });
+
+  it("rejects stale offsets that no longer cover the catalog key", () => {
+    const text = JSON.stringify(
+      { auth: { login: "Login", logout: "Log out" } },
+      null,
+      2,
+    );
+    // Offsets that previously pointed at "orphan" but now land on the value.
+    const logoutValue = text.indexOf('"Log out"');
+    const issue: Issue = {
+      type: "unused-key",
+      severity: "warning",
+      message: 'Unused translation key "auth.logout"',
+      key: "auth.logout",
+      location: {
+        absolutePath: "/proj/locales/en.json",
+        relativePath: "locales/en.json",
+        line: 1,
+        column: 1,
+        start: logoutValue,
+        end: logoutValue + '"Log out"'.length,
+      },
+      relatedLocations: [],
+      source: { kind: "definition" },
+    };
+
+    const loc = issueLocationToEslint(issue, text);
+    expect(loc).toBeDefined();
+    expect(
+      text.slice(
+        lineOffset(text, loc!.start.line, loc!.start.column),
+        lineOffset(text, loc!.end.line, loc!.end.column),
+      ),
+    ).toBe("logout");
+  });
 });
 
 function lineOffset(text: string, line: number, column: number): number {

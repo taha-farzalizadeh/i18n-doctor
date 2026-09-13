@@ -153,7 +153,7 @@ export function collectStaticStringReturns(
 
   const out: string[] = [];
   for (const expr of returns) {
-    const keys = staticKeysFromReturnExpr(expr, sourceFile, keyOpts);
+    const keys = staticKeysFromReturnExpr(expr, fn, sourceFile, keyOpts);
     // Empty return / `return ""` / `return` → allow (default branch).
     if (keys === undefined) {
       return [];
@@ -171,22 +171,25 @@ export function collectStaticStringReturns(
  */
 function staticKeysFromReturnExpr(
   expr: ts.Expression,
+  fn: ts.FunctionLikeDeclaration,
   sourceFile: ts.SourceFile,
   keyOpts?: StaticKeyOptions,
 ): readonly string[] | undefined {
   const node = unwrap(expr);
 
   if (ts.isArrayLiteralExpression(node)) {
-    const out: string[] = [];
-    for (const el of node.elements) {
-      if (ts.isSpreadElement(el)) return undefined;
-      const keys = staticStringKeys(el, sourceFile, new Set(), keyOpts);
-      if (keys.length === 0) return undefined;
-      for (const key of keys) {
-        if (key.length > 0 && !out.includes(key)) out.push(key);
-      }
-    }
-    return out;
+    return keysFromStaticStringArray(node, sourceFile, keyOpts);
+  }
+
+  // `let xs; switch { case: xs = [...]; } return xs;`
+  if (ts.isIdentifier(node) && fn.body && ts.isBlock(fn.body)) {
+    const fromAssignments = keysFromAssignedArrays(
+      fn.body,
+      node.text,
+      sourceFile,
+      keyOpts,
+    );
+    if (fromAssignments !== undefined) return fromAssignments;
   }
 
   const keys = staticStringKeys(node, sourceFile, new Set(), keyOpts);
@@ -201,6 +204,77 @@ function staticKeysFromReturnExpr(
     return undefined;
   }
   return keys;
+}
+
+function keysFromStaticStringArray(
+  node: ts.ArrayLiteralExpression,
+  sourceFile: ts.SourceFile,
+  keyOpts?: StaticKeyOptions,
+): readonly string[] | undefined {
+  const out: string[] = [];
+  for (const el of node.elements) {
+    if (ts.isSpreadElement(el)) return undefined;
+    const keys = staticStringKeys(el, sourceFile, new Set(), keyOpts);
+    if (keys.length === 0) return undefined;
+    for (const key of keys) {
+      if (key.length > 0 && !out.includes(key)) out.push(key);
+    }
+  }
+  return out;
+}
+
+/**
+ * Collect static string / enum members from every `name = [...]` assignment
+ * in a function body (typical switch-built operator lists).
+ * Returns `undefined` if any assignment is dynamic or none found.
+ */
+function keysFromAssignedArrays(
+  body: ts.Block,
+  name: string,
+  sourceFile: ts.SourceFile,
+  keyOpts?: StaticKeyOptions,
+): readonly string[] | undefined {
+  const out: string[] = [];
+  let found = false;
+  let dynamic = false;
+
+  const visit = (node: ts.Node): void => {
+    if (dynamic) return;
+    if (
+      ts.isBinaryExpression(node) &&
+      node.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
+      ts.isIdentifier(node.left) &&
+      node.left.text === name
+    ) {
+      const right = unwrap(node.right);
+      if (ts.isArrayLiteralExpression(right)) {
+        const keys = keysFromStaticStringArray(right, sourceFile, keyOpts);
+        if (keys === undefined) {
+          dynamic = true;
+          return;
+        }
+        found = true;
+        for (const key of keys) {
+          if (key.length > 0 && !out.includes(key)) out.push(key);
+        }
+      } else {
+        dynamic = true;
+      }
+      return;
+    }
+    if (
+      ts.isFunctionDeclaration(node) ||
+      ts.isFunctionExpression(node) ||
+      ts.isArrowFunction(node) ||
+      ts.isMethodDeclaration(node)
+    ) {
+      return;
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(body);
+  if (dynamic || !found) return undefined;
+  return out;
 }
 
 function findLocalHelperReturns(

@@ -171,14 +171,6 @@ export async function collectUsages(input: {
               enumIndex,
             ),
           );
-          mergeJsxEnumPropIndex(
-            jsxEnumPropIndex,
-            indexJsxObjectKeysEnumProps(
-              parsed.sourceFile,
-              file.relativePath,
-              enumIndex,
-            ),
-          );
           mergeTranslatorCallableIndex(
             translatorCallableIndex,
             indexTranslatorCallables(parsed.sourceFile, file.relativePath),
@@ -208,14 +200,6 @@ export async function collectUsages(input: {
           enumIndex,
         ),
       );
-      mergeJsxEnumPropIndex(
-        jsxEnumPropIndex,
-        indexJsxObjectKeysEnumProps(
-          parsed.sourceFile,
-          file.relativePath,
-          enumIndex,
-        ),
-      );
       mergeTranslatorCallableIndex(
         translatorCallableIndex,
         indexTranslatorCallables(parsed.sourceFile, file.relativePath),
@@ -226,6 +210,50 @@ export async function collectUsages(input: {
       );
     } catch {
       // Best-effort index; analysis below still runs.
+    }
+  });
+
+  // JSX prop → helper/enum arrays must run after helpers are fully indexed.
+  await mapPool(candidates, ANALYZE_CONCURRENCY, async (file) => {
+    try {
+      const read = await input.snapshot.content.read(file.fileId);
+      if (!read.ok || read.bytes.byteLength > MAX_FILE_BYTES) return;
+      const sourceText = Buffer.from(read.bytes).toString("utf8");
+      if (file.extension === "vue") {
+        for (const script of extractVueScripts(sourceText)) {
+          const parsed = engine.parse({
+            fileName: `${file.relativePath}.${script.lang}`,
+            sourceText: script.text,
+          });
+          mergeJsxEnumPropIndex(
+            jsxEnumPropIndex,
+            indexJsxObjectKeysEnumProps(
+              parsed.sourceFile,
+              file.relativePath,
+              enumIndex,
+              helperReturnIndex,
+            ),
+          );
+        }
+        return;
+      }
+      if (!SCRIPT_EXT.has(file.extension)) return;
+      if (!isSupportedSourceFileName(file.relativePath)) return;
+      const parsed = engine.parse({
+        fileName: file.relativePath,
+        sourceText,
+      });
+      mergeJsxEnumPropIndex(
+        jsxEnumPropIndex,
+        indexJsxObjectKeysEnumProps(
+          parsed.sourceFile,
+          file.relativePath,
+          enumIndex,
+          helperReturnIndex,
+        ),
+      );
+    } catch {
+      // Best-effort.
     }
   });
 

@@ -1,6 +1,6 @@
 # i18n-doctor
 
-> **Beta — v0.11.11**
+> **Beta — v0.11.13**
 > This is an early release. APIs may change, edge cases exist, and your feedback matters. See [Contributing](#contributing) to help shape the project.
 
 Static localization analysis for JavaScript and TypeScript projects. Finds unused, missing, and duplicate translation keys — and hardcoded UI text that never goes through translation — without executing your code.
@@ -398,6 +398,15 @@ If something doesn't work on your project, please open an issue. That's exactly 
 ---
 
 ## Changelog (recent)
+
+### 0.11.13 — live unused-key updates + broader usage detection (2026-09)
+
+All user-facing packages and IDE plugins ship as **0.11.13**.
+
+- Deleting an unused catalog key no longer drops sibling unused underlines for ~15s
+- Incremental JSON/YAML catalog refresh; key-range guards against shifted buffers
+- ESLint plugin: locale overlay invalidation + stale diagnostic range fixes
+- More static usages: factory object configs, `useMemo` menus, remapped labels, prefixed `FILTER_OPERATOR_*` templates, assigned-then-returned enum arrays
 
 ### 0.11.11 — no false duplicates across locales in resources maps (2026-09)
 

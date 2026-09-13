@@ -10,6 +10,8 @@
  *
  * Plus object-of-objects configs (`chartConfigs[id].title`), string maps
  * (`t(descriptions[item])`), route-param titles, and `Object.keys(Enum)`.
+ * Also: factory configs (`t(toolboxIcons()[mode].tooltip)`), useMemo menus
+ * (`t(menu.name)`), and remapped helper-array labels (`t(label)`).
  */
 
 import ts from "typescript";
@@ -44,6 +46,9 @@ const WIDE_INDEX_PROPS = new Set([
   "placeholder",
   "description",
   "translateValue",
+  "tooltip",
+  "ariaLabel",
+  "titleKey",
 ]);
 
 export function indexKey(fileRel: string, name: string): string {
@@ -83,9 +88,18 @@ export function indexObjectArrayProps(
 
     if (ts.isFunctionDeclaration(stmt) && stmt.name && stmt.body) {
       const array = objectArrayFromFunctionBody(stmt, sourceFile);
-      if (!array) continue;
-      const props = propsFromObjectArray(array, sourceFile, keyOpts);
-      if (props.size > 0) out.set(indexKey(fileRel, stmt.name.text), props);
+      if (array) {
+        const props = propsFromObjectArray(array, sourceFile, keyOpts);
+        if (props.size > 0) out.set(indexKey(fileRel, stmt.name.text), props);
+      } else {
+        const obj = objectLiteralFromFunctionBody(stmt);
+        if (obj) {
+          const props = propsFromConfigExpression(obj, sourceFile, keyOpts);
+          if (props && props.size > 0) {
+            out.set(indexKey(fileRel, stmt.name.text), props);
+          }
+        }
+      }
     }
 
     // `export default { bar: { title: "BAR" }, ... }`
@@ -120,6 +134,20 @@ export function resolveMappedPropKeys(
   jsxEnumPropIndex?: JsxEnumPropIndex,
 ): readonly string[] {
   const node = unwrap(expr);
+
+  // `t(\`FILTER_OPERATOR_${operator}\`)` over a mapped helper/enum/array
+  if (ts.isTemplateExpression(node)) {
+    const fromTemplate = keysFromPrefixedTemplate(
+      node,
+      sourceFile,
+      relativePath,
+      index,
+      enumIndex,
+      helperIndex,
+      jsxEnumPropIndex,
+    );
+    if (fromTemplate.length > 0) return fromTemplate;
+  }
 
   // Helper: t(getTitleByStatusType(variant))
   if (helperIndex && ts.isCallExpression(node)) {
@@ -188,6 +216,7 @@ export function resolveMappedPropKeys(
         relativePath,
         helperIndex,
         enumIndex,
+        jsxEnumPropIndex,
       );
       if (fromHelperMap.length > 0) return fromHelperMap;
 
@@ -206,7 +235,32 @@ export function resolveMappedPropKeys(
         index,
       );
       if (fromRoute.length > 0) return fromRoute;
+
+      // const label = map[item] ? map[item] : item; t(label)
+      const fromLocalAlias = keysFromLocalKeyAlias(
+        ident,
+        sourceFile,
+        relativePath,
+        index,
+        helperIndex,
+        enumIndex,
+      );
+      if (fromLocalAlias.length > 0) return fromLocalAlias;
     }
+  }
+
+  // t(toolboxIcons()[mode]!.tooltip) / t(configs[id].title)
+  const deepAccess = deepConfigPropertyAccess(node);
+  if (deepAccess && WIDE_INDEX_PROPS.has(deepAccess.property)) {
+    const fromDeep = keysFromConfigRoot(
+      deepAccess.root,
+      deepAccess.property,
+      sourceFile,
+      relativePath,
+      index,
+      enumIndex,
+    );
+    if (fromDeep.length > 0) return fromDeep;
   }
 
   const access = propertyAccess(node);
@@ -401,14 +455,15 @@ function keysFromCollection(
 
     const local = findLocalBindingInitializer(unwrapped, sourceFile);
     if (local) {
+      const unwrappedHook = unwrapMemoCallback(local);
       // Object-of-objects local const
-      const asObject = unwrap(local);
+      const asObject = unwrap(unwrappedHook);
       if (ts.isObjectLiteralExpression(asObject)) {
         const props = propsFromObjectOfObjects(asObject, sourceFile, keyOpts);
         return props.get(propName) ?? [];
       }
       return keysFromCollection(
-        local,
+        unwrappedHook,
         propName,
         sourceFile,
         relativePath,
@@ -436,6 +491,14 @@ function keysFromCollection(
       const localArray = findLocalCallableArray(callee.text, sourceFile);
       if (localArray) {
         return pluckStringProp(localArray, propName, sourceFile, keyOpts);
+      }
+      const localConfig = findLocalCallableConfigProps(
+        callee.text,
+        sourceFile,
+        keyOpts,
+      );
+      if (localConfig) {
+        return localConfig.get(propName) ?? [];
       }
       const fromImport = keysFromImport(
         callee.text,
@@ -986,9 +1049,14 @@ function propsFromConfigExpression(
   }
   if (ts.isArrowFunction(node) || ts.isFunctionExpression(node)) {
     const array = objectArrayFromFunctionBody(node, sourceFile);
-    return array
-      ? propsFromObjectArray(array, sourceFile, options)
-      : undefined;
+    if (array) {
+      return propsFromObjectArray(array, sourceFile, options);
+    }
+    const obj = objectLiteralFromFunctionBody(node);
+    if (obj) {
+      return propsFromConfigExpression(obj, sourceFile, options);
+    }
+    return undefined;
   }
   return undefined;
 }
@@ -1164,18 +1232,27 @@ export function mergeJsxEnumPropIndex(
 
 /**
  * Index JSX/call-site props that pass `Object.keys(Enum)` / `Object.values(Enum)`
- * into a child component, so the child can resolve `categories.map(item => t(item))`.
+ * or helper-returned string/enum arrays into a child component, so the child can
+ * resolve `categories.map(item => t(item))` / `t(\`PREFIX_${item}\`)`.
  */
 export function indexJsxObjectKeysEnumProps(
   sourceFile: ts.SourceFile,
   relativePath: string,
   enumIndex?: EnumValueIndex,
+  helperIndex?: HelperReturnIndex,
 ): JsxEnumPropIndex {
   const out: JsxEnumPropIndex = new Map();
 
   const visit = (node: ts.Node): void => {
     if (ts.isJsxSelfClosingElement(node) || ts.isJsxOpeningElement(node)) {
-      indexJsxElementEnumProps(node, sourceFile, relativePath, enumIndex, out);
+      indexJsxElementEnumProps(
+        node,
+        sourceFile,
+        relativePath,
+        enumIndex,
+        helperIndex,
+        out,
+      );
     }
     ts.forEachChild(node, visit);
   };
@@ -1188,6 +1265,7 @@ function indexJsxElementEnumProps(
   sourceFile: ts.SourceFile,
   relativePath: string,
   enumIndex: EnumValueIndex | undefined,
+  helperIndex: HelperReturnIndex | undefined,
   out: JsxEnumPropIndex,
 ): void {
   const tag = element.tagName;
@@ -1208,13 +1286,12 @@ function indexJsxElementEnumProps(
     }
     if (!expr) continue;
 
-    const enumName = objectKeysOrValuesEnum(unwrap(expr));
-    if (!enumName) continue;
-    const values = allStringEnumValues(
-      enumName,
+    const values = stringArrayValuesFromJsxPropExpr(
+      expr,
       sourceFile,
       relativePath,
       enumIndex,
+      helperIndex,
     );
     if (values.length === 0) continue;
 
@@ -1228,6 +1305,54 @@ function indexJsxElementEnumProps(
       out.set(key, merged);
     }
   }
+}
+
+/**
+ * Resolve JSX prop expressions that feed `.map(item => t(...))`:
+ *   Object.keys(Enum) | helper() | local = helper() | ["A","B"]
+ */
+function stringArrayValuesFromJsxPropExpr(
+  expr: ts.Expression,
+  sourceFile: ts.SourceFile,
+  relativePath: string,
+  enumIndex: EnumValueIndex | undefined,
+  helperIndex: HelperReturnIndex | undefined,
+): readonly string[] {
+  const node = unwrap(expr);
+  const enumName = objectKeysOrValuesEnum(node);
+  if (enumName) {
+    return allStringEnumValues(enumName, sourceFile, relativePath, enumIndex);
+  }
+
+  if (helperIndex && ts.isCallExpression(node)) {
+    const fromHelper = resolveHelperCallKeys(
+      node,
+      sourceFile,
+      relativePath,
+      helperIndex,
+      enumIndex,
+    );
+    if (fromHelper.length > 0) return fromHelper;
+  }
+
+  if (ts.isIdentifier(node)) {
+    const init = findLocalBindingInitializer(node, sourceFile);
+    if (init) {
+      return stringArrayValuesFromJsxPropExpr(
+        init,
+        sourceFile,
+        relativePath,
+        enumIndex,
+        helperIndex,
+      );
+    }
+  }
+
+  const keyOpts = keyOptions(relativePath, enumIndex);
+  const fromArray = stringLiteralArrayKeys(node, sourceFile, keyOpts);
+  if (fromArray.length > 0) return fromArray;
+
+  return [];
 }
 
 function resolveComponentFileCandidates(
@@ -1388,6 +1513,7 @@ function keysFromLocalObjectKeysBinding(
 
 /**
  * `const cols = typeConvertor(...); cols.map(col => t(col))`
+ * Also: `<Child ops={getOps()} />` → `ops.map(op => t(op))` via jsx prop index.
  */
 function keysFromHelperResultMapParam(
   id: ts.Identifier,
@@ -1395,8 +1521,8 @@ function keysFromHelperResultMapParam(
   relativePath: string,
   helperIndex: HelperReturnIndex | undefined,
   enumIndex: EnumValueIndex | undefined,
+  jsxEnumPropIndex?: JsxEnumPropIndex,
 ): readonly string[] {
-  if (!helperIndex) return [];
   const name = id.text;
   let current: ts.Node | undefined = id.parent;
 
@@ -1431,7 +1557,7 @@ function keysFromHelperResultMapParam(
         continue;
       }
       const receiver = unwrap(mapCall.expression.expression);
-      if (ts.isCallExpression(receiver)) {
+      if (helperIndex && ts.isCallExpression(receiver)) {
         const fromCall = resolveHelperCallKeys(
           receiver,
           sourceFile,
@@ -1442,14 +1568,24 @@ function keysFromHelperResultMapParam(
         if (fromCall.length > 0) return fromCall;
       }
       if (ts.isIdentifier(receiver)) {
-        const fromBinding = keysFromHelperBoundIdent(
-          receiver,
-          sourceFile,
-          relativePath,
-          helperIndex,
-          enumIndex,
-        );
-        if (fromBinding.length > 0) return fromBinding;
+        if (helperIndex) {
+          const fromBinding = keysFromHelperBoundIdent(
+            receiver,
+            sourceFile,
+            relativePath,
+            helperIndex,
+            enumIndex,
+          );
+          if (fromBinding.length > 0) return fromBinding;
+        }
+
+        // Prop-fed: <Child operators={getOps()} /> → operators.map(op => t(op))
+        if (jsxEnumPropIndex) {
+          const fromProp = jsxEnumPropIndex.get(
+            jsxEnumPropKey(relativePath, receiver.text),
+          );
+          if (fromProp && fromProp.length > 0) return fromProp;
+        }
       }
       current = callback.parent;
       continue;
@@ -2061,6 +2197,404 @@ function objectArrayFromFunctionBody(
   return found;
 }
 
+/** Object literal returned by a factory (`() => ({ … })` / `return { … }`). */
+function objectLiteralFromFunctionBody(
+  fn: ts.FunctionLikeDeclaration,
+): ts.ObjectLiteralExpression | undefined {
+  if (!fn.body) return undefined;
+  if (!ts.isBlock(fn.body)) {
+    const expr = unwrap(fn.body);
+    return ts.isObjectLiteralExpression(expr) ? expr : undefined;
+  }
+
+  let found: ts.ObjectLiteralExpression | undefined;
+  const visit = (node: ts.Node): void => {
+    if (found) return;
+    if (ts.isReturnStatement(node) && node.expression) {
+      const expr = unwrap(node.expression);
+      if (ts.isObjectLiteralExpression(expr)) found = expr;
+      return;
+    }
+    if (
+      ts.isFunctionDeclaration(node) ||
+      ts.isFunctionExpression(node) ||
+      ts.isArrowFunction(node)
+    ) {
+      return;
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(fn.body);
+  return found;
+}
+
+/**
+ * `useMemo(() => [{ name: "SAVE_AS_FILE" }], [])` → the factory expression.
+ */
+function unwrapMemoCallback(expr: ts.Expression): ts.Expression {
+  const node = unwrap(expr);
+  if (!ts.isCallExpression(node)) return expr;
+  const callee = unwrap(node.expression);
+  const name = ts.isIdentifier(callee)
+    ? callee.text
+    : ts.isPropertyAccessExpression(callee) && ts.isIdentifier(callee.name)
+      ? callee.name.text
+      : undefined;
+  if (name !== "useMemo" && name !== "useCallback") return expr;
+  const factory = node.arguments[0];
+  if (!factory) return expr;
+  const fn = unwrap(factory);
+  if (ts.isArrowFunction(fn) || ts.isFunctionExpression(fn)) {
+    if (!fn.body) return expr;
+    if (!ts.isBlock(fn.body)) return fn.body;
+    let found: ts.Expression | undefined;
+    const visit = (n: ts.Node): void => {
+      if (found) return;
+      if (ts.isReturnStatement(n) && n.expression) {
+        found = n.expression;
+        return;
+      }
+      if (
+        ts.isFunctionDeclaration(n) ||
+        ts.isFunctionExpression(n) ||
+        ts.isArrowFunction(n)
+      ) {
+        return;
+      }
+      ts.forEachChild(n, visit);
+    };
+    visit(fn.body);
+    return found ?? expr;
+  }
+  return expr;
+}
+
+/**
+ * Same-file factory returning an object-of-objects / object-array config.
+ */
+function findLocalCallableConfigProps(
+  name: string,
+  sourceFile: ts.SourceFile,
+  options?: StaticKeyOptions,
+): ReadonlyMap<string, readonly string[]> | undefined {
+  for (const stmt of sourceFile.statements) {
+    if (ts.isFunctionDeclaration(stmt) && stmt.name?.text === name) {
+      const array = objectArrayFromFunctionBody(stmt, sourceFile);
+      if (array) return propsFromObjectArray(array, sourceFile, options);
+      const obj = objectLiteralFromFunctionBody(stmt);
+      if (obj) return propsFromConfigExpression(obj, sourceFile, options);
+    }
+    if (ts.isVariableStatement(stmt)) {
+      for (const decl of stmt.declarationList.declarations) {
+        if (
+          ts.isIdentifier(decl.name) &&
+          decl.name.text === name &&
+          decl.initializer
+        ) {
+          return propsFromConfigExpression(
+            decl.initializer,
+            sourceFile,
+            options,
+          );
+        }
+      }
+    }
+  }
+  return undefined;
+}
+
+/**
+ * `t(\`FILTER_OPERATOR_${operator}\`)` when operator comes from a mapped
+ * helper/enum/array (optionally via JSX props).
+ */
+function keysFromPrefixedTemplate(
+  expr: ts.TemplateExpression,
+  sourceFile: ts.SourceFile,
+  relativePath: string,
+  index: ObjectArrayPropIndex,
+  enumIndex: EnumValueIndex | undefined,
+  helperIndex: HelperReturnIndex | undefined,
+  jsxEnumPropIndex: JsxEnumPropIndex | undefined,
+): readonly string[] {
+  if (expr.templateSpans.length !== 1) return [];
+  const span = expr.templateSpans[0]!;
+  const hole = unwrap(span.expression);
+  if (!ts.isIdentifier(hole)) return [];
+
+  const prefix = expr.head.text;
+  const suffix = span.literal.text;
+  if (!prefix && !suffix) return [];
+
+  const holeKeys = resolveMappedPropKeys(
+    hole,
+    sourceFile,
+    relativePath,
+    index,
+    enumIndex,
+    helperIndex,
+    jsxEnumPropIndex,
+  );
+  if (holeKeys.length === 0) return [];
+
+  const out: string[] = [];
+  for (const part of holeKeys) {
+    const key = `${prefix}${part}${suffix}`;
+    if (key.length > 0 && !out.includes(key)) out.push(key);
+  }
+  return out;
+}
+
+/**
+ * Peel `fn()[x]!.prop` / `cfg[id].prop` down to the config root + prop name.
+ */
+function deepConfigPropertyAccess(
+  expr: ts.Expression,
+): { root: ts.Expression; property: string } | undefined {
+  let node = unwrap(expr);
+  if (
+    !ts.isPropertyAccessExpression(node) ||
+    !ts.isIdentifier(node.name)
+  ) {
+    return undefined;
+  }
+  const property = node.name.text;
+  let root = unwrap(node.expression);
+  // Plain `item.prop` — handled by propertyAccess.
+  if (ts.isIdentifier(root)) return undefined;
+  // Allow one level of element access: fn()[mode] or cfg[id]
+  if (ts.isElementAccessExpression(root)) {
+    root = unwrap(root.expression);
+    return { root, property };
+  }
+  // `fn().prop` (no element access)
+  if (ts.isCallExpression(root)) {
+    return { root, property };
+  }
+  return undefined;
+}
+
+function keysFromConfigRoot(
+  root: ts.Expression,
+  propName: string,
+  sourceFile: ts.SourceFile,
+  relativePath: string,
+  index: ObjectArrayPropIndex,
+  enumIndex: EnumValueIndex | undefined,
+): readonly string[] {
+  return keysFromCollection(
+    root,
+    propName,
+    sourceFile,
+    relativePath,
+    index,
+    enumIndex,
+  );
+}
+
+/**
+ * `const label = cond ? labels[item] : item; t(label)` — union of static
+ * string-map values and map-callback / helper-array keys.
+ */
+function keysFromLocalKeyAlias(
+  id: ts.Identifier,
+  sourceFile: ts.SourceFile,
+  relativePath: string,
+  index: ObjectArrayPropIndex,
+  helperIndex: HelperReturnIndex | undefined,
+  enumIndex: EnumValueIndex | undefined,
+): readonly string[] {
+  const init = findLocalBindingInitializer(id, sourceFile);
+  if (!init) return [];
+  return collectStaticKeysFromAliasExpr(
+    init,
+    sourceFile,
+    relativePath,
+    index,
+    helperIndex,
+    enumIndex,
+    new Set([id.text]),
+  );
+}
+
+function collectStaticKeysFromAliasExpr(
+  expr: ts.Expression,
+  sourceFile: ts.SourceFile,
+  relativePath: string,
+  index: ObjectArrayPropIndex,
+  helperIndex: HelperReturnIndex | undefined,
+  enumIndex: EnumValueIndex | undefined,
+  seen: Set<string>,
+): readonly string[] {
+  const node = unwrap(expr);
+  const out: string[] = [];
+  const add = (keys: readonly string[]) => {
+    for (const k of keys) {
+      if (k.length > 0 && !out.includes(k)) out.push(k);
+    }
+  };
+
+  if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
+    if (node.text.length > 0) out.push(node.text);
+    return out;
+  }
+
+  if (ts.isConditionalExpression(node)) {
+    add(
+      collectStaticKeysFromAliasExpr(
+        node.whenTrue,
+        sourceFile,
+        relativePath,
+        index,
+        helperIndex,
+        enumIndex,
+        seen,
+      ),
+    );
+    add(
+      collectStaticKeysFromAliasExpr(
+        node.whenFalse,
+        sourceFile,
+        relativePath,
+        index,
+        helperIndex,
+        enumIndex,
+        seen,
+      ),
+    );
+    return out;
+  }
+
+  if (
+    ts.isBinaryExpression(node) &&
+    (node.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken ||
+      node.operatorToken.kind === ts.SyntaxKind.BarBarToken)
+  ) {
+    // For `a && b` prefer the right-hand (value) side; still scan both.
+    add(
+      collectStaticKeysFromAliasExpr(
+        node.left,
+        sourceFile,
+        relativePath,
+        index,
+        helperIndex,
+        enumIndex,
+        seen,
+      ),
+    );
+    add(
+      collectStaticKeysFromAliasExpr(
+        node.right,
+        sourceFile,
+        relativePath,
+        index,
+        helperIndex,
+        enumIndex,
+        seen,
+      ),
+    );
+    return out;
+  }
+
+  if (ts.isElementAccessExpression(node) && ts.isIdentifier(node.expression)) {
+    add(
+      stringMapValuesForIdent(
+        node.expression,
+        sourceFile,
+        relativePath,
+        index,
+        enumIndex,
+      ),
+    );
+    return out;
+  }
+
+  if (ts.isIdentifier(node)) {
+    if (seen.has(node.text)) {
+      // Map callback param / cycle — try helper / enum map resolution.
+      add(
+        keysFromHelperResultMapParam(
+          node,
+          sourceFile,
+          relativePath,
+          helperIndex,
+          enumIndex,
+        ),
+      );
+      add(
+        keysFromObjectKeysEnumMapParam(
+          node,
+          sourceFile,
+          relativePath,
+          enumIndex,
+        ),
+      );
+      add(
+        keysFromStringLiteralArrayMapParam(
+          node,
+          sourceFile,
+          relativePath,
+          enumIndex,
+        ),
+      );
+      add(
+        keysFromEnumArrayMapParam(
+          node,
+          sourceFile,
+          relativePath,
+          enumIndex,
+        ),
+      );
+      return out;
+    }
+    seen.add(node.text);
+    const nested = findLocalBindingInitializer(node, sourceFile);
+    if (nested) {
+      add(
+        collectStaticKeysFromAliasExpr(
+          nested,
+          sourceFile,
+          relativePath,
+          index,
+          helperIndex,
+          enumIndex,
+          seen,
+        ),
+      );
+      return out;
+    }
+    add(
+      keysFromHelperResultMapParam(
+        node,
+        sourceFile,
+        relativePath,
+        helperIndex,
+        enumIndex,
+      ),
+    );
+    add(
+      keysFromObjectKeysEnumMapParam(
+        node,
+        sourceFile,
+        relativePath,
+        enumIndex,
+      ),
+    );
+    add(
+      keysFromStringLiteralArrayMapParam(
+        node,
+        sourceFile,
+        relativePath,
+        enumIndex,
+      ),
+    );
+    add(
+      keysFromEnumArrayMapParam(node, sourceFile, relativePath, enumIndex),
+    );
+  }
+
+  return out;
+}
+
 function looksLikeObjectArray(array: ts.ArrayLiteralExpression): boolean {
   let objects = 0;
   for (const el of array.elements) {
@@ -2272,7 +2806,8 @@ function unwrap(expr: ts.Expression): ts.Expression {
   while (
     ts.isAsExpression(current) ||
     ts.isSatisfiesExpression(current) ||
-    ts.isParenthesizedExpression(current)
+    ts.isParenthesizedExpression(current) ||
+    ts.isNonNullExpression(current)
   ) {
     current = current.expression;
   }

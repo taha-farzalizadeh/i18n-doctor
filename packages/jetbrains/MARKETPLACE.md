@@ -106,7 +106,7 @@ Marketplace accepts HTML. Copy everything between the markers:
   <li>CLI: <code>npx i18n-doctor check</code></li>
 </ul>
 
-<p><i>Beta v0.11.11 — please report issues on GitHub.</i></p>
+<p><i>Beta v0.11.13 — please report issues on GitHub.</i></p>
 <!-- END MARKETPLACE DESCRIPTION -->
 ```
 
@@ -160,6 +160,22 @@ Capture from `npm run runIde -w i18n-doctor-jetbrains` + `examples/demo-project`
 
 - Use channel **default** for public releases.
 - Use channel **eap** only if you intentionally ship pre-releases.
+
+## Change notes (0.11.13)
+
+```html
+<h3>0.11.13</h3>
+<p>Faster unused-key live updates and fewer false unused keys.</p>
+<ul>
+  <li>Deleting an unused catalog key keeps remaining unused underlines (no ~15s gap)</li>
+  <li>JSON/YAML locale edits refresh incrementally; no coverage-only wipe of unused</li>
+  <li>Key-range guards avoid underlining the wrong key/value after buffer shifts</li>
+  <li>Factory configs, useMemo menus, remapped operators, prefixed <code>FILTER_OPERATOR_*</code> templates</li>
+  <li>ESLint plugin: same stale-range + locale-overlay cache fixes</li>
+  <li>npm / ESLint / language-server / JetBrains / VS Code all at <b>0.11.13</b></li>
+  <li>Rebundled language server @ 0.11.13</li>
+</ul>
+```
 
 ## Change notes (0.11.11)
 
