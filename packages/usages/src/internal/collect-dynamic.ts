@@ -52,7 +52,12 @@ export function collectDynamicUsages(input: {
     }
 
     const fragments = staticKeyFragments(keyNode, input.sourceFile);
+    const coversNamespace =
+      ts.isIdentifier(keyNode) &&
+      isForInOrObjectKeysLoopVariable(keyNode, input.sourceFile);
+
     if (
+      !coversNamespace &&
       fragments.prefixes.length === 0 &&
       fragments.suffixes.length === 0 &&
       fragments.contains.length === 0
@@ -79,13 +84,51 @@ export function collectDynamicUsages(input: {
         : {}),
       confidence: Math.min(0.45, binding.confidence),
       context: "function-call",
-      evidence: binding.evidence,
+      evidence: coversNamespace
+        ? `${binding.evidence} (for-in/Object.keys dynamic key)`
+        : binding.evidence,
       prefixes: fragments.prefixes,
       suffixes: fragments.suffixes,
       contains: fragments.contains,
+      ...(coversNamespace ? { coversNamespace: true } : {}),
     });
   });
 
+  return found;
+}
+
+/** `for (const key in obj) t(key)` — opaque API maps, not Object.keys(Enum). */
+function isForInOrObjectKeysLoopVariable(
+  id: ts.Identifier,
+  sourceFile: ts.SourceFile,
+): boolean {
+  const name = id.text;
+  const usePos = id.getStart(sourceFile);
+  let found = false;
+
+  const visit = (node: ts.Node): void => {
+    if (found) return;
+
+    if (ts.isForInStatement(node)) {
+      const intro = node.initializer;
+      if (
+        ts.isVariableDeclarationList(intro) &&
+        intro.declarations.some(
+          (d) =>
+            ts.isIdentifier(d.name) &&
+            d.name.text === name &&
+            d.name.getStart(sourceFile) < usePos,
+        )
+      ) {
+        found = true;
+        return;
+      }
+    }
+
+    ts.forEachChild(node, visit);
+  };
+
+  visit(sourceFile);
   return found;
 }
 

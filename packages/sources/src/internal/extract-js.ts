@@ -73,16 +73,38 @@ function toLoc(loc: AstSourceLocation): SourceLocation {
   };
 }
 
+function originFilePath(sourceFile: ts.SourceFile): string {
+  return sourceFile.fileName.replace(/\\/g, "/");
+}
+
+function withOrigin(
+  node: LocatedNode,
+  sourceFile: ts.SourceFile,
+): LocatedNode {
+  if (node.filePath) return node;
+  return { ...node, filePath: originFilePath(sourceFile) };
+}
+
 function objectLiteralToLocated(
   node: ts.ObjectLiteralExpression,
   sourceFile: ts.SourceFile,
+  ctx?: SpreadResolveContext,
 ): LocatedNode {
   const children = new Map<string, LocatedNode>();
+  const filePath = originFilePath(sourceFile);
+
+  // Spreads first so own properties override (runtime merge order).
   for (const prop of node.properties) {
-    if (ts.isSpreadAssignment(prop)) {
-      // Explicitly skip spreads — no cross-file / runtime merge.
-      continue;
+    if (!ts.isSpreadAssignment(prop)) continue;
+    const spread = resolveSpreadExpression(prop.expression, sourceFile, ctx);
+    if (!spread?.children || !(spread.children instanceof Map)) continue;
+    for (const [key, child] of spread.children) {
+      if (!children.has(key)) children.set(key, child);
     }
+  }
+
+  for (const prop of node.properties) {
+    if (ts.isSpreadAssignment(prop)) continue;
     if (!ts.isPropertyAssignment(prop)) {
       continue;
     }
@@ -90,7 +112,7 @@ function objectLiteralToLocated(
     if (key === undefined) {
       continue;
     }
-    const child = expressionToLocated(prop.initializer, sourceFile);
+    const child = expressionToLocated(prop.initializer, sourceFile, ctx);
     if (!child) {
       continue;
     }
@@ -99,14 +121,16 @@ function objectLiteralToLocated(
       children.set(key, {
         ...child,
         location: toLoc(queryApi.getLocation(sourceFile, prop.name)),
+        filePath,
       });
     } else {
-      children.set(key, child);
+      children.set(key, withOrigin(child, sourceFile));
     }
   }
   return {
     value: undefined,
     location: toLoc(queryApi.getLocation(sourceFile, node)),
+    filePath,
     children,
   };
 }
@@ -114,10 +138,11 @@ function objectLiteralToLocated(
 function arrayLiteralToLocated(
   node: ts.ArrayLiteralExpression,
   sourceFile: ts.SourceFile,
+  ctx?: SpreadResolveContext,
 ): LocatedNode {
   const children: LocatedNode[] = [];
   for (const element of node.elements) {
-    const child = expressionToLocated(element, sourceFile);
+    const child = expressionToLocated(element, sourceFile, ctx);
     children.push(
       child ?? {
         value: null,
@@ -135,33 +160,67 @@ function arrayLiteralToLocated(
 function expressionToLocated(
   node: ts.Expression,
   sourceFile: ts.SourceFile,
+  ctx?: SpreadResolveContext,
 ): LocatedNode | undefined {
   if (ts.isObjectLiteralExpression(node)) {
-    return objectLiteralToLocated(node, sourceFile);
+    return objectLiteralToLocated(node, sourceFile, ctx);
   }
   if (ts.isArrayLiteralExpression(node)) {
-    return arrayLiteralToLocated(node, sourceFile);
+    return arrayLiteralToLocated(node, sourceFile, ctx);
   }
   if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
     return {
       value: node.text,
       location: toLoc(queryApi.getLocation(sourceFile, node)),
+      filePath: originFilePath(sourceFile),
     };
+  }
+  // "a" + "b" (+ nested concatenations) — common for long catalog values.
+  if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.PlusToken) {
+    const left = expressionToLocated(node.left, sourceFile, ctx);
+    const right = expressionToLocated(node.right, sourceFile, ctx);
+    if (
+      left &&
+      right &&
+      typeof left.value === "string" &&
+      typeof right.value === "string" &&
+      left.children === undefined &&
+      right.children === undefined
+    ) {
+      return {
+        value: left.value + right.value,
+        location: toLoc(queryApi.getLocation(sourceFile, node)),
+        filePath: originFilePath(sourceFile),
+      };
+    }
   }
   if (ts.isNumericLiteral(node)) {
     return {
       value: Number(node.text),
       location: toLoc(queryApi.getLocation(sourceFile, node)),
+      filePath: originFilePath(sourceFile),
     };
   }
   if (node.kind === ts.SyntaxKind.TrueKeyword) {
-    return { value: true, location: toLoc(queryApi.getLocation(sourceFile, node)) };
+    return {
+      value: true,
+      location: toLoc(queryApi.getLocation(sourceFile, node)),
+      filePath: originFilePath(sourceFile),
+    };
   }
   if (node.kind === ts.SyntaxKind.FalseKeyword) {
-    return { value: false, location: toLoc(queryApi.getLocation(sourceFile, node)) };
+    return {
+      value: false,
+      location: toLoc(queryApi.getLocation(sourceFile, node)),
+      filePath: originFilePath(sourceFile),
+    };
   }
   if (node.kind === ts.SyntaxKind.NullKeyword) {
-    return { value: null, location: toLoc(queryApi.getLocation(sourceFile, node)) };
+    return {
+      value: null,
+      location: toLoc(queryApi.getLocation(sourceFile, node)),
+      filePath: originFilePath(sourceFile),
+    };
   }
   if (
     ts.isAsExpression(node) ||
@@ -169,7 +228,7 @@ function expressionToLocated(
     ts.isParenthesizedExpression(node) ||
     ts.isTypeAssertionExpression(node)
   ) {
-    return expressionToLocated(node.expression, sourceFile);
+    return expressionToLocated(node.expression, sourceFile, ctx);
   }
   if (ts.isCallExpression(node)) {
     // defineMessages({ ... }) / defineMessage({ ... })
@@ -180,10 +239,190 @@ function expressionToLocated(
       node.arguments[0] &&
       ts.isObjectLiteralExpression(node.arguments[0])
     ) {
-      return objectLiteralToLocated(node.arguments[0], sourceFile);
+      return objectLiteralToLocated(node.arguments[0], sourceFile, ctx);
     }
   }
-  // Identifier / import / other calls — do not resolve.
+  // Identifier / import / other calls — resolved only via spread context.
+  return undefined;
+}
+
+/** Resolve `...ident` to a located object (local binding or imported default/named). */
+function resolveSpreadExpression(
+  expr: ts.Expression,
+  sourceFile: ts.SourceFile,
+  ctx: SpreadResolveContext | undefined,
+): LocatedNode | undefined {
+  const unwrapped =
+    ts.isAsExpression(expr) ||
+    ts.isParenthesizedExpression(expr) ||
+    ts.isSatisfiesExpression(expr)
+      ? expr.expression
+      : expr;
+
+  if (ts.isObjectLiteralExpression(unwrapped)) {
+    return objectLiteralToLocated(unwrapped, sourceFile, ctx);
+  }
+
+  if (!ts.isIdentifier(unwrapped)) return undefined;
+
+  const depth = ctx?.depth ?? 0;
+  if (depth >= MAX_SPREAD_DEPTH) return undefined;
+
+  // Same-file `const extra = { ... }`.
+  const local = findLocalObjectBinding(sourceFile, unwrapped.text);
+  if (local) {
+    return objectLiteralToLocated(local, sourceFile, {
+      depth: depth + 1,
+      fromFileName: ctx?.fromFileName ?? sourceFile.fileName,
+      ...(ctx?.resolveImport ? { resolveImport: ctx.resolveImport } : {}),
+      ...(ctx?.engine ? { engine: ctx.engine } : {}),
+    });
+  }
+
+  if (!ctx?.resolveImport || !ctx.fromFileName) return undefined;
+
+  const specifierInfo = findImportInfo(sourceFile, unwrapped.text);
+  if (!specifierInfo) return undefined;
+
+  const resolved = ctx.resolveImport({
+    fromFileName: ctx.fromFileName,
+    specifier: specifierInfo.specifier,
+    localName: unwrapped.text,
+  });
+  if (!resolved) return undefined;
+
+  const engine = ctx.engine ?? createAstEngine({ cache: true });
+  const parsed = engine.parse({
+    fileName: resolved.fileName,
+    sourceText: resolved.sourceText,
+  });
+  const target = findExportObject(
+    parsed.sourceFile,
+    specifierInfo.isDefault ? undefined : (specifierInfo.importedName ?? unwrapped.text),
+  );
+  if (!target) return undefined;
+
+  return objectLiteralToLocated(target, parsed.sourceFile, {
+    resolveImport: ctx.resolveImport,
+    fromFileName: resolved.fileName,
+    engine,
+    depth: depth + 1,
+  });
+}
+
+interface SpreadResolveContext {
+  readonly resolveImport?: (input: {
+    fromFileName: string;
+    specifier: string;
+    localName: string;
+  }) =>
+    | { fileName: string; sourceText: string }
+    | undefined;
+  readonly fromFileName?: string;
+  readonly engine?: AstEngine;
+  readonly depth?: number;
+}
+
+const MAX_SPREAD_DEPTH = 4;
+
+function findLocalObjectBinding(
+  sourceFile: ts.SourceFile,
+  name: string,
+): ts.ObjectLiteralExpression | undefined {
+  let found: ts.ObjectLiteralExpression | undefined;
+  traversalApi.forEachChild(sourceFile, (node) => {
+    if (found) return;
+    if (
+      ts.isVariableDeclaration(node) &&
+      ts.isIdentifier(node.name) &&
+      node.name.text === name &&
+      node.initializer
+    ) {
+      const init = node.initializer;
+      if (ts.isObjectLiteralExpression(init)) {
+        found = init;
+      } else if (
+        (ts.isAsExpression(init) || ts.isParenthesizedExpression(init)) &&
+        ts.isObjectLiteralExpression(init.expression)
+      ) {
+        found = init.expression;
+      }
+    }
+  });
+  return found;
+}
+
+function findImportInfo(
+  sourceFile: ts.SourceFile,
+  localName: string,
+):
+  | { specifier: string; isDefault: true }
+  | { specifier: string; isDefault: false; importedName: string }
+  | undefined {
+  for (const stmt of sourceFile.statements) {
+    if (!ts.isImportDeclaration(stmt) || !ts.isStringLiteral(stmt.moduleSpecifier)) {
+      continue;
+    }
+    const clause = stmt.importClause;
+    if (!clause) continue;
+    if (clause.name?.text === localName) {
+      return { specifier: stmt.moduleSpecifier.text, isDefault: true };
+    }
+    if (clause.namedBindings && ts.isNamedImports(clause.namedBindings)) {
+      for (const el of clause.namedBindings.elements) {
+        if (el.name.text === localName) {
+          return {
+            specifier: stmt.moduleSpecifier.text,
+            isDefault: false,
+            importedName: (el.propertyName ?? el.name).text,
+          };
+        }
+      }
+    }
+  }
+  return undefined;
+}
+
+function findExportObject(
+  sourceFile: ts.SourceFile,
+  exportName?: string,
+): ts.ObjectLiteralExpression | undefined {
+  // Default import → export default {…} or export default ident.
+  if (exportName === undefined) {
+    for (const stmt of sourceFile.statements) {
+      if (ts.isExportAssignment(stmt) && !stmt.isExportEquals) {
+        const expr = stmt.expression;
+        if (ts.isObjectLiteralExpression(expr)) return expr;
+        if (ts.isIdentifier(expr)) {
+          return findLocalObjectBinding(sourceFile, expr.text);
+        }
+      }
+    }
+    return undefined;
+  }
+
+  // Named import → export const name = {…}.
+  const local = findLocalObjectBinding(sourceFile, exportName);
+  if (local) return local;
+
+  for (const stmt of sourceFile.statements) {
+    if (
+      !ts.isVariableStatement(stmt) ||
+      !stmt.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)
+    ) {
+      continue;
+    }
+    for (const decl of stmt.declarationList.declarations) {
+      if (
+        ts.isIdentifier(decl.name) &&
+        decl.name.text === exportName &&
+        decl.initializer &&
+        ts.isObjectLiteralExpression(decl.initializer)
+      ) {
+        return decl.initializer;
+      }
+    }
+  }
   return undefined;
 }
 
@@ -571,21 +810,36 @@ function isNestedUnderLocaleResourceMap(
 
 /**
  * Extract translation object regions from JS/TS.
- * Does not resolve imports, spreads, or dynamic computed keys.
+ * Resolves same-file and imported object spreads when `resolveImport` is set.
+ * Does not resolve dynamic computed keys.
  */
 export function extractJsRegions(
   fileName: string,
   sourceText: string,
-  options: { includeUnknown: boolean; engine?: AstEngine },
+  options: {
+    includeUnknown: boolean;
+    engine?: AstEngine;
+    resolveImport?: SpreadResolveContext["resolveImport"];
+  },
 ): JsExtractionRegion[] {
   const engine = options.engine ?? createAstEngine({ cache: true });
   const parsed = engine.parse({ fileName, sourceText });
   const regions: JsExtractionRegion[] = [];
   const seen = new Set<string>();
   const targets = collectTargets(parsed.sourceFile);
+  const spreadCtx: SpreadResolveContext = {
+    ...(options.resolveImport ? { resolveImport: options.resolveImport } : {}),
+    fromFileName: fileName,
+    engine,
+    depth: 0,
+  };
 
   for (const target of targets) {
-    const located = objectLiteralToLocated(target.object, parsed.sourceFile);
+    const located = objectLiteralToLocated(
+      target.object,
+      parsed.sourceFile,
+      spreadCtx,
+    );
     const topKeys =
       located.children instanceof Map ? [...located.children.keys()] : [];
 
@@ -627,7 +881,7 @@ export function extractJsRegions(
         return;
       }
       scanned += 1;
-      const located = objectLiteralToLocated(node, parsed.sourceFile);
+      const located = objectLiteralToLocated(node, parsed.sourceFile, spreadCtx);
       const topKeys =
         located.children instanceof Map ? [...located.children.keys()] : [];
       if (looksLikeLocaleMap(topKeys)) {

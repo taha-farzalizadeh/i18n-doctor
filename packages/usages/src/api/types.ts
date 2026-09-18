@@ -59,6 +59,11 @@ export interface TranslationUsage {
   readonly context: UsageContext;
   /** Short explanation of why this was treated as a usage. */
   readonly evidence?: string;
+  /**
+   * When true, suppresses unused-key for this key but does not create
+   * missing-key (e.g. for-in over an API map keyed by a string enum).
+   */
+  readonly suppressUnusedOnly?: boolean;
   /** Framework surface that produced this usage (template analyzers). */
   readonly framework?: TemplateFrameworkId;
   /** Analyzer / detector id (e.g. `vue-template-analyzer`). */
@@ -82,6 +87,11 @@ export interface DynamicTranslationUsage {
   readonly prefixes: readonly string[];
   readonly suffixes: readonly string[];
   readonly contains: readonly string[];
+  /**
+   * When true, softens every unused key in the same namespace (e.g. `t(key)`
+   * inside `for (const key in apiResponse)`).
+   */
+  readonly coversNamespace?: boolean;
 }
 
 /**

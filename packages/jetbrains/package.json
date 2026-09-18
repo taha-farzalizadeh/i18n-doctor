@@ -1,8 +1,8 @@
 {
   "name": "i18n-doctor-jetbrains",
-  "version": "0.11.13",
+  "version": "0.11.14",
   "private": true,
-  "description": "JetBrains / WebStorm plugin — thin LSP client for the i18n-doctor language server",
+  "description": "JetBrains / WebStorm plugin \u2014 thin LSP client for the i18n-doctor language server",
   "license": "MIT",
   "scripts": {
     "bundle:server": "node scripts/bundle-server.mjs",
@@ -17,7 +17,7 @@
     "verify": "./gradlew verifyPlugin"
   },
   "dependencies": {
-    "@i18n-doctor/language-server": "0.11.13"
+    "@i18n-doctor/language-server": "0.11.14"
   },
   "devDependencies": {
     "esbuild": "^0.25.0",

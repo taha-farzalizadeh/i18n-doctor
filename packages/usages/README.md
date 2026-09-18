@@ -1,6 +1,6 @@
 # @i18n-doctor/usages
 
-> **Beta — v0.11.13** · Part of [i18n-doctor](https://github.com/taha-farzalizadeh/i18n-doctor) — static localization analysis for JavaScript and TypeScript.
+> **Beta — v0.11.14** · Part of [i18n-doctor](https://github.com/taha-farzalizadeh/i18n-doctor) — static localization analysis for JavaScript and TypeScript.
 
 Translation key **usage** detection across React, Vue, Angular, and more — plus
 helpers used by the issue engine:
@@ -12,7 +12,9 @@ helpers used by the issue engine:
 - Translator factories (`usersColumns(t)` inherits call-site namespace)
 - String enums + `useState` maps (`t(item.name)` / `WpNavbar.SENSITIVE_TERMS`)
 - Prop-passed config objects (`t(item.translation)` for navigation configs)
-- Helper returns, string maps, object/chart configs, route titles, `Object.keys(Enum)`
+- Helper returns, string maps, object/chart configs, route titles (`*Route` + nested settings/children), `Object.keys(Enum)`
+- `for…in` `t(key)` over reachable property-type string enums (`suppressUnusedOnly`)
+- Spread-imported catalog keys keep origin file locations for diagnostics
 - String-literal array maps (`(["JALALI","GEORGIAN"] as const).map(op => t(op))`)
 - Enum-typed props (`t(type as string)` when `type?: SomeEnum | string`)
 - Path-alias imports for translator factories (`app/...`, `@core/...`)

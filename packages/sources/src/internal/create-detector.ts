@@ -1,6 +1,8 @@
 import path from "node:path";
+import fs from "node:fs";
 import { createAstEngine } from "@i18n-doctor/ast";
 import { createDetector } from "@i18n-doctor/detect";
+import { createImportResolver } from "@i18n-doctor/imports";
 import {
   createScanner,
   type FileSystemPort,
@@ -112,6 +114,7 @@ class DefaultSourceDetector implements TranslationSourceDetector {
 
       await mapPool(candidates, EXTRACT_CONCURRENCY, async (candidate) => {
         const extracted = await extractCandidate({
+          root,
           candidate,
           snapshot,
           libraryHint,
@@ -187,6 +190,7 @@ class DefaultSourceDetector implements TranslationSourceDetector {
 }
 
 async function extractCandidate(input: {
+  root: string;
   candidate: SourceCandidate;
   snapshot: ProjectSnapshotView;
   libraryHint: string | undefined;
@@ -196,6 +200,7 @@ async function extractCandidate(input: {
   warnings: CatalogWarning[];
 }): Promise<TranslationSource[]> {
   const {
+    root,
     candidate,
     snapshot,
     libraryHint,
@@ -306,9 +311,29 @@ async function extractCandidate(input: {
       return sources;
     }
 
+    const importResolver = createImportResolver({ root });
+    const absoluteFrom = path.join(root, filePath);
     const regions = extractJsRegions(filePath, text, {
       includeUnknown: includeUnknownStructures,
       engine: astEngine,
+      resolveImport: ({ specifier }) => {
+        const resolved = importResolver.resolveSpecifier({
+          fromFile: absoluteFrom,
+          specifier,
+        });
+        if (!resolved?.relativePath) return undefined;
+        const absoluteTarget =
+          resolved.absolutePath ?? path.join(root, resolved.relativePath);
+        try {
+          const sourceText = fs.readFileSync(absoluteTarget, "utf8");
+          return {
+            fileName: toPosixPath(resolved.relativePath),
+            sourceText,
+          };
+        } catch {
+          return undefined;
+        }
+      },
     });
     for (const region of regions) {
       const source = buildSourceFromEntries({
@@ -384,6 +409,7 @@ async function extractRegisteredFiles(input: {
       continue;
     }
     const extracted = await extractCandidate({
+      root: input.root,
       candidate: {
         file,
         score: 55,

@@ -14,6 +14,8 @@
  * (`t(menu.name)`), and remapped helper-array labels (`t(label)`).
  */
 
+import fs from "node:fs";
+import path from "node:path";
 import ts from "typescript";
 import type { StaticKeyOptions } from "./ast-helpers.js";
 import { staticStringKeys } from "./ast-helpers.js";
@@ -21,7 +23,10 @@ import type { EnumValueIndex } from "./enum-values.js";
 import { allStringEnumValues } from "./enum-values.js";
 import type { HelperReturnIndex } from "./helper-returns.js";
 import { resolveHelperCallKeys } from "./helper-returns.js";
-import { resolveImportedFileCandidates } from "./module-path.js";
+import {
+  getActiveRoot,
+  resolveImportedFileCandidates,
+} from "./module-path.js";
 
 /** `fileRel#exportName` → property name → static string keys. */
 export type ObjectArrayPropIndex = Map<
@@ -236,6 +241,16 @@ export function resolveMappedPropKeys(
       );
       if (fromRoute.length > 0) return fromRoute;
 
+      // for (const key in apiMap) t(key) — keys are string-enum values
+      // (e.g. IPropertyType.STRING) reachable via imports / type files.
+      const fromForInEnum = keysFromForInReachableEnums(
+        ident,
+        sourceFile,
+        relativePath,
+        enumIndex,
+      );
+      if (fromForInEnum.length > 0) return fromForInEnum;
+
       // const label = map[item] ? map[item] : item; t(label)
       const fromLocalAlias = keysFromLocalKeyAlias(
         ident,
@@ -288,8 +303,10 @@ export function resolveMappedPropKeys(
     );
     if (fromCollection.length > 0) return fromCollection;
     // Map over props/config we couldn't fully resolve (e.g. config.steps).
+    // Prefer same-file / related configs — never every `name` in the project
+    // (that leaks route slugs like "map" into unrelated `t(ds.name)` sites).
     if (WIDE_INDEX_PROPS.has(access.property)) {
-      return keysForPropFromIndex(access.property, index);
+      return keysForPropFromIndex(access.property, index, relativePath);
     }
   }
 
@@ -305,7 +322,7 @@ export function resolveMappedPropKeys(
 
   // `t(item.translation)` when `item` is a props/parameter binding.
   if (isPropsOrParamObjectBinding(access.object, sourceFile)) {
-    return keysForPropFromIndex(access.property, index);
+    return keysForPropFromIndex(access.property, index, relativePath);
   }
 
   // `t(data.actionType)` when actionType is a string enum (ActionType).
@@ -322,16 +339,27 @@ export function resolveMappedPropKeys(
 
 /**
  * Demand-driven: any `t(x.prop)` on a props/param object pulls static `prop`
- * values from every indexed object-array / object-config (incl. nested children),
- * but only for prop names that commonly hold translation keys.
+ * values from indexed object-array / object-config entries that are related to
+ * the usage file (same file/dir tree, shared app-configs, *Config modules).
  */
 function keysForPropFromIndex(
   propName: string,
   index: ObjectArrayPropIndex,
+  usageRelativePath?: string,
+  entryFileFilter?: (entryFile: string) => boolean,
 ): readonly string[] {
   if (!WIDE_INDEX_PROPS.has(propName)) return [];
   const out: string[] = [];
-  for (const props of index.values()) {
+  for (const [entryKey, props] of index) {
+    const entryFile = entryKey.split("#")[0] ?? entryKey;
+    if (entryFileFilter && !entryFileFilter(entryFile)) continue;
+    if (
+      usageRelativePath &&
+      !entryFileFilter &&
+      !isRelevantPropIndexEntry(entryKey, usageRelativePath)
+    ) {
+      continue;
+    }
     const keys = props.get(propName);
     if (!keys) continue;
     for (const key of keys) {
@@ -339,6 +367,49 @@ function keysForPropFromIndex(
     }
   }
   return out;
+}
+
+/** Limit cross-file prop leakage (e.g. explore header keys → navigation t()). */
+function isRelevantPropIndexEntry(
+  indexEntryKey: string,
+  usageRelativePath: string,
+): boolean {
+  const entryFile = indexEntryKey.split("#")[0] ?? indexEntryKey;
+  const usage = normalizeRel(usageRelativePath);
+  const entry = normalizeRel(entryFile);
+  if (entry === usage) return true;
+
+  const usageDir = usage.includes("/")
+    ? usage.slice(0, usage.lastIndexOf("/"))
+    : "";
+  if (usageDir && (entry.startsWith(`${usageDir}/`) || entry === usageDir)) {
+    return true;
+  }
+
+  // Shared app config modules (navigationConfig, etc.).
+  if (/(^|\/)app-configs\//.test(entry) || /Config\.[cm]?[jt]sx?$/i.test(entry)) {
+    return true;
+  }
+
+  // Same feature folder under src/app/(pages|layout)/… first two segments.
+  const usageFeature = featureFolder(usage);
+  const entryFeature = featureFolder(entry);
+  if (usageFeature && entryFeature && usageFeature === entryFeature) {
+    return true;
+  }
+
+  return false;
+}
+
+function featureFolder(rel: string): string | undefined {
+  const parts = rel.split("/");
+  // src/app/pages/explore/... → pages/explore
+  // src/app/layout/main/... → layout/main
+  const appIdx = parts.indexOf("app");
+  if (appIdx >= 0 && parts.length > appIdx + 2) {
+    return `${parts[appIdx + 1]}/${parts[appIdx + 2]}`;
+  }
+  return undefined;
 }
 
 /**
@@ -1105,6 +1176,25 @@ function propsFromObjectOfObjects(
     }
     if (bucket.length > 0) map.set(name, bucket);
   };
+
+  // Own leaf props (e.g. route `title: "LOGIN"`) — must not be dropped just
+  // because the object also has nested `settings` / `children`.
+  for (const prop of obj.properties) {
+    if (!ts.isPropertyAssignment(prop)) continue;
+    const init = unwrap(prop.initializer);
+    if (ts.isObjectLiteralExpression(init) || ts.isArrayLiteralExpression(init)) {
+      continue;
+    }
+    const name = propertyNameText(prop.name, sourceFile, options);
+    if (!name) continue;
+    const values = staticStringKeys(
+      prop.initializer,
+      sourceFile,
+      new Set(),
+      options,
+    );
+    if (values.length > 0) merge(name, values);
+  }
 
   for (const prop of obj.properties) {
     if (!ts.isPropertyAssignment(prop)) continue;
@@ -2130,7 +2220,7 @@ function rootIndexedObjectName(expr: ts.Expression): string | undefined {
 
 /**
  * `const matchedTitle = getRouteParam(pathname, "title"); t(matchedTitle)`
- * → all indexed `title` keys (routes / nav configs).
+ * → title strings from route modules (`*Route.tsx`), not every `title` in the app.
  */
 function keysFromRouteParamBinding(
   id: ts.Identifier,
@@ -2162,7 +2252,180 @@ function keysFromRouteParamBinding(
   ) {
     return [];
   }
-  return keysForPropFromIndex(propArg.text, index);
+  return keysForPropFromIndex(propArg.text, index, undefined, isRouteConfigFile);
+}
+
+function isRouteConfigFile(entryFile: string): boolean {
+  const file = normalizeRel(entryFile);
+  return (
+    /Route\.[cm]?[jt]sx?$/i.test(file) ||
+    /routesConfig\.[cm]?[jt]sx?$/i.test(file) ||
+    /(^|\/)routes\.[cm]?[jt]sx?$/i.test(file)
+  );
+}
+
+/**
+ * `for (const key in apiResponse) t(key)` when keys are string-enum values
+ * (IPropertyType.STRING, …) reachable through this file's imports.
+ */
+function keysFromForInReachableEnums(
+  id: ts.Identifier,
+  sourceFile: ts.SourceFile,
+  relativePath: string,
+  enumIndex: EnumValueIndex | undefined,
+): readonly string[] {
+  if (!enumIndex || !isForInLoopVariable(id, sourceFile)) return [];
+
+  const enumNames = new Set<string>();
+
+  // Direct value imports of enums.
+  for (const stmt of sourceFile.statements) {
+    if (!ts.isImportDeclaration(stmt) || !stmt.importClause) continue;
+    const named = stmt.importClause.namedBindings;
+    if (!named || !ts.isNamedImports(named)) continue;
+    for (const el of named.elements) {
+      const name = el.name.text;
+      const values = allStringEnumValues(
+        name,
+        sourceFile,
+        relativePath,
+        enumIndex,
+      );
+      if (values.length > 0) enumNames.add(name);
+    }
+  }
+
+  // One hop: relative type modules that import / reference string enums.
+  for (const hop of collectRelativeImportPaths(sourceFile)) {
+    for (const candidate of resolveImportedFileCandidates(relativePath, hop)) {
+      for (const [key, members] of enumIndex) {
+        if (!key.startsWith(`${normalizeRel(candidate)}#`)) continue;
+        if (!isPropertyLikeStringEnum(members)) continue;
+        const enumName = key.slice(key.lastIndexOf("#") + 1);
+        enumNames.add(enumName);
+      }
+      // Enums imported by that module (e.g. types.ts → IPropertyType).
+      for (const name of enumNamesImportedByModule(candidate, enumIndex)) {
+        enumNames.add(name);
+      }
+    }
+  }
+
+  const out: string[] = [];
+  for (const name of enumNames) {
+    for (const value of allStringEnumValues(
+      name,
+      sourceFile,
+      relativePath,
+      enumIndex,
+    )) {
+      if (value.length > 0 && !out.includes(value)) out.push(value);
+    }
+  }
+  return out;
+}
+
+function isForInLoopVariable(
+  id: ts.Identifier,
+  sourceFile: ts.SourceFile,
+): boolean {
+  const name = id.text;
+  const usePos = id.getStart(sourceFile);
+  let found = false;
+  const visit = (node: ts.Node): void => {
+    if (found) return;
+    if (ts.isForInStatement(node)) {
+      const intro = node.initializer;
+      if (
+        ts.isVariableDeclarationList(intro) &&
+        intro.declarations.some(
+          (d) =>
+            ts.isIdentifier(d.name) &&
+            d.name.text === name &&
+            d.name.getStart(sourceFile) < usePos,
+        )
+      ) {
+        found = true;
+        return;
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return found;
+}
+
+/** True when `id` is the loop variable of a `for...in` that encloses this use. */
+export function isForInLoopVariableIdent(
+  id: ts.Identifier,
+  sourceFile: ts.SourceFile,
+): boolean {
+  return isForInLoopVariable(id, sourceFile);
+}
+
+function collectRelativeImportPaths(sourceFile: ts.SourceFile): readonly string[] {
+  const out: string[] = [];
+  for (const stmt of sourceFile.statements) {
+    if (!ts.isImportDeclaration(stmt) || !ts.isStringLiteral(stmt.moduleSpecifier)) {
+      continue;
+    }
+    const spec = stmt.moduleSpecifier.text;
+    if (spec.startsWith(".")) out.push(spec);
+  }
+  return out;
+}
+
+/** Enums defined in `moduleRel` or imported into it by name. */
+function enumNamesImportedByModule(
+  moduleRel: string,
+  enumIndex: EnumValueIndex,
+): readonly string[] {
+  const root = getActiveRoot();
+  if (!root) return [];
+  const absCandidates = moduleCandidates(moduleRel).map((c) =>
+    path.isAbsolute(c) ? c : path.join(root, c),
+  );
+  const names: string[] = [];
+  for (const abs of absCandidates) {
+    let text: string;
+    try {
+      text = fs.readFileSync(abs, "utf8");
+    } catch {
+      continue;
+    }
+    // Cheap scan for `import { Foo } from` / `import type { Foo }` names that
+    // exist as enums in the index — avoids a second full project parse.
+    const importNames =
+      text.matchAll(
+        /\bimport\s+(?:type\s+)?(?:\{([^}]+)\}|(\w+))\s+from\s+['"][^'"]+['"]/g,
+      );
+    for (const match of importNames) {
+      const group = match[1] ?? match[2] ?? "";
+      for (const part of group.split(",")) {
+        const name = part
+          .replace(/\bas\s+\w+/g, "")
+          .replace(/\btype\b/g, "")
+          .trim();
+        if (!name || !/^[A-Za-z_][\w]*$/.test(name)) continue;
+        const suffix = `#${name}`;
+        for (const key of enumIndex.keys()) {
+          if (key.endsWith(suffix) && !names.includes(name)) names.push(name);
+        }
+      }
+    }
+  }
+  return names;
+}
+
+function isPropertyLikeStringEnum(
+  members: ReadonlyMap<string, string>,
+): boolean {
+  if (members.size < 2 || members.size > 40) return false;
+  let matched = 0;
+  for (const [name, value] of members) {
+    if (name === value && /^[A-Z][A-Z0-9_]*$/.test(value)) matched += 1;
+  }
+  return matched >= members.size - 1 && matched >= 2;
 }
 
 function objectArrayFromFunctionBody(
@@ -2646,10 +2909,22 @@ function propsFromSingleObject(
     if (bucket.length > 0) map.set(name, bucket);
   };
 
+  // Objects with both `name` and `translation` use `name` as a route/id slug
+  // (e.g. "map" / "analytics") — only `translation` holds the i18n key.
+  const propNames = new Set<string>();
+  for (const prop of obj.properties) {
+    if (!ts.isPropertyAssignment(prop)) continue;
+    const n = propertyNameText(prop.name, sourceFile, options);
+    if (n) propNames.add(n);
+  }
+  const skipNameAsKey =
+    propNames.has("name") && propNames.has("translation");
+
   for (const prop of obj.properties) {
     if (!ts.isPropertyAssignment(prop)) continue;
     const name = propertyNameText(prop.name, sourceFile, options);
     if (!name) continue;
+    if (skipNameAsKey && name === "name") continue;
     const init = unwrap(prop.initializer);
     if (ts.isArrayLiteralExpression(init) && looksLikeObjectArray(init)) {
       const nested = propsFromObjectArray(init, sourceFile, options);

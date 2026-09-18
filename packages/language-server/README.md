@@ -1,11 +1,16 @@
 # @i18n-doctor/language-server
 
-> **Beta — v0.11.13** (same version as CLI / ESLint / IDE plugins)
+> **Beta — v0.11.14** (same version as CLI / ESLint / IDE plugins)
 
 Live i18n diagnostics plus **Go to Translation**, **Hover**, and **Completion**
 in any LSP-compatible editor. The server is an adapter: it translates
 i18n-doctor analysis into LSP features and does no independent parsing of its
 own.
+
+### What's new in 0.11.14
+
+- Route tab titles, `for…in` property-type enums, spread-origin underlines, catalog string concat
+- `SERVER_VERSION` is **0.11.14**.
 
 ### What's new in 0.11.13
 

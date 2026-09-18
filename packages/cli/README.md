@@ -1,9 +1,16 @@
 # @i18n-doctor/cli
 
-> **Beta — v0.11.13** · [GitHub](https://github.com/taha-farzalizadeh/i18n-doctor) · [Issues](https://github.com/taha-farzalizadeh/i18n-doctor/issues)
+> **Beta — v0.11.14** · [GitHub](https://github.com/taha-farzalizadeh/i18n-doctor) · [Issues](https://github.com/taha-farzalizadeh/i18n-doctor/issues)
 
 Static localization analysis for JavaScript and TypeScript projects.  
 Finds **unused**, **missing**, **duplicate** translation keys, and **untranslated** hardcoded UI text — without executing your code.
+
+## What's new in 0.11.14
+
+- Route tab titles via `getRouteParam(..., "title")` from `*Route` files (nested `settings`/`children` included)
+- `for…in` `t(key)` over API maps keyed by string enums (e.g. `IPropertyType`) without inventing missing keys
+- Spread-imported catalog keys underline the origin file, not the spreader
+- Static catalog string concat (`"a" + "b"`) in JS/TS sources
 
 ## What's new in 0.11.13
 

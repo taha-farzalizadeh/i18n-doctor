@@ -4,12 +4,19 @@ export interface FlatEntry {
   readonly key: string;
   readonly value: TranslationValue;
   readonly location: SourceLocation;
+  /**
+   * Origin file when this entry was pulled in via an object spread from
+   * another module. Diagnostics should underline that file, not the spreader.
+   */
+  readonly filePath?: string;
 }
 
 export interface LocatedNode {
   readonly value: unknown;
   readonly location: SourceLocation;
   readonly children?: ReadonlyMap<string, LocatedNode> | readonly LocatedNode[];
+  /** Set when this node (or its leaves) originated in another source file. */
+  readonly filePath?: string;
 }
 
 const FILE_LOCATION: SourceLocation = {
@@ -117,7 +124,12 @@ function walkLocated(
   }
   if (isTranslationLeaf(node.value)) {
     if (prefix) {
-      out.push({ key: prefix, value: node.value, location: node.location });
+      out.push({
+        key: prefix,
+        value: node.value,
+        location: node.location,
+        ...(node.filePath ? { filePath: node.filePath } : {}),
+      });
     }
     return;
   }
@@ -136,6 +148,11 @@ function walkLocated(
         key,
         value,
         location: msgNode?.location ?? node.location,
+        ...(node.filePath
+          ? { filePath: node.filePath }
+          : msgNode?.filePath
+            ? { filePath: msgNode.filePath }
+            : {}),
       });
     }
     return;

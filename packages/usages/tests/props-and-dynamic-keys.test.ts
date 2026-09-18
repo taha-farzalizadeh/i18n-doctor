@@ -581,11 +581,23 @@ export default {
   title: "USERS_MANAGEMENT",
 };
 `,
-      "src/regionRoute.tsx": `
-export default {
-  path: "regions",
-  title: "REGION_MANAGEMENT",
+      "src/loginRoute.tsx": `
+const LoginRoute = {
+  path: "login",
+  settings: { hideNavbar: true },
+  title: "LOGIN",
+  element: null,
 };
+export default LoginRoute;
+`,
+      "src/exploreRoute.tsx": `
+const ExploreRoute = {
+  path: "explore",
+  title: "DATA_EXPLORE",
+  settings: { wpDependant: true },
+  children: [{ path: "map", title: "MAP_VIEW" }],
+};
+export default ExploreRoute;
 `,
       "src/utils.ts": `
 export function getRouteParam(pathname: string, key: string) {
@@ -608,7 +620,51 @@ export function AppLayout({ pathname }: { pathname: string }) {
     });
     const keys = catalog.usages.map((u) => u.key);
     expect(keys).toContain("USERS_MANAGEMENT");
-    expect(keys).toContain("REGION_MANAGEMENT");
+    expect(keys).toContain("LOGIN");
+    expect(keys).toContain("DATA_EXPLORE");
+    expect(keys).toContain("MAP_VIEW");
+  });
+
+  it("resolves for-in t(key) via imported property-type enum", async () => {
+    const root = await fixture({
+      "package.json": JSON.stringify({
+        dependencies: { "react-i18next": "14.0.0" },
+      }),
+      "src/types.ts": `
+export enum IPropertyType {
+  STRING = "STRING",
+  BOOLEAN = "BOOLEAN",
+  INTEGER = "INTEGER",
+}
+export type Row = { type: IPropertyType };
+`,
+      "src/Chart.tsx": `
+import { useTranslation } from 'react-i18next';
+import type { Row } from './types';
+export function Chart(data: Record<string, number>) {
+  const { t } = useTranslation('wp');
+  const out = [];
+  for (const key in data) {
+    out.push(t(key));
+  }
+  return out;
+}
+`,
+    });
+    const catalog = await createUsageDetector().detect({
+      root,
+      useDetection: false,
+    });
+    const keys = catalog.usages
+      .filter((u) => u.namespace === "wp")
+      .map((u) => u.key);
+    expect(keys).toContain("STRING");
+    expect(keys).toContain("BOOLEAN");
+    expect(keys).toContain("INTEGER");
+    const stringUsage = catalog.usages.find(
+      (u) => u.key === "STRING" && u.namespace === "wp",
+    );
+    expect(stringUsage?.suppressUnusedOnly).toBe(true);
   });
 
   it("resolves Object.keys(Enum).map((key) => t(key))", async () => {

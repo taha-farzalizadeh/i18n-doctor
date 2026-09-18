@@ -46,6 +46,40 @@ describe("issue engine — unused key", () => {
     expect(result.issues).toHaveLength(0);
   });
 
+  it("suppressUnusedOnly usages clear unused without creating missing", () => {
+    const result = createIssueEngine().analyze({
+      root: ROOT,
+      definitions: [
+        def("STRING", "locales/en.json", 1, {
+          locale: "en",
+          namespace: "wp",
+        }),
+        def("BOOLEAN", "locales/en.json", 2, {
+          locale: "en",
+          namespace: "wp",
+        }),
+      ],
+      usages: [
+        use("STRING", "src/Chart.tsx", 10, {
+          namespace: "wp",
+          suppressUnusedOnly: true,
+        }),
+        use("BOOLEAN", "src/Chart.tsx", 10, {
+          namespace: "wp",
+          suppressUnusedOnly: true,
+        }),
+        use("LAT", "src/Chart.tsx", 10, {
+          namespace: "wp",
+          suppressUnusedOnly: true,
+        }),
+      ],
+    });
+
+    expect(result.stats.unusedKey).toBe(0);
+    expect(result.stats.missingKey).toBe(0);
+    expect(result.issues.filter((i) => i.key === "LAT")).toHaveLength(0);
+  });
+
   it("softens unused keys that match a dynamic usage prefix", () => {
     const result = createIssueEngine().analyze({
       root: ROOT,

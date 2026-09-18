@@ -1,12 +1,21 @@
 # i18n-doctor for VS Code
 
-> **Beta — v0.11.13**
+> **Beta — v0.11.14**
 
 Live i18n diagnostics, **Go to Translation**, **Hover**, and **Completion** in
 VS Code. This extension is an LSP client: it starts the bundled
 [`@i18n-doctor/language-server`](../language-server) over stdio and lets VS Code
 render what the server publishes. It does not parse source, extract keys, or
 decide what is unused.
+
+## What's new in 0.11.14
+
+- Route tab titles via `getRouteParam(..., "title")` from `*Route` files (nested `settings`/`children` included)
+- `for…in` `t(key)` over API maps keyed by string enums (e.g. `IPropertyType`) without inventing missing keys
+- Spread-imported catalog keys (`…settingFa`) underline the **origin** file, not the spreader
+- Static catalog string concat (`"a" + "b"`) in JS/TS sources
+- **Unified versioning:** npm packages, language-server, and IDE plugins are all **0.11.14**
+- Bundled language server @ 0.11.14
 
 ## What's new in 0.11.13
 
@@ -174,6 +183,7 @@ So a published extension is self-contained.
 
 ### Changelog (recent)
 
+- **0.11.14** — Route titles, for-in enums, spread-origin underlines
 - **0.11.13** — Live unused-key updates; incremental locale refresh; broader static usages
 - **0.11.11** — No false duplicate-key across locales in inline i18next `resources` maps
 - **0.11.10** — `i18n.t({ ns })`, JSX `Object.keys(Enum)`, enum helper arrays, `fn({ t })`, `t(data.actionType)`

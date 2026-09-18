@@ -16,6 +16,7 @@ import {
 import { isI18nextFamily, isIntlObject } from "./bindings.js";
 import { locationOf } from "./location.js";
 import {
+  isForInLoopVariableIdent,
   resolveMappedPropKeys,
   type JsxEnumPropIndex,
   type ObjectArrayPropIndex,
@@ -86,6 +87,9 @@ export function collectMappedPropUsages(input: {
     if (!binding) return;
 
     const location = locationOf(input.sourceFile, keyNode);
+    const suppressUnusedOnly =
+      ts.isIdentifier(keyNode) &&
+      isForInLoopVariableIdent(keyNode, input.sourceFile);
     for (const key of keys) {
       const resolvedKey = binding.keyPrefix
         ? `${binding.keyPrefix}.${key}`
@@ -110,7 +114,10 @@ export function collectMappedPropUsages(input: {
           namespaceResolved: binding.namespace !== undefined,
           confidence: Math.min(0.85, binding.confidence),
           context: "function-call",
-          evidence: `${binding.evidence} (mapped object prop)`,
+          evidence: suppressUnusedOnly
+            ? `${binding.evidence} (for-in enum keys)`
+            : `${binding.evidence} (mapped object prop)`,
+          ...(suppressUnusedOnly ? { suppressUnusedOnly: true } : {}),
         }),
       );
     }

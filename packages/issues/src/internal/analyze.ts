@@ -255,7 +255,9 @@ function definitionMatchesDynamicUsage(
   dynamic: DynamicUsageFact,
   ctx: MatchContext,
 ): boolean {
-  if (!keyMatchesDynamicFragments(definition.key, dynamic)) {
+  if (dynamic.coversNamespace) {
+    // Namespace-wide opaque coverage (for-in / Object.keys over API maps).
+  } else if (!keyMatchesDynamicFragments(definition.key, dynamic)) {
     return false;
   }
   if (!ctx.matchNamespace || !definition.namespace) {
@@ -307,6 +309,10 @@ function formatDynamicHint(
   hits: readonly DynamicUsageFact[],
 ): string {
   const primary = hits[0]!;
+  if (primary.coversNamespace) {
+    const where = `${primary.relativePath}:${primary.line}`;
+    return `possibly covered by dynamic key lookup at ${where}`;
+  }
   const fragment =
     primary.prefixes.find((p) => key.startsWith(p)) ??
     primary.suffixes.find((s) => key.endsWith(s)) ??
@@ -389,6 +395,9 @@ function findMissingKeys(
 
   const missingGroups = new Map<string, UsageFact[]>();
   for (const usage of usages) {
+    if (usage.suppressUnusedOnly) {
+      continue;
+    }
     const found = activeDefinitions.some((def) =>
       definitionMatchesUsage(def, usage, options.match),
     );

@@ -220,6 +220,10 @@ function scoreLiteral(text: string): number | undefined {
   if (trimmed.length < 2) {
     return undefined;
   }
+  // HTML / XML character references are layout, not copy.
+  if (/^&([a-zA-Z]+|#\d+|#x[\da-fA-F]+);$/.test(trimmed)) {
+    return undefined;
+  }
   if (!/[A-Za-z\u00C0-\u024F]/.test(trimmed)) {
     return undefined;
   }

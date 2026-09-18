@@ -84,7 +84,7 @@ describe("JS/TS extraction", () => {
     expect(keys).not.toContain("dynamic");
   });
 
-  it("does not expand spread objects", () => {
+  it("expands same-file spread objects", () => {
     const regions = extractJsRegions(
       "messages.ts",
       `
@@ -95,26 +95,65 @@ describe("JS/TS extraction", () => {
     );
     const keys = regions.flatMap((r) => r.entries.map((e) => e.key));
     expect(keys).toContain("b");
-    expect(keys).not.toContain("a");
+    expect(keys).toContain("a");
   });
 
-  it("does not resolve imported objects", async () => {
+  it("resolves imported default-export spreads", async () => {
     const root = await fixture({
-      "src/i18n/base.ts": `export const shared = { a: 'A' };`,
+      "src/i18n/base.ts": `export default { a: 'A', TOPOGRAPHY: 'Topo' };`,
       "src/i18n/messages.ts": `
-        import { shared } from './base';
-        export const messages = { ...shared, b: 'B' };
+        import shared from './base';
+        export default { ...shared, b: 'B' };
       `,
+      "package.json": JSON.stringify({ name: "spread-test" }),
     });
     const catalog = await createSourceDetector().discover({
       root,
       useDetection: false,
     });
-    const keys = catalog.keys
-      .filter((k) => k.filePath.includes("messages.ts"))
-      .map((k) => k.key);
-    expect(keys).toContain("b");
-    expect(keys).not.toContain("a");
+
+    // Own key stays on the spreading file.
+    const b = catalog.keys.find((k) => k.key === "b");
+    expect(b?.filePath.replace(/\\/g, "/")).toMatch(/i18n\/messages\.ts$/);
+
+    // Spread-imported keys underline the origin module, not the spreader.
+    expect(
+      catalog.keys.some(
+        (k) =>
+          k.key === "a" &&
+          k.filePath.replace(/\\/g, "/").endsWith("i18n/base.ts"),
+      ),
+    ).toBe(true);
+    expect(
+      catalog.keys.some(
+        (k) =>
+          k.key === "TOPOGRAPHY" &&
+          k.filePath.replace(/\\/g, "/").endsWith("i18n/base.ts"),
+      ),
+    ).toBe(true);
+    expect(
+      catalog.keys.some(
+        (k) =>
+          (k.key === "a" || k.key === "TOPOGRAPHY") &&
+          k.filePath.replace(/\\/g, "/").endsWith("i18n/messages.ts"),
+      ),
+    ).toBe(false);
+  });
+
+  it("extracts string-concatenated catalog values", () => {
+    const regions = extractJsRegions(
+      "en.ts",
+      `
+      export default {
+        SHORT: "ok",
+        LONG: "hello," + " world",
+      };
+      `,
+      { includeUnknown: false },
+    );
+    const keys = regions.flatMap((r) => r.entries.map((e) => e.key));
+    expect(keys).toContain("SHORT");
+    expect(keys).toContain("LONG");
   });
 
   it("extracts objects returned from message-named functions", () => {

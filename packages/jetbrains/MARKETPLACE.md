@@ -106,7 +106,7 @@ Marketplace accepts HTML. Copy everything between the markers:
   <li>CLI: <code>npx i18n-doctor check</code></li>
 </ul>
 
-<p><i>Beta v0.11.13 — please report issues on GitHub.</i></p>
+<p><i>Beta v0.11.14 — please report issues on GitHub.</i></p>
 <!-- END MARKETPLACE DESCRIPTION -->
 ```
 
@@ -160,6 +160,21 @@ Capture from `npm run runIde -w i18n-doctor-jetbrains` + `examples/demo-project`
 
 - Use channel **default** for public releases.
 - Use channel **eap** only if you intentionally ship pre-releases.
+
+## Change notes (0.11.14)
+
+```html
+<h3>0.11.14</h3>
+<p>Fewer false unused keys for route tab titles, property-type enums, and spread catalogs.</p>
+<ul>
+  <li>Browser-tab titles via <code>getRouteParam(..., "title")</code> from <code>*Route</code> files (including nested <code>settings</code>/<code>children</code>)</li>
+  <li><code>for…in</code> <code>t(key)</code> over API maps keyed by string enums (e.g. <code>IPropertyType</code>) without inventing missing keys</li>
+  <li>Spread-imported catalog keys (<code>…settingFa</code>) underline the origin file, not the spreader</li>
+  <li>Static catalog string concat (<code>"a" + "b"</code>) in JS/TS sources</li>
+  <li>npm / ESLint / language-server / JetBrains / VS Code all at <b>0.11.14</b></li>
+  <li>Rebundled language server @ 0.11.14</li>
+</ul>
+```
 
 ## Change notes (0.11.13)
 

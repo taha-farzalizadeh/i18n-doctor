@@ -9,7 +9,7 @@ todos:
     content: Cache index in LS; add definition/hover/completion handlers + capability ads
     status: completed
   - id: ls-tests
-    content: Add LS + index unit/integration tests (incl. Santez-style fixtures)
+    content: Add LS + index unit/integration tests (incl. co-located addResourceBundle fixtures)
     status: completed
   - id: vscode-docs-e2e
     content: Rebundle VS Code server; update README/examples/e2e for three features
@@ -155,7 +155,7 @@ Updates:
 
 - No Hover/Completion/Definition
 - Keep diagnostics path
-- Add a small shared-test or unit test that `hasKey` / index lookup agrees with `definitionMatchesUsage` for the same catalog + usage fixtures (including Santez-style `addResourceBundle` co-located `i18n/en.ts` from [`packages/sources/tests/i18next-registration.test.ts`](packages/sources/tests/i18next-registration.test.ts) / [`packages/issues/tests/namespace-regression.test.ts`](packages/issues/tests/namespace-regression.test.ts))
+- Add a small shared-test or unit test that `hasKey` / index lookup agrees with `definitionMatchesUsage` for the same catalog + usage fixtures (including co-located `addResourceBundle` `i18n/en.ts` from [`packages/sources/tests/i18next-registration.test.ts`](packages/sources/tests/i18next-registration.test.ts) / [`packages/issues/tests/namespace-regression.test.ts`](packages/issues/tests/namespace-regression.test.ts))
 - Optional later: issue engine can call `hasKey` for speed — **out of scope** unless cheap; Phase 20 acceptance is agreement, not rewrite
 
 ## 6. Tests (minimum)
@@ -170,7 +170,7 @@ Updates:
 - Update `lifecycle.test.ts` capabilities
 - Integration: same fixture → index `hasKey` === issue `missing-key` absence
 
-Reuse / extend LS fixtures in [`tests/fixtures.ts`](packages/language-server/tests/fixtures.ts); add a Santez-style fixture (co-located + `addResourceBundle`) — repo has no “Santez” name; treat that as the Phase 013.5 pattern.
+Reuse / extend LS fixtures in [`tests/fixtures.ts`](packages/language-server/tests/fixtures.ts); add a co-located `addResourceBundle` fixture — treat that as the Phase 013.5 pattern.
 
 ## 7. Documentation
 

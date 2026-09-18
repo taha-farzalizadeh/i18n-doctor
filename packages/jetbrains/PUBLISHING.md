@@ -3,16 +3,16 @@
 **Always bump the version before each deploy.** Marketplace rejects uploading
 the same version twice for plugin id `com.i18ndoctor.jetbrains`.
 
-Current release version: **0.11.13** (keep these in sync):
+Current release version: **0.11.14** (keep these in sync):
 
 | File | Field |
 | --- | --- |
-| `gradle.properties` | `pluginVersion=0.11.13` |
-| `package.json` | `"version": "0.11.13"` |
+| `gradle.properties` | `pluginVersion=0.11.14` |
+| `package.json` | `"version": "0.11.14"` |
 | `src/main/resources/META-INF/plugin.xml` | `<change-notes>` for that version |
-| Root / package READMEs | `Beta — v0.11.13` where shown |
+| Root / package READMEs | `Beta — v0.11.14` where shown |
 
-Next publish → **0.11.14** (or higher).
+Next publish → **0.11.15** (or higher).
 
 Listing text: **[MARKETPLACE.md](./MARKETPLACE.md)**
 

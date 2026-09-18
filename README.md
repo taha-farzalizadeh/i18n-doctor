@@ -1,6 +1,6 @@
 # i18n-doctor
 
-> **Beta — v0.11.13**
+> **Beta — v0.11.14**
 > This is an early release. APIs may change, edge cases exist, and your feedback matters. See [Contributing](#contributing) to help shape the project.
 
 Static localization analysis for JavaScript and TypeScript projects. Finds unused, missing, and duplicate translation keys — and hardcoded UI text that never goes through translation — without executing your code.
@@ -398,6 +398,15 @@ If something doesn't work on your project, please open an issue. That's exactly 
 ---
 
 ## Changelog (recent)
+
+### 0.11.14 — route titles, enum for-in, spread-origin underlines (2026-09)
+
+All user-facing packages and IDE plugins ship as **0.11.14**.
+
+- Browser-tab titles via `getRouteParam(..., "title")` from `*Route` modules (including nested `settings`/`children`)
+- `for…in` `t(key)` over API maps keyed by string enums without inventing missing keys
+- Spread-imported catalog keys (`…settingFa`) underline the origin file, not the spreader
+- Static catalog string concat (`"a" + "b"`) in JS/TS sources
 
 ### 0.11.13 — live unused-key updates + broader usage detection (2026-09)
 

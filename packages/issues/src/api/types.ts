@@ -112,6 +112,11 @@ export interface UsageFact {
   readonly namespaceResolved?: boolean;
   readonly library?: string;
   readonly confidence?: number;
+  /**
+   * When true, counts toward unused-key suppression but not missing-key.
+   * Used for inferred for-in / API-map enum key sets.
+   */
+  readonly suppressUnusedOnly?: boolean;
 }
 
 /**
@@ -134,6 +139,8 @@ export interface DynamicUsageFact {
   readonly prefixes: readonly string[];
   readonly suffixes: readonly string[];
   readonly contains: readonly string[];
+  /** Softens all unused keys in the matched namespace(s). */
+  readonly coversNamespace?: boolean;
 }
 
 /** Hardcoded UI text that is not passed through a translation helper. */

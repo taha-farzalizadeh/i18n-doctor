@@ -67,6 +67,7 @@ export function usageFromTranslationUsage(usage: TranslationUsage): UsageFact {
       : {}),
     library: usage.library,
     confidence: usage.confidence,
+    ...(usage.suppressUnusedOnly ? { suppressUnusedOnly: true } : {}),
   };
 }
 
@@ -96,6 +97,7 @@ export function dynamicUsageFromTranslation(
     prefixes: usage.prefixes,
     suffixes: usage.suffixes,
     contains: usage.contains,
+    ...(usage.coversNamespace ? { coversNamespace: true } : {}),
   };
 }
 

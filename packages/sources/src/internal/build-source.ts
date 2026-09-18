@@ -80,7 +80,9 @@ export function buildSourceFromEntries(input: {
   const keys: TranslationKeyDefinition[] = input.entries.map((entry) => ({
     key: entry.key,
     value: entry.value,
-    filePath: input.filePath,
+    // Prefer the origin module for spread-imported keys so unused/missing
+    // underlines land on the defining file, not the `...spread` consumer.
+    filePath: entry.filePath ?? input.filePath,
     location: entry.location,
     ...(locale ? { locale } : {}),
     ...(namespace ? { namespace } : {}),
