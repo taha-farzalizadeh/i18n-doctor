@@ -46,6 +46,51 @@ describe("issue engine — unused key", () => {
     expect(result.issues).toHaveLength(0);
   });
 
+  it("treats shared catalog file keys as used across namespaces", () => {
+    // settings/en.ts defines CANCEL; map spreads it into mapComponent.
+    // Usage under settings must clear unused for both namespaces.
+    const result = createIssueEngine().analyze({
+      root: ROOT,
+      definitions: [
+        def("CANCEL", "src/settings/i18n/en.ts", 20, {
+          locale: "en",
+          namespace: "settings",
+        }),
+        def("CANCEL", "src/settings/i18n/en.ts", 20, {
+          locale: "en",
+          namespace: "mapComponent",
+        }),
+        def("ONLY_MAP", "src/settings/i18n/en.ts", 99, {
+          locale: "en",
+          namespace: "mapComponent",
+        }),
+        def("OTHER_CANCEL", "src/etl/i18n/en.ts", 10, {
+          locale: "en",
+          namespace: "etl",
+        }),
+      ],
+      usages: [
+        use("CANCEL", "src/Settings.tsx", 12, { namespace: "settings" }),
+      ],
+    });
+
+    const unused = result.issues.filter((i) => i.type === "unused-key");
+    expect(unused.map((i) => `${i.source.namespace}:${i.key}`).sort()).toEqual([
+      "etl:OTHER_CANCEL",
+      "mapComponent:ONLY_MAP",
+    ]);
+    expect(
+      unused.some(
+        (i) => i.key === "CANCEL" && i.source.namespace === "mapComponent",
+      ),
+    ).toBe(false);
+    expect(
+      unused.some(
+        (i) => i.key === "CANCEL" && i.source.namespace === "settings",
+      ),
+    ).toBe(false);
+  });
+
   it("suppressUnusedOnly usages clear unused without creating missing", () => {
     const result = createIssueEngine().analyze({
       root: ROOT,

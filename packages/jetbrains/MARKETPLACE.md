@@ -106,7 +106,7 @@ Marketplace accepts HTML. Copy everything between the markers:
   <li>CLI: <code>npx i18n-doctor check</code></li>
 </ul>
 
-<p><i>Beta v0.11.14 — please report issues on GitHub.</i></p>
+<p><i>Beta v0.11.15 — please report issues on GitHub.</i></p>
 <!-- END MARKETPLACE DESCRIPTION -->
 ```
 
@@ -160,6 +160,18 @@ Capture from `npm run runIde -w i18n-doctor-jetbrains` + `examples/demo-project`
 
 - Use channel **default** for public releases.
 - Use channel **eap** only if you intentionally ship pre-releases.
+
+## Change notes (0.11.15)
+
+```html
+<h3>0.11.15</h3>
+<p>Shared catalog modules no longer report unused keys when another namespace uses the same source file.</p>
+<ul>
+  <li>Keys defined once and spread/registered under multiple namespaces count as used if any sibling namespace references them</li>
+  <li>npm / ESLint / language-server / JetBrains / VS Code all at <b>0.11.15</b></li>
+  <li>Rebundled language server @ 0.11.15</li>
+</ul>
+```
 
 ## Change notes (0.11.14)
 

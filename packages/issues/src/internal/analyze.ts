@@ -19,7 +19,7 @@ import {
   resolveUsageNamespaces,
   type MatchContext,
 } from "./identity.js";
-import { definitionToLocation, usageToLocation } from "./location.js";
+import { definitionToLocation, toPosixPath, usageToLocation } from "./location.js";
 
 const DEFAULT_SEVERITIES = {
   unusedKey: "warning" as IssueSeverity,
@@ -173,6 +173,11 @@ function findUnusedKeys(
   dynamicUsages: readonly DynamicUsageFact[],
   options: NormalizedOptions,
 ): Issue[] {
+  // Keys that live in one catalog file but are registered under several
+  // namespaces (e.g. settings/en.ts spread into mapComponent) share an origin.
+  // A usage in any of those namespaces counts for all of them.
+  const siblingNamespacesByOrigin = buildSiblingNamespacesByOrigin(definitions);
+
   const byLogical = new Map<string, DefinitionFact[]>();
   for (const def of definitions) {
     const logical = logicalDefinitionKey(def, options.matchNamespace);
@@ -184,14 +189,32 @@ function findUnusedKeys(
   const issues: Issue[] = [];
   for (const [, defs] of byLogical) {
     const isUsed = usages.some((usage) =>
-      defs.some((def) => definitionMatchesUsage(def, usage, options.match)),
+      defs.some(
+        (def) =>
+          definitionMatchesUsage(def, usage, options.match) ||
+          definitionMatchesSharedOriginUsage(
+            def,
+            usage,
+            options.match,
+            siblingNamespacesByOrigin,
+          ),
+      ),
     );
     if (isUsed) {
       continue;
     }
 
     const dynamicHits = dynamicUsages.filter((dyn) =>
-      defs.some((def) => definitionMatchesDynamicUsage(def, dyn, options.match)),
+      defs.some(
+        (def) =>
+          definitionMatchesDynamicUsage(def, dyn, options.match) ||
+          definitionMatchesSharedOriginDynamic(
+            def,
+            dyn,
+            options.match,
+            siblingNamespacesByOrigin,
+          ),
+      ),
     );
 
     // One issue per definition site so every locale/catalog file that carries
@@ -248,6 +271,84 @@ function findUnusedKeys(
     }
   }
   return issues;
+}
+
+/**
+ * Index namespaces that define the same key at the same catalog site
+ * (shared modules / object spreads into another namespace).
+ * Origin includes line so separate namespaces inside one `resources` map
+ * (common.SAVE vs orphan.SAVE) are not treated as siblings.
+ */
+function buildSiblingNamespacesByOrigin(
+  definitions: readonly DefinitionFact[],
+): ReadonlyMap<string, ReadonlySet<string>> {
+  const map = new Map<string, Set<string>>();
+  for (const def of definitions) {
+    if (!def.namespace) continue;
+    const origin = sharedOriginId(def);
+    const set = map.get(origin) ?? new Set<string>();
+    set.add(def.namespace);
+    if (def.namespaces) {
+      for (const ns of def.namespaces) set.add(ns);
+    }
+    map.set(origin, set);
+  }
+  return map;
+}
+
+function sharedOriginId(def: DefinitionFact): string {
+  return `${toPosixPath(def.relativePath)}\u0000${def.line}\u0000${def.column}\u0000${def.key}`;
+}
+
+/**
+ * Unused-only: a usage in any namespace that shares this catalog site+key
+ * counts (settings usage covers mapComponent when map spreads settings).
+ */
+function definitionMatchesSharedOriginUsage(
+  definition: DefinitionFact,
+  usage: UsageFact,
+  ctx: MatchContext,
+  siblingNamespacesByOrigin: ReadonlyMap<string, ReadonlySet<string>>,
+): boolean {
+  if (!ctx.matchNamespace || !definition.namespace) return false;
+  if (definition.key !== usage.key) return false;
+  const siblings = siblingNamespacesByOrigin.get(sharedOriginId(definition));
+  if (!siblings || siblings.size < 2) return false;
+  const usageNamespaces = resolveUsageNamespaces(usage, ctx);
+  return usageNamespaces.some((ns) => siblings.has(ns));
+}
+
+function definitionMatchesSharedOriginDynamic(
+  definition: DefinitionFact,
+  dynamic: DynamicUsageFact,
+  ctx: MatchContext,
+  siblingNamespacesByOrigin: ReadonlyMap<string, ReadonlySet<string>>,
+): boolean {
+  if (!ctx.matchNamespace || !definition.namespace) return false;
+  if (dynamic.coversNamespace) {
+    // covered below via sibling namespaces
+  } else if (!keyMatchesDynamicFragments(definition.key, dynamic)) {
+    return false;
+  }
+  const siblings = siblingNamespacesByOrigin.get(sharedOriginId(definition));
+  if (!siblings || siblings.size < 2) return false;
+  const namespaces = resolveUsageNamespaces(
+    {
+      key: definition.key,
+      absolutePath: dynamic.absolutePath,
+      relativePath: dynamic.relativePath,
+      line: dynamic.line,
+      column: dynamic.column,
+      ...(dynamic.namespace !== undefined
+        ? { namespace: dynamic.namespace }
+        : {}),
+      ...(dynamic.namespaces !== undefined
+        ? { namespaces: dynamic.namespaces }
+        : {}),
+    },
+    ctx,
+  );
+  return namespaces.some((ns) => siblings.has(ns));
 }
 
 function definitionMatchesDynamicUsage(
