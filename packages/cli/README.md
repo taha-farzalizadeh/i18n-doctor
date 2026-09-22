@@ -1,9 +1,14 @@
 # @i18n-doctor/cli
 
-> **Beta — v0.11.15** · [GitHub](https://github.com/taha-farzalizadeh/i18n-doctor) · [Issues](https://github.com/taha-farzalizadeh/i18n-doctor/issues)
+> **Beta — v0.11.16** · [GitHub](https://github.com/taha-farzalizadeh/i18n-doctor) · [Issues](https://github.com/taha-farzalizadeh/i18n-doctor/issues)
 
 Static localization analysis for JavaScript and TypeScript projects.  
 Finds **unused**, **missing**, **duplicate** translation keys, and **untranslated** hardcoded UI text — without executing your code.
+
+## What's new in 0.11.16
+
+- Vite / Windows: resolve path aliases from `tsconfig.app.json` and `extends`
+- Cross-file `schema(t)` namespace flow works with Windows path separators and casing
 
 ## What's new in 0.11.15
 

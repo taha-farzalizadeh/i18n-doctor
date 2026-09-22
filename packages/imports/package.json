@@ -1,6 +1,6 @@
 {
   "name": "@i18n-doctor/imports",
-  "version": "0.10.2",
+  "version": "0.10.3",
   "description": "Cross-file import/export resolution and module graph for static analysis",
   "type": "module",
   "exports": {

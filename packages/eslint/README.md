@@ -1,9 +1,13 @@
 # @i18n-doctor/eslint-plugin
 
-> **Beta — v0.11.15** (same version as CLI / language-server / IDE plugins)
+> **Beta — v0.11.16** (same version as CLI / language-server / IDE plugins)
 
 ESLint plugin that surfaces **i18n-doctor** findings in the editor and CI using the
 **same analyzer** as the CLI and language server.
+
+### What's new in 0.11.16
+
+- Same analyzer as CLI **0.11.16**: Vite `tsconfig.app.json` aliases + Windows path linking for `schema(t)` / spreads
 
 ### What's new in 0.11.15
 

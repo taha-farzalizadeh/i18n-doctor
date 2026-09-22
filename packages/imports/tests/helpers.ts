@@ -13,6 +13,8 @@ export function virtualProject(
   options: {
     aliases?: Record<string, string>;
     tsconfig?: string;
+    /** Extra config files keyed by relative path (e.g. tsconfig.app.json). */
+    configFiles?: Record<string, string>;
     rootName?: string;
   } = {},
 ): {
@@ -31,6 +33,11 @@ export function virtualProject(
   }
   if (options.tsconfig !== undefined) {
     store.set(path.resolve(root, "tsconfig.json"), options.tsconfig);
+  }
+  if (options.configFiles) {
+    for (const [rel, content] of Object.entries(options.configFiles)) {
+      store.set(path.resolve(root, rel), content);
+    }
   }
 
   const resolver = createImportResolver({

@@ -1,11 +1,16 @@
 # @i18n-doctor/language-server
 
-> **Beta — v0.11.15** (same version as CLI / ESLint / IDE plugins)
+> **Beta — v0.11.16** (same version as CLI / ESLint / IDE plugins)
 
 Live i18n diagnostics plus **Go to Translation**, **Hover**, and **Completion**
 in any LSP-compatible editor. The server is an adapter: it translates
 i18n-doctor analysis into LSP features and does no independent parsing of its
 own.
+
+### What's new in 0.11.16
+
+- Vite `tsconfig.app.json` / `extends` path aliases; Windows path linking for translator factories
+- `SERVER_VERSION` is **0.11.16**.
 
 ### What's new in 0.11.15
 

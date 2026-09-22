@@ -106,7 +106,7 @@ Marketplace accepts HTML. Copy everything between the markers:
   <li>CLI: <code>npx i18n-doctor check</code></li>
 </ul>
 
-<p><i>Beta v0.11.15 — please report issues on GitHub.</i></p>
+<p><i>Beta v0.11.16 — please report issues on GitHub.</i></p>
 <!-- END MARKETPLACE DESCRIPTION -->
 ```
 
@@ -160,6 +160,19 @@ Capture from `npm run runIde -w i18n-doctor-jetbrains` + `examples/demo-project`
 
 - Use channel **default** for public releases.
 - Use channel **eap** only if you intentionally ship pre-releases.
+
+## Change notes (0.11.16)
+
+```html
+<h3>0.11.16</h3>
+<p>Fewer false unused/missing reports on Windows and Vite path-alias projects.</p>
+<ul>
+  <li>Resolve aliases from <code>tsconfig.app.json</code> and <code>extends</code></li>
+  <li>Cross-file <code>schema(t)</code> namespace linking with Windows paths</li>
+  <li>npm / ESLint / language-server / JetBrains / VS Code all at <b>0.11.16</b></li>
+  <li>Rebundled language server @ 0.11.16</li>
+</ul>
+```
 
 ## Change notes (0.11.15)
 

@@ -17,6 +17,10 @@ const aliasCache = new Map<string, AliasPathMap | undefined>();
 
 export function setModuleResolveRoot(root: string | undefined): void {
   activeRoot = root;
+  // Root change must not reuse another project's path map.
+  if (root === undefined) {
+    aliasCache.clear();
+  }
 }
 
 export function getActiveRoot(): string | undefined {
@@ -25,52 +29,111 @@ export function getActiveRoot(): string | undefined {
 
 function aliasesForRoot(root: string | undefined): AliasPathMap | undefined {
   if (!root) return undefined;
-  if (!aliasCache.has(root)) {
-    aliasCache.set(root, loadAliasPathMap(root));
+  const key = path.resolve(root);
+  if (!aliasCache.has(key)) {
+    aliasCache.set(key, loadAliasPathMap(key));
   }
-  return aliasCache.get(root);
+  return aliasCache.get(key);
 }
 
+const TSCONFIG_CANDIDATES = [
+  "tsconfig.json",
+  "tsconfig.app.json",
+  "tsconfig.web.json",
+  "jsconfig.json",
+] as const;
+
+/**
+ * Load baseUrl + paths, preferring a config that actually defines aliases.
+ * Follows `extends` so Vite `tsconfig.json` → `tsconfig.app.json` works.
+ */
 export function loadAliasPathMap(root: string): AliasPathMap | undefined {
-  const candidates = [
-    path.join(root, "tsconfig.json"),
-    path.join(root, "tsconfig.app.json"),
-    path.join(root, "jsconfig.json"),
-  ];
-  for (const configPath of candidates) {
-    let text: string;
-    try {
-      text = fs.readFileSync(configPath, "utf8");
-    } catch {
-      continue;
+  let fallback: AliasPathMap | undefined;
+  for (const name of TSCONFIG_CANDIDATES) {
+    const configPath = path.join(root, name);
+    const loaded = loadTsconfigAliasMap(configPath);
+    if (!loaded) continue;
+    if (loaded.paths.size > 0) {
+      return loaded;
     }
-    const json = parseJsonc(text);
-    if (!json || typeof json !== "object") continue;
-    const opts = (json as { compilerOptions?: Record<string, unknown> })
-      .compilerOptions;
-    if (!opts || typeof opts !== "object") continue;
+    fallback ??= loaded;
+  }
+  return fallback;
+}
 
-    const configDir = path.dirname(configPath);
-    const baseUrl =
-      typeof opts.baseUrl === "string"
-        ? path.resolve(configDir, opts.baseUrl)
-        : configDir;
+function loadTsconfigAliasMap(
+  configPath: string,
+  seen: Set<string> = new Set(),
+): AliasPathMap | undefined {
+  const normalized = path.normalize(configPath);
+  if (seen.has(normalized)) return undefined;
+  seen.add(normalized);
 
-    const paths = new Map<string, readonly string[]>();
-    if (opts.paths && typeof opts.paths === "object") {
-      for (const [pattern, targets] of Object.entries(
-        opts.paths as Record<string, unknown>,
-      )) {
-        if (
-          Array.isArray(targets) &&
-          targets.every((t) => typeof t === "string")
-        ) {
-          paths.set(pattern, targets as string[]);
-        }
+  let text: string;
+  try {
+    text = fs.readFileSync(normalized, "utf8");
+  } catch {
+    return undefined;
+  }
+  const json = parseJsonc(text);
+  if (!json || typeof json !== "object") return undefined;
+
+  const configDir = path.dirname(normalized);
+  const record = json as {
+    extends?: unknown;
+    compilerOptions?: unknown;
+  };
+
+  let parent: AliasPathMap | undefined;
+  if (typeof record.extends === "string" && record.extends.length > 0) {
+    const parentPath = resolveExtendsPath(configDir, record.extends);
+    if (parentPath) {
+      parent = loadTsconfigAliasMap(parentPath, seen);
+    }
+  }
+
+  const opts =
+    record.compilerOptions && typeof record.compilerOptions === "object"
+      ? (record.compilerOptions as {
+          baseUrl?: unknown;
+          paths?: unknown;
+        })
+      : undefined;
+
+  const baseUrl =
+    opts && typeof opts.baseUrl === "string"
+      ? path.resolve(configDir, opts.baseUrl)
+      : (parent?.baseUrl ?? configDir);
+
+  const paths = new Map<string, readonly string[]>(parent?.paths ?? []);
+  if (opts?.paths && typeof opts.paths === "object") {
+    for (const [pattern, targets] of Object.entries(
+      opts.paths as Record<string, unknown>,
+    )) {
+      if (
+        Array.isArray(targets) &&
+        targets.every((t) => typeof t === "string")
+      ) {
+        paths.set(pattern, targets as string[]);
       }
     }
-    return { baseUrl, paths };
   }
+  return { baseUrl, paths };
+}
+
+function resolveExtendsPath(
+  configDir: string,
+  extendsSpec: string,
+): string | undefined {
+  if (!extendsSpec.startsWith(".") && !path.isAbsolute(extendsSpec)) {
+    return undefined;
+  }
+  const abs = path.isAbsolute(extendsSpec)
+    ? extendsSpec
+    : path.resolve(configDir, extendsSpec);
+  const withJson = abs.endsWith(".json") ? abs : `${abs}.json`;
+  if (fs.existsSync(withJson)) return withJson;
+  if (fs.existsSync(abs)) return abs;
   return undefined;
 }
 
@@ -84,10 +147,11 @@ export function resolveModuleSpec(
   root: string | undefined = activeRoot,
   aliases: AliasPathMap | undefined = aliasesForRoot(root),
 ): readonly string[] {
+  const fromRel = normalizeRel(fromFileRel);
+
   if (moduleSpec.startsWith(".")) {
-    const fromDir = fromFileRel.includes("/")
-      ? fromFileRel.slice(0, fromFileRel.lastIndexOf("/"))
-      : "";
+    const slash = fromRel.lastIndexOf("/");
+    const fromDir = slash >= 0 ? fromRel.slice(0, slash) : "";
     const joined = fromDir ? `${fromDir}/${moduleSpec}` : moduleSpec;
     return [normalizeRel(joined)];
   }
@@ -145,6 +209,27 @@ export function moduleFileCandidates(base: string): readonly string[] {
     `${normalized}/index.tsx`,
     `${normalized}/index.js`,
   ];
+}
+
+/**
+ * Look up an index entry by file#name, with Windows-friendly case folding
+ * when the exact key misses (Git checkout casing vs path.resolve).
+ */
+export function findIndexKey<T>(
+  index: ReadonlyMap<string, T>,
+  fileRel: string,
+  name: string,
+): { key: string; value: T } | undefined {
+  const exact = `${normalizeRel(fileRel)}#${name}`;
+  const hit = index.get(exact);
+  if (hit !== undefined) return { key: exact, value: hit };
+
+  if (process.platform !== "win32") return undefined;
+  const needle = exact.toLowerCase();
+  for (const [key, value] of index) {
+    if (key.toLowerCase() === needle) return { key, value };
+  }
+  return undefined;
 }
 
 function matchPattern(specifier: string, pattern: string): string | undefined {

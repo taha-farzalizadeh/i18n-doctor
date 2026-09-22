@@ -24,6 +24,7 @@ import { allStringEnumValues } from "./enum-values.js";
 import type { HelperReturnIndex } from "./helper-returns.js";
 import { resolveHelperCallKeys } from "./helper-returns.js";
 import {
+  findIndexKey,
   getActiveRoot,
   resolveImportedFileCandidates,
 } from "./module-path.js";
@@ -833,8 +834,8 @@ function keysFromImport(
     relativePath,
     modulePath,
   )) {
-    const hit = index.get(indexKey(candidate, name));
-    const keys = hit?.get(propName);
+    const hit = findIndexKey(index, candidate, name);
+    const keys = hit?.value.get(propName);
     if (keys && keys.length > 0) return keys;
   }
   return [];

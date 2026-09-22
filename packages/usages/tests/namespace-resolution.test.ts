@@ -331,6 +331,46 @@ export function Drawer() {
     expect(u?.namespaceResolved).toBe(true);
   });
 
+  it("resolves path aliases when paths live only in tsconfig.app.json", async () => {
+    const root = await fixture({
+      "package.json": JSON.stringify({
+        dependencies: { "react-i18next": "14.0.0", i18next: "23.0.0" },
+      }),
+      "tsconfig.json": JSON.stringify({
+        files: [],
+        references: [{ path: "./tsconfig.app.json" }],
+      }),
+      "tsconfig.app.json": JSON.stringify({
+        compilerOptions: {
+          baseUrl: ".",
+          paths: { "app/*": ["./src/app/*"] },
+        },
+      }),
+      "src/app/pages/datasets/validation.ts": `
+import type { TFunction } from 'i18next';
+export const schema = (t: TFunction) => ({
+  required: t("THIS_FIELD_IS_REQUIRED"),
+});
+`,
+      "src/app/pages/datasets/FilterDrawer.tsx": `
+import { useTranslation } from 'react-i18next';
+import { schema } from 'app/pages/datasets/validation';
+export function FilterDrawer() {
+  const { t } = useTranslation('datasets');
+  schema(t);
+  return null;
+}
+`,
+    });
+    const catalog = await createUsageDetector().detect({
+      root,
+      useDetection: false,
+    });
+    const u = catalog.usages.find((x) => x.key === "THIS_FIELD_IS_REQUIRED");
+    expect(u?.namespace).toBe("datasets");
+    expect(u?.namespaceResolved).toBe(true);
+  });
+
   it("resolves store/object method translator params (odsDownload)", async () => {
     const root = await fixture({
       "package.json": JSON.stringify({

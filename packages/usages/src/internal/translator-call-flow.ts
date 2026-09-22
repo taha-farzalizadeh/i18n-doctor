@@ -13,6 +13,7 @@ import ts from "typescript";
 import type { FileBindingTable } from "../api/types.js";
 import { resolveTFunction } from "./bindings.js";
 import {
+  findIndexKey,
   resolveImportedFileCandidates,
 } from "./module-path.js";
 import { indexKey } from "./object-array-props.js";
@@ -297,7 +298,8 @@ export function namespacesForLocalCallable(
   name: string,
   callSites: TranslatorCallSiteNamespaces,
 ): readonly string[] | undefined {
-  return callSites.get(indexKey(normalizeRel(relativePath), name));
+  const hit = findIndexKey(callSites, relativePath, name);
+  return hit?.value;
 }
 
 function bindingNamespaces(binding: {
@@ -479,8 +481,8 @@ function resolveCallableKeys(
   index: TranslatorCallableIndex,
   aliases?: StoreSelectorAliasIndex,
 ): readonly string[] {
-  const localKey = indexKey(normalizeRel(relativePath), localName);
-  if (index.has(localKey)) return [localKey];
+  const localHit = findIndexKey(index, relativePath, localName);
+  if (localHit) return [localHit.key];
 
   const modulePath = findImportModulePath(localName, sourceFile);
   if (modulePath) {
@@ -489,8 +491,8 @@ function resolveCallableKeys(
       relativePath,
       modulePath,
     )) {
-      const key = indexKey(candidate, localName);
-      if (index.has(key)) keys.push(key);
+      const hit = findIndexKey(index, candidate, localName);
+      if (hit && !keys.includes(hit.key)) keys.push(hit.key);
     }
     if (keys.length > 0) return keys;
   }
@@ -507,8 +509,13 @@ function resolveCallableKeys(
   const fallback: string[] = [];
   for (const name of namesToFind) {
     const suffix = `#${name}`;
+    const lowerSuffix = suffix.toLowerCase();
     for (const key of index.keys()) {
-      if (key.endsWith(suffix) && !fallback.includes(key)) fallback.push(key);
+      const matches =
+        key.endsWith(suffix) ||
+        (process.platform === "win32" &&
+          key.toLowerCase().endsWith(lowerSuffix));
+      if (matches && !fallback.includes(key)) fallback.push(key);
     }
   }
   return fallback;

@@ -201,6 +201,65 @@ describe("files / path resolution", () => {
     expect(result.resolvedRelativePath).toBe("src/keys.ts");
   });
 
+  it("resolves paths from tsconfig.app.json via extends (Vite layout)", () => {
+    const { resolver, graph, abs } = virtualProject(
+      {
+        "src/app/pages/wp/utils.ts": `export const TITLE = "wp.title";\n`,
+        "src/app/pages/wp/Drawer.tsx": `import { TITLE } from "app/pages/wp/utils";\n`,
+      },
+      {
+        tsconfig: JSON.stringify({
+          files: [],
+          references: [{ path: "./tsconfig.app.json" }],
+        }),
+        configFiles: {
+          "tsconfig.app.json": JSON.stringify({
+            compilerOptions: {
+              baseUrl: ".",
+              paths: { "app/*": ["./src/app/*"] },
+            },
+          }),
+        },
+      },
+    );
+    const result = resolver.resolveSymbol({
+      graph,
+      filePath: abs("src/app/pages/wp/Drawer.tsx"),
+      identifier: "TITLE",
+    });
+    expect(result.unresolved).toBe(false);
+    expect(result.resolvedRelativePath).toBe("src/app/pages/wp/utils.ts");
+  });
+
+  it("resolves paths when root tsconfig only extends app config", () => {
+    const { resolver, graph, abs } = virtualProject(
+      {
+        "src/keys.ts": `export const LOGIN = "auth.login";\n`,
+        "src/app.ts": `import { LOGIN } from "@/keys";\n`,
+      },
+      {
+        tsconfig: JSON.stringify({
+          extends: "./tsconfig.app.json",
+        }),
+        configFiles: {
+          "tsconfig.app.json": JSON.stringify({
+            compilerOptions: {
+              baseUrl: ".",
+              paths: { "@/*": ["src/*"] },
+            },
+          }),
+        },
+      },
+    );
+    const result = resolver.resolveSymbol({
+      graph,
+      filePath: abs("src/app.ts"),
+      identifier: "LOGIN",
+    });
+    expect(result.unresolved).toBe(false);
+    expect(result.resolvedRelativePath).toBe("src/keys.ts");
+  });
+
   it("does not resolve bare package names via baseUrl when paths exist", () => {
     const { resolver, abs } = virtualProject(
       {

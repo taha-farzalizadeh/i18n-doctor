@@ -9,15 +9,30 @@ export interface TsconfigPathMap {
   readonly paths: ReadonlyMap<string, readonly string[]>;
 }
 
+const TSCONFIG_CANDIDATES = [
+  "tsconfig.json",
+  "tsconfig.app.json",
+  "tsconfig.web.json",
+  "jsconfig.json",
+] as const;
+
 /**
  * Load baseUrl + paths from a tsconfig.json (JSONC-tolerant).
- * Does not recurse project references.
+ * Follows `extends` (child overrides parent) so Vite-style
+ * `tsconfig.json` → `tsconfig.app.json` projects resolve aliases.
  */
 export function loadTsconfigPaths(
   tsconfigPath: string,
   fsAccess: FsAccess,
+  seen: Set<string> = new Set(),
 ): TsconfigPathMap | undefined {
-  const text = fsAccess.readFile(tsconfigPath);
+  const normalized = path.normalize(tsconfigPath);
+  if (seen.has(normalized)) {
+    return undefined;
+  }
+  seen.add(normalized);
+
+  const text = fsAccess.readFile(normalized);
   if (text === undefined) {
     return undefined;
   }
@@ -25,29 +40,38 @@ export function loadTsconfigPaths(
   if (!json || typeof json !== "object") {
     return undefined;
   }
-  const compilerOptions = (json as { compilerOptions?: unknown })
-    .compilerOptions;
-  if (!compilerOptions || typeof compilerOptions !== "object") {
-    return {
-      configPath: tsconfigPath,
-      baseUrl: path.dirname(tsconfigPath),
-      paths: new Map(),
-    };
-  }
-  const opts = compilerOptions as {
-    baseUrl?: unknown;
-    paths?: unknown;
-  };
-  const configDir = path.dirname(tsconfigPath);
-  const baseUrl =
-    typeof opts.baseUrl === "string"
-      ? path.resolve(configDir, opts.baseUrl)
-      : configDir;
 
-  const paths = new Map<string, readonly string[]>();
-  if (opts.paths && typeof opts.paths === "object") {
+  const configDir = path.dirname(normalized);
+  const record = json as {
+    extends?: unknown;
+    compilerOptions?: unknown;
+  };
+
+  let parent: TsconfigPathMap | undefined;
+  if (typeof record.extends === "string" && record.extends.length > 0) {
+    const parentPath = resolveExtendsPath(configDir, record.extends, fsAccess);
+    if (parentPath) {
+      parent = loadTsconfigPaths(parentPath, fsAccess, seen);
+    }
+  }
+
+  const compilerOptions =
+    record.compilerOptions && typeof record.compilerOptions === "object"
+      ? (record.compilerOptions as {
+          baseUrl?: unknown;
+          paths?: unknown;
+        })
+      : undefined;
+
+  const baseUrl =
+    compilerOptions && typeof compilerOptions.baseUrl === "string"
+      ? path.resolve(configDir, compilerOptions.baseUrl)
+      : (parent?.baseUrl ?? configDir);
+
+  const paths = new Map<string, readonly string[]>(parent?.paths ?? []);
+  if (compilerOptions?.paths && typeof compilerOptions.paths === "object") {
     for (const [pattern, targets] of Object.entries(
-      opts.paths as Record<string, unknown>,
+      compilerOptions.paths as Record<string, unknown>,
     )) {
       if (
         Array.isArray(targets) &&
@@ -58,7 +82,7 @@ export function loadTsconfigPaths(
     }
   }
 
-  return { configPath: tsconfigPath, baseUrl, paths };
+  return { configPath: normalized, baseUrl, paths };
 }
 
 /**
@@ -178,20 +202,46 @@ function parseJsonc(text: string): unknown {
   }
 }
 
+function resolveExtendsPath(
+  configDir: string,
+  extendsSpec: string,
+  fsAccess: FsAccess,
+): string | undefined {
+  // Local / relative extends (./tsconfig.app.json, ../tsconfig.base.json)
+  if (extendsSpec.startsWith(".") || path.isAbsolute(extendsSpec)) {
+    const abs = path.isAbsolute(extendsSpec)
+      ? extendsSpec
+      : path.resolve(configDir, extendsSpec);
+    const withJson = abs.endsWith(".json") ? abs : `${abs}.json`;
+    if (fsAccess.fileExists(withJson)) return withJson;
+    if (fsAccess.fileExists(abs)) return abs;
+    return undefined;
+  }
+
+  // Skip bare npm package extends (e.g. @tsconfig/strict) — not needed for paths.
+  return undefined;
+}
+
+/**
+ * Pick the project tsconfig that best exposes path aliases.
+ * Prefers a config that actually defines `paths` (or inherits them via extends).
+ */
 export function defaultTsconfigPath(
   root: string,
   fsAccess: FsAccess,
 ): string | undefined {
-  const candidates = [
-    path.join(root, "tsconfig.json"),
-    path.join(root, "jsconfig.json"),
-  ];
+  const candidates = TSCONFIG_CANDIDATES.map((name) => path.join(root, name));
+  let fallback: string | undefined;
   for (const candidate of candidates) {
-    if (fsAccess.fileExists(candidate)) {
+    if (!fsAccess.fileExists(candidate)) continue;
+    const loaded = loadTsconfigPaths(candidate, fsAccess);
+    if (!loaded) continue;
+    if (loaded.paths.size > 0) {
       return candidate;
     }
+    fallback ??= candidate;
   }
-  return undefined;
+  return fallback;
 }
 
 export function describePathMap(map: TsconfigPathMap): string {

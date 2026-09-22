@@ -1,6 +1,6 @@
 # i18n-doctor
 
-> **Beta — v0.11.15**
+> **Beta — v0.11.16**
 > This is an early release. APIs may change, edge cases exist, and your feedback matters. See [Contributing](#contributing) to help shape the project.
 
 Static localization analysis for JavaScript and TypeScript projects. Finds unused, missing, and duplicate translation keys — and hardcoded UI text that never goes through translation — without executing your code.
@@ -398,6 +398,14 @@ If something doesn't work on your project, please open an issue. That's exactly 
 ---
 
 ## Changelog (recent)
+
+### 0.11.16 — Windows / Vite path-alias resolution (2026-09)
+
+All user-facing packages and IDE plugins ship as **0.11.16**.
+
+- Load `tsconfig.app.json` and follow `extends` so Vite-style `app/*` / `@core/*` aliases resolve on every machine
+- Harden cross-file `schema(t)` namespace linking when paths use `\` or mixed casing (Windows)
+- Fewer false unused / missing / locale-consistency reports on Windows checkouts
 
 ### 0.11.15 — shared-namespace unused for spread catalogs (2026-09)
 

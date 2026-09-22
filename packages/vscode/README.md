@@ -1,12 +1,18 @@
 # i18n-doctor for VS Code
 
-> **Beta — v0.11.15**
+> **Beta — v0.11.16**
 
 Live i18n diagnostics, **Go to Translation**, **Hover**, and **Completion** in
 VS Code. This extension is an LSP client: it starts the bundled
 [`@i18n-doctor/language-server`](../language-server) over stdio and lets VS Code
 render what the server publishes. It does not parse source, extract keys, or
 decide what is unused.
+
+## What's new in 0.11.16
+
+- Vite / Windows path-alias fixes (fewer false unused/missing on Windows checkouts)
+- **Unified versioning:** npm packages, language-server, and IDE plugins are all **0.11.16**
+- Bundled language server @ 0.11.16
 
 ## What's new in 0.11.15
 
@@ -189,6 +195,7 @@ So a published extension is self-contained.
 
 ### Changelog (recent)
 
+- **0.11.16** — Windows / Vite path-alias resolution
 - **0.11.15** — Shared-namespace unused for spread catalogs
 - **0.11.14** — Route titles, for-in enums, spread-origin underlines
 - **0.11.13** — Live unused-key updates; incremental locale refresh; broader static usages
