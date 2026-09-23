@@ -346,8 +346,17 @@ export function enrichBindingsFromCallSites(
     paramName: string,
     body: ts.Node,
   ): void => {
-    const key = `${fileRel}#${name}`;
-    const namespaces = callSites.get(key);
+    const exact = `${fileRel}#${name}`;
+    let namespaces = callSites.get(exact);
+    if (!namespaces || namespaces.length === 0) {
+      const needle = exact.toLowerCase();
+      for (const [key, value] of callSites) {
+        if (key.toLowerCase() === needle) {
+          namespaces = value;
+          break;
+        }
+      }
+    }
     if (!namespaces || namespaces.length === 0) {
       return;
     }

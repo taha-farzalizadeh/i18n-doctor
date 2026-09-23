@@ -1,6 +1,6 @@
 {
   "name": "@i18n-doctor/usages",
-  "version": "0.11.16",
+  "version": "0.11.17",
   "description": "Translation key usage detection with source locations",
   "type": "module",
   "exports": {
@@ -21,9 +21,9 @@
   },
   "dependencies": {
     "@i18n-doctor/ast": "0.10.2",
-    "@i18n-doctor/detect": "0.10.2",
+    "@i18n-doctor/detect": "0.10.3",
     "@i18n-doctor/resolve": "0.10.2",
-    "@i18n-doctor/scanner": "0.10.2",
+    "@i18n-doctor/scanner": "0.10.3",
     "@i18n-doctor/templates": "0.10.2"
   },
   "devDependencies": {

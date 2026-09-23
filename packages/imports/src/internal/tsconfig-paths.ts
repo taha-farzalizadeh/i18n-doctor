@@ -148,6 +148,10 @@ function applyStar(target: string, star: string): string {
 }
 
 function parseJsonc(text: string): unknown {
+  // Windows editors often save tsconfig.json with a UTF-8 BOM; JSON.parse rejects it.
+  if (text.charCodeAt(0) === 0xfeff) {
+    text = text.slice(1);
+  }
   let out = "";
   let i = 0;
   let inString = false;

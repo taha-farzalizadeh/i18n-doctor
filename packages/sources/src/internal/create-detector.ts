@@ -383,23 +383,28 @@ async function extractRegisteredFiles(input: {
   astEngine: ReturnType<typeof createAstEngine>;
   warnings: CatalogWarning[];
 }): Promise<TranslationSource[]> {
-  const have = new Set(input.existing.map((s) => toPosixPath(s.filePath)));
+  const have = new Set(
+    input.existing.map((s) => fileLookupKey(s.filePath)),
+  );
   const needed = uniqueStrings(
     input.attributions
       .map((a) => toPosixPath(a.relativePath))
-      .filter((p) => !have.has(p)),
+      .filter((p) => !have.has(fileLookupKey(p))),
   );
   if (needed.length === 0) {
     return [];
   }
 
   const byPath = new Map(
-    [...input.snapshot.files()].map((f) => [toPosixPath(f.relativePath), f]),
+    [...input.snapshot.files()].map((f) => [
+      fileLookupKey(f.relativePath),
+      f,
+    ]),
   );
   const out: TranslationSource[] = [];
 
   for (const relativePath of needed) {
-    const file = byPath.get(relativePath);
+    const file = byPath.get(fileLookupKey(relativePath));
     if (!file) {
       input.warnings.push({
         code: "registered-resource-missing",
@@ -455,7 +460,12 @@ function dedupeInlineSources(
 }
 
 function toPosixPath(filePath: string): string {
-  return filePath.split(path.sep).join("/");
+  return filePath.replace(/\\/g, "/");
+}
+
+function fileLookupKey(filePath: string): string {
+  const posix = toPosixPath(filePath);
+  return process.platform === "win32" ? posix.toLowerCase() : posix;
 }
 
 function uniqueStrings(values: readonly string[]): string[] {

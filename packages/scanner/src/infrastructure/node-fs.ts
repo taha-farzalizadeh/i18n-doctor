@@ -73,7 +73,10 @@ export class NodeFileSystem implements FileSystemPort {
   }
 
   async stat(osPath: AbsoluteOsPath): Promise<FsStat> {
-    const st = await fs.lstat(osPath);
+    // `bigint: true` is required on Windows: file indexes are 64-bit and often
+    // exceed Number.MAX_SAFE_INTEGER. Without it, distinct files can share a
+    // rounded `ino` and get false-hardlink-deduped out of the snapshot.
+    const st = await fs.lstat(osPath, { bigint: true });
     let kind: FsStat["kind"] = "other";
     if (st.isSymbolicLink()) {
       kind = "symlink";
@@ -84,11 +87,11 @@ export class NodeFileSystem implements FileSystemPort {
     }
     return {
       kind,
-      size: st.size,
-      mtimeMs: st.mtimeMs,
+      size: bigintStatToNumber(st.size),
+      mtimeMs: bigintStatToNumber(st.mtimeMs),
       device: String(st.dev),
       inode: String(st.ino),
-      mode: st.mode,
+      mode: Number(st.mode),
     };
   }
 
@@ -149,4 +152,9 @@ export function looksBinary(bytes: Uint8Array): boolean {
     }
   }
   return false;
+}
+
+/** Convert bigint fs.stat fields to number for lite metadata (source files fit). */
+function bigintStatToNumber(value: bigint): number {
+  return Number(value);
 }

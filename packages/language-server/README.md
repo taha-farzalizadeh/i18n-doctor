@@ -1,11 +1,16 @@
 # @i18n-doctor/language-server
 
-> **Beta — v0.11.16** (same version as CLI / ESLint / IDE plugins)
+> **Beta — v0.11.17** (same version as CLI / ESLint / IDE plugins)
 
 Live i18n diagnostics plus **Go to Translation**, **Hover**, and **Completion**
 in any LSP-compatible editor. The server is an adapter: it translates
 i18n-doctor analysis into LSP features and does no independent parsing of its
 own.
+
+### What's new in 0.11.17
+
+- Windows scanner: keep distinct sources/locales when file indexes collide (no false hardlink drops)
+- `SERVER_VERSION` is **0.11.17**.
 
 ### What's new in 0.11.16
 

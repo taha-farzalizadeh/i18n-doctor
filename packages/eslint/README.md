@@ -1,9 +1,13 @@
 # @i18n-doctor/eslint-plugin
 
-> **Beta — v0.11.16** (same version as CLI / language-server / IDE plugins)
+> **Beta — v0.11.17** (same version as CLI / language-server / IDE plugins)
 
 ESLint plugin that surfaces **i18n-doctor** findings in the editor and CI using the
 **same analyzer** as the CLI and language server.
+
+### What's new in 0.11.17
+
+- Same analyzer as CLI **0.11.17**: Windows scanner no longer drops distinct files as false hardlinks
 
 ### What's new in 0.11.16
 

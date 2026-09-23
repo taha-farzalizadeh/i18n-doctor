@@ -73,6 +73,7 @@ export async function walkProject(options: WalkerOptions): Promise<WalkResult> {
   const conflicts: PathConflict[] = [];
   const inodeToFileId = new Map<string, FileId>();
   const inodePaths = new Map<string, RelativePosixPath[]>();
+  const unreliableInodes = new Set<string>();
   const caseIndex = new Map<string, RelativePosixPath>();
   const queue = new AsyncQueue(plan.fsConcurrency);
   const visitedInodes = new Set<string>();
@@ -100,6 +101,7 @@ export async function walkProject(options: WalkerOptions): Promise<WalkResult> {
     conflicts,
     inodeToFileId,
     inodePaths,
+    unreliableInodes,
     caseIndex,
     visitedInodes,
     unreadableRoots,
@@ -179,6 +181,8 @@ interface WalkContext {
   conflicts: PathConflict[];
   inodeToFileId: Map<string, FileId>;
   inodePaths: Map<string, RelativePosixPath[]>;
+  /** Inode keys that collided with mismatched size/mtime (synthetic FS ids). */
+  unreliableInodes: Set<string>;
   caseIndex: Map<string, RelativePosixPath>;
   visitedInodes: Set<string>;
   unreadableRoots: RelativePosixPath[];
@@ -302,19 +306,11 @@ async function processChild(
     return;
   }
 
-  if (st.kind !== "file") {
-    return;
+  // Regular files, plus "other" (reparse/cloud placeholders on some mounts)
+  // when the path still looks like a scannable source.
+  if (st.kind === "file" || st.kind === "other") {
+    await addFile(ctx, packageId, childRel, childAbs, st, childAbs, false);
   }
-
-  if (
-    ctx.plan.dotFiles === "prune-dot-dirs" &&
-    isHiddenName(basenamePosix(childRel))
-  ) {
-    // Hidden files are kept only when an ignore negation re-includes them;
-    // still discover them if not ignored.
-  }
-
-  await addFile(ctx, packageId, childRel, childAbs, st, childAbs, false);
 }
 
 async function processSymlink(
@@ -354,10 +350,11 @@ async function processSymlink(
     return;
   }
 
-  const targetInodeKey =
-    targetStat.device && targetStat.inode
-      ? `${targetStat.device}:${targetStat.inode}`
-      : undefined;
+  const targetInodeKey = reliableInodeKey(
+    targetStat.device,
+    targetStat.inode,
+    ctx.unreliableInodes,
+  );
 
   if (targetStat.kind === "directory") {
     if (targetInodeKey && ctx.visitedInodes.has(targetInodeKey)) {
@@ -444,8 +441,7 @@ async function addFile(
   const canonicalRel =
     toRelativePosix(ctx.rootOs, canonicalAbs, ctx.plan.casePolicy) ?? childRel;
   const fileId = asFileId(canonicalRel);
-  const inodeKey =
-    st.device && st.inode ? `${st.device}:${st.inode}` : undefined;
+  const inodeKey = reliableInodeKey(st.device, st.inode, ctx.unreliableInodes);
 
   if (inodeKey) {
     const paths = ctx.inodePaths.get(inodeKey) ?? [];
@@ -454,23 +450,35 @@ async function addFile(
 
     const existingId = ctx.inodeToFileId.get(inodeKey);
     if (existingId !== undefined && existingId !== fileId) {
-      ctx.pathIndex.set(childRel, existingId);
-      const heavy = ctx.heavyById.get(existingId);
-      if (heavy) {
-        ctx.heavyById.set(existingId, {
-          ...heavy,
-          locatorPaths: [...new Set([...heavy.locatorPaths, childRel])],
+      const existing = ctx.filesById.get(existingId);
+      const sameMeta =
+        existing !== undefined &&
+        existing.size === st.size &&
+        existing.mtimeMs === st.mtimeMs;
+      if (sameMeta) {
+        // True hardlink: same device/inode and matching size/mtime.
+        ctx.pathIndex.set(childRel, existingId);
+        const heavy = ctx.heavyById.get(existingId);
+        if (heavy) {
+          ctx.heavyById.set(existingId, {
+            ...heavy,
+            locatorPaths: [...new Set([...heavy.locatorPaths, childRel])],
+          });
+        }
+        ctx.conflicts.push({
+          kind: "duplicate-locator",
+          paths: [asRelativePosixPath(String(existingId)), childRel],
+          canonicalFileId: existingId,
+          message: `Duplicate physical file locator '${childRel}' → '${existingId}'`,
         });
+        return;
       }
-      ctx.conflicts.push({
-        kind: "duplicate-locator",
-        paths: [asRelativePosixPath(String(existingId)), childRel],
-        canonicalFileId: existingId,
-        message: `Duplicate physical file locator '${childRel}' → '${existingId}'`,
-      });
-      return;
+      // Synthetic/colliding inodes (common on VM/network mounts): keep both files.
+      ctx.unreliableInodes.add(inodeKey);
+      ctx.inodeToFileId.delete(inodeKey);
+    } else {
+      ctx.inodeToFileId.set(inodeKey, fileId);
     }
-    ctx.inodeToFileId.set(inodeKey, fileId);
   }
 
   if (ctx.filesById.has(fileId)) {
@@ -531,10 +539,10 @@ function isRevisitedInode(
   inode: string | undefined,
   pathRel: RelativePosixPath,
 ): boolean {
-  if (!device || !inode) {
+  const key = reliableInodeKey(device, inode, ctx.unreliableInodes);
+  if (!key) {
     return false;
   }
-  const key = `${device}:${inode}`;
   if (ctx.visitedInodes.has(key)) {
     ctx.errors.push({
       class: "SymlinkLoop",
@@ -545,6 +553,30 @@ function isRevisitedInode(
   }
   ctx.visitedInodes.add(key);
   return false;
+}
+
+/**
+ * Build a hardlink/cycle key only when the filesystem reports a trustworthy inode.
+ * Defense in depth for mounts that reuse `ino=0`, collide ids, or (historically)
+ * lost precision when Windows 64-bit file indexes were read as JS numbers.
+ */
+function reliableInodeKey(
+  device: string | undefined,
+  inode: string | undefined,
+  unreliable: ReadonlySet<string>,
+): string | undefined {
+  if (!device || !inode) {
+    return undefined;
+  }
+  // Node may stringify missing/synthetic inodes as "0".
+  if (inode === "0") {
+    return undefined;
+  }
+  const key = `${device}:${inode}`;
+  if (unreliable.has(key)) {
+    return undefined;
+  }
+  return key;
 }
 
 function shouldPruneHiddenDir(

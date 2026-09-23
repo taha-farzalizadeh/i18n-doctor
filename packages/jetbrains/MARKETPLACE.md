@@ -106,7 +106,7 @@ Marketplace accepts HTML. Copy everything between the markers:
   <li>CLI: <code>npx i18n-doctor check</code></li>
 </ul>
 
-<p><i>Beta v0.11.16 — please report issues on GitHub.</i></p>
+<p><i>Beta v0.11.17 — please report issues on GitHub.</i></p>
 <!-- END MARKETPLACE DESCRIPTION -->
 ```
 
@@ -160,6 +160,19 @@ Capture from `npm run runIde -w i18n-doctor-jetbrains` + `examples/demo-project`
 
 - Use channel **default** for public releases.
 - Use channel **eap** only if you intentionally ship pre-releases.
+
+## Change notes (0.11.17)
+
+```html
+<h3>0.11.17</h3>
+<p>Fix Windows false unused/missing when distinct files were dropped as fake hardlinks.</p>
+<ul>
+  <li>Preserve sources when Windows 64-bit file indexes collide after JS number rounding</li>
+  <li>Read inodes via <code>bigint</code>; do not hardlink-dedupe when size/mtime differ</li>
+  <li>npm / ESLint / language-server / JetBrains / VS Code all at <b>0.11.17</b></li>
+  <li>Rebundled language server @ 0.11.17</li>
+</ul>
+```
 
 ## Change notes (0.11.16)
 

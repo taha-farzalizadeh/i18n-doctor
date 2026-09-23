@@ -224,7 +224,7 @@ export function findIndexKey<T>(
   const hit = index.get(exact);
   if (hit !== undefined) return { key: exact, value: hit };
 
-  if (process.platform !== "win32") return undefined;
+  // Case-insensitive fallback: Windows + WSL mounts of Windows drives.
   const needle = exact.toLowerCase();
   for (const [key, value] of index) {
     if (key.toLowerCase() === needle) return { key, value };
@@ -268,6 +268,10 @@ function normalizeRel(rel: string): string {
 }
 
 function parseJsonc(text: string): unknown {
+  // Windows editors often save tsconfig.json with a UTF-8 BOM; JSON.parse rejects it.
+  if (text.charCodeAt(0) === 0xfeff) {
+    text = text.slice(1);
+  }
   let out = "";
   let i = 0;
   let inString = false;

@@ -1,6 +1,6 @@
 # @i18n-doctor/usages
 
-> **Beta — v0.11.14** · Part of [i18n-doctor](https://github.com/taha-farzalizadeh/i18n-doctor) — static localization analysis for JavaScript and TypeScript.
+> **Beta — v0.11.17** · Part of [i18n-doctor](https://github.com/taha-farzalizadeh/i18n-doctor) — static localization analysis for JavaScript and TypeScript.
 
 Translation key **usage** detection across React, Vue, Angular, and more — plus
 helpers used by the issue engine:

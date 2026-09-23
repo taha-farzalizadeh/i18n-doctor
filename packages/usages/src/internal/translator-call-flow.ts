@@ -512,9 +512,7 @@ function resolveCallableKeys(
     const lowerSuffix = suffix.toLowerCase();
     for (const key of index.keys()) {
       const matches =
-        key.endsWith(suffix) ||
-        (process.platform === "win32" &&
-          key.toLowerCase().endsWith(lowerSuffix));
+        key.endsWith(suffix) || key.toLowerCase().endsWith(lowerSuffix);
       if (matches && !fallback.includes(key)) fallback.push(key);
     }
   }

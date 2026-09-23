@@ -216,7 +216,7 @@ export function applyResourceAttributions(
   const seenExact = new Set<string>();
 
   for (const attr of sorted) {
-    const fileKey = toPosix(attr.relativePath);
+    const fileKey = fileLookupKey(attr.relativePath);
     const exact = `${fileKey}\0${attr.locale ?? "*"}\0${attr.namespace}`;
     if (seenExact.has(exact)) {
       continue;
@@ -229,7 +229,7 @@ export function applyResourceAttributions(
   }
 
   const next = sources.map((source) => {
-    const attrs = byFile.get(toPosix(source.filePath));
+    const attrs = byFile.get(fileLookupKey(source.filePath));
     if (!attrs || attrs.length === 0) {
       return source;
     }
@@ -734,5 +734,11 @@ function toLoc(loc: {
 }
 
 function toPosix(filePath: string): string {
-  return filePath.split(path.sep).join("/");
+  return filePath.replace(/\\/g, "/");
+}
+
+/** Case-aware file key for Windows (and WSL mounts of Windows drives). */
+function fileLookupKey(filePath: string): string {
+  const posix = toPosix(filePath);
+  return process.platform === "win32" ? posix.toLowerCase() : posix;
 }

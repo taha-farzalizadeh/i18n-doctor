@@ -1,6 +1,6 @@
 # i18n-doctor for JetBrains (WebStorm)
 
-> **Beta — v0.11.16**
+> **Beta — v0.11.17**
 
 Live i18n diagnostics, **Go to Translation**, **Hover**, and **Completion** in
 WebStorm and other JetBrains IDEs that ship the platform LSP API. This plugin is
@@ -8,6 +8,12 @@ a **thin LSP client**: it starts the bundled
 [`@i18n-doctor/language-server`](../language-server) over stdio and lets the IDE
 render LSP results. It does **not** parse source, extract keys, or decide what
 is unused.
+
+## What's new in 0.11.17
+
+- Fix Windows false unused/missing when distinct files were dropped as fake hardlinks
+- **Unified versioning:** npm packages, language-server, and IDE plugins are all **0.11.17**
+- Bundled language server @ 0.11.17
 
 ## What's new in 0.11.16
 
@@ -226,7 +232,7 @@ npm run runIde -w i18n-doctor-jetbrains   # sandboxed WebStorm + demo project
 npm test -w i18n-doctor-jetbrains
 ```
 
-Current release version is **`0.11.16`** — bump it before every Marketplace
+Current release version is **`0.11.17`** — bump it before every Marketplace
 upload (see [PUBLISHING.md](./PUBLISHING.md)). Listing copy:
 [MARKETPLACE.md](./MARKETPLACE.md).
 

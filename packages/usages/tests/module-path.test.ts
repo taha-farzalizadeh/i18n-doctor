@@ -47,6 +47,21 @@ describe("module-path Windows / Vite hardening", () => {
     setModuleResolveRoot(undefined);
   });
 
+  it("loads paths from tsconfig with UTF-8 BOM (Windows editors)", async () => {
+    const root = await fixture({
+      "tsconfig.json":
+        "\uFEFF" +
+        JSON.stringify({
+          compilerOptions: {
+            baseUrl: ".",
+            paths: { "app/*": ["./src/app/*"] },
+          },
+        }),
+    });
+    const map = loadAliasPathMap(root);
+    expect(map?.paths.get("app/*")).toEqual(["./src/app/*"]);
+  });
+
   it("loads paths via extends", async () => {
     const root = await fixture({
       "tsconfig.json": JSON.stringify({ extends: "./tsconfig.app.json" }),
@@ -62,18 +77,13 @@ describe("module-path Windows / Vite hardening", () => {
     expect(map?.paths.get("@/*")).toEqual(["./src/*"]);
   });
 
-  it("findIndexKey matches case-insensitively on win32", () => {
-    const index = new Map([["src/App/Validation.ts#schema", { paramIndex: 0, paramName: "t" }]]);
-    if (process.platform === "win32") {
-      const hit = findIndexKey(index, "src/app/validation.ts", "schema");
-      expect(hit?.key).toBe("src/App/Validation.ts#schema");
-    } else {
-      // On POSIX we only do exact match — ensure no false positive.
-      expect(findIndexKey(index, "src/app/validation.ts", "schema")).toBeUndefined();
-      expect(findIndexKey(index, "src/App/Validation.ts", "schema")?.value.paramName).toBe(
-        "t",
-      );
-    }
+  it("findIndexKey matches case-insensitively", () => {
+    const index = new Map([
+      ["src/App/Validation.ts#schema", { paramIndex: 0, paramName: "t" }],
+    ]);
+    const hit = findIndexKey(index, "src/app/validation.ts", "schema");
+    expect(hit?.key).toBe("src/App/Validation.ts#schema");
+    expect(hit?.value.paramName).toBe("t");
   });
 
   it("resolveModuleSpec joins with posix even when root uses platform sep", async () => {

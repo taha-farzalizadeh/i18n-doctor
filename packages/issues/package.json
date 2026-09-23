@@ -1,6 +1,6 @@
 {
   "name": "@i18n-doctor/issues",
-  "version": "0.10.9",
+  "version": "0.10.10",
   "description": "Issue engine and reporters for unused/missing/duplicate translation keys",
   "type": "module",
   "exports": {
@@ -20,8 +20,8 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@i18n-doctor/sources": "0.10.7",
-    "@i18n-doctor/usages": "0.11.16"
+    "@i18n-doctor/sources": "0.10.8",
+    "@i18n-doctor/usages": "0.11.17"
   },
   "devDependencies": {
     "@types/node": "^22.13.10",
